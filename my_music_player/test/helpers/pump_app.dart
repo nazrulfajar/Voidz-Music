@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_music_player/core/theme/app_theme.dart';
 
@@ -39,14 +40,18 @@ Future<void> pumpApp(
   ThemeMode themeMode = ThemeMode.dark,
   double textScale = 1.0,
   Size surfaceSize = kTestSurfaceSize,
+  List<Override> overrides = const [],
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = surfaceSize;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
+  final app = wrapApp(child, themeMode: themeMode, textScale: textScale);
   await tester.pumpWidget(
-    wrapApp(child, themeMode: themeMode, textScale: textScale),
+    overrides.isEmpty
+        ? app
+        : ProviderScope(overrides: overrides, child: app),
   );
   await tester.pump();
 }
