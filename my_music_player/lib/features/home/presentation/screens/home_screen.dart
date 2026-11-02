@@ -7,6 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -20,16 +22,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  static const List<String> _moods = <String>[
-    'All',
-    'Energize',
-    'Workout',
-    'Relax',
-    'Commute',
-    'Focus',
-    'Podcasts',
-  ];
-
   static const List<double> _waveHeights = <double>[
     40,
     64,
@@ -67,111 +59,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _playTrack(Track track, List<Track> queue) {
     ref.read(playerControllerProvider.notifier).playTrack(track, queue: queue);
-  }
-
-  void _openFilterSheet() {
-    final t = AppColors.of(context);
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: t.panel,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.xxxl)),
-      ),
-      builder: (sheetContext) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final selectedMood = ref.watch(homeMoodProvider);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenInset,
-                  AppSpacing.space4,
-                  AppSpacing.screenInset,
-                  AppSpacing.space6,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 32,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: t.textPrimary,
-                          borderRadius: BorderRadius.circular(AppRadius.handle),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.space4),
-                    Wrap(
-                      spacing: AppSpacing.space2,
-                      runSpacing: AppSpacing.space2,
-                      children: _moods.map((mood) {
-                        final selected = selectedMood == mood;
-                        return ChoiceChip(
-                          label: Text(mood),
-                          selected: selected,
-                          onSelected: (_) {
-                            ref.read(homeMoodProvider.notifier).state = mood;
-                          },
-                          backgroundColor: t.field,
-                          selectedColor: t.raised,
-                          labelStyle: TextStyle(
-                            color: selected ? t.textPrimary : t.textSecondary,
-                            fontWeight:
-                                selected ? FontWeight.w600 : FontWeight.w500,
-                            fontSize: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.full),
-                            side: BorderSide(
-                              color: selected ? t.focusedBorder : t.border,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: AppSpacing.space4),
-                    InkWell(
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        context.push('/settings');
-                      },
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.space3,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.settings_outlined,
-                                color: t.textPrimary, size: 20),
-                            const SizedBox(width: AppSpacing.space3),
-                            Expanded(
-                              child: Text(
-                                'Settings',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(color: t.textPrimary),
-                              ),
-                            ),
-                            Icon(Icons.chevron_right,
-                                color: t.textSecondary, size: 18),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   @override
@@ -218,46 +105,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           AppSpacing.screenInset,
                           AppSpacing.space2,
                         ),
-                        child: SizedBox(
-                          height: 44,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Center(
-                                child: Text(
-                                  _greeting(),
-                                  style:
-                                      theme.textTheme.headlineLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: t.textPrimary,
-                                    fontSize: 28,
-                                  ),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 48),
+                            Expanded(
+                              child: Text(
+                                _greeting(),
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.headlineLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: t.textPrimary,
+                                  fontSize: 28,
                                 ),
                               ),
-                              Positioned(
-                                right: 0,
-                                child: SizedBox(
-                                  width: 44,
-                                  height: 44,
-                                  child: Material(
-                                    color: t.raised,
-                                    shape: CircleBorder(
-                                      side: BorderSide(color: t.border),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: InkWell(
-                                      onTap: _openFilterSheet,
-                                      child: Icon(
-                                        Icons.tune_rounded,
-                                        color: t.textPrimary,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                            AppIconButton(
+                              icon: Icons.settings_outlined,
+                              semanticLabel: 'Settings',
+                              onPressed: () => context.push('/settings'),
+                            ),
+                          ],
                         ),
                       ),
 
@@ -271,7 +138,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             AppSpacing.space2,
                           ),
                           child: Container(
-                            height: 72,
+                            constraints: const BoxConstraints(minHeight: 72),
                             decoration: BoxDecoration(
                               color: t.raised,
                               borderRadius:
@@ -324,11 +191,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               padding: const EdgeInsets.symmetric(
                                 horizontal: AppSpacing.screenInset,
                               ),
-                              child: Text(
-                                'No recently played tracks',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: t.textMuted,
-                                ),
+                              child: AppEmptyState(
+                                icon: Icons.history_rounded,
+                                title: 'No recently played tracks',
+                                actionLabel: 'Search music',
+                                onAction: () => context.go('/search'),
                               ),
                             );
                           }
@@ -347,7 +214,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               horizontal: AppSpacing.screenInset,
                             ),
                             child: Container(
-                              height: 98,
+                              constraints: const BoxConstraints(minHeight: 98),
                               decoration: BoxDecoration(
                                 color: t.field,
                                 borderRadius:
@@ -448,21 +315,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         ),
                                         const SizedBox(
                                             width: AppSpacing.space2),
-                                        GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTap: () =>
-                                              _playTrack(first, tracks),
-                                          child: Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: t.accent,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Icon(
-                                              Icons.play_arrow_rounded,
-                                              color: t.onAccent,
-                                              size: 24,
+                                        Semantics(
+                                          button: true,
+                                          label: 'Play ${first.title}',
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () =>
+                                                _playTrack(first, tracks),
+                                            child: Container(
+                                              width: 48,
+                                              height: 48,
+                                              decoration: BoxDecoration(
+                                                color: t.accent,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                Icons.play_arrow_rounded,
+                                                color: t.onAccent,
+                                                size: 24,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -547,38 +418,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               padding: const EdgeInsets.symmetric(
                                 horizontal: AppSpacing.screenInset,
                               ),
-                              child: Text(
-                                'Nothing to suggest right now',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: t.textMuted,
-                                ),
+                              child: AppEmptyState(
+                                icon: Icons.queue_music_rounded,
+                                title: 'Nothing to suggest right now',
+                                actionLabel: 'Scan device songs',
+                                onAction: () =>
+                                    context.push('/library/device-songs'),
                               ),
                             );
                           }
                           final list = tracks.take(6).toList();
-                          return SizedBox(
-                            height: 181,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.screenInset,
-                              ),
-                              itemCount: list.length,
-                              itemBuilder: (context, index) {
-                                final track = list[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(
-                                    right: AppSpacing.space3,
+                          return SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.screenInset,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (var index = 0;
+                                    index < list.length;
+                                    index++)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      right: AppSpacing.space3,
+                                    ),
+                                    child: _MixCard(
+                                      index: index,
+                                      title: list[index].title,
+                                      artist: list[index].artist,
+                                      onTap: () => _playTrack(
+                                        list[index],
+                                        quickPicksAsync.value ?? list,
+                                      ),
+                                    ),
                                   ),
-                                  child: _MixCard(
-                                    index: index,
-                                    title: track.title,
-                                    artist: track.artist,
-                                    onTap: () => _playTrack(
-                                        track, quickPicksAsync.value ?? list),
-                                  ),
-                                );
-                              },
+                              ],
                             ),
                           );
                         },
@@ -631,7 +506,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   AppSpacing.space2,
                                 ),
                                 child: Container(
-                                  height: 54,
+                                  constraints:
+                                      const BoxConstraints(minHeight: 54),
                                   decoration: BoxDecoration(
                                     color: t.surface,
                                     borderRadius:
@@ -654,6 +530,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: AppSpacing.space3,
+                                          vertical: AppSpacing.space2,
                                         ),
                                         child: Row(
                                           children: [
@@ -704,7 +581,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                               _formatDuration(track.durationMs),
                                               style: theme.textTheme.labelSmall
                                                   ?.copyWith(
-                                                color: t.textMuted,
+                                                color: t.textSecondary,
                                                 fontSize: 11,
                                                 letterSpacing: 0,
                                               ),
@@ -775,7 +652,7 @@ class _QuickCard extends StatelessWidget {
     final t = AppColors.of(context);
     final theme = Theme.of(context);
     return Container(
-      height: 72,
+      constraints: const BoxConstraints(minHeight: 72),
       decoration: BoxDecoration(
         color: t.field,
         borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -857,7 +734,7 @@ class _MixCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       width: 184,
-      height: 181,
+      constraints: const BoxConstraints(minHeight: 181),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(AppRadius.xl),
