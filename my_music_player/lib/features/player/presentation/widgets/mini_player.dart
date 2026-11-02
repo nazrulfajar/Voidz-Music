@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_icon_button.dart';
 import '../providers/player_controller.dart';
 
 /// Mini-player from `docs/DESIGN_SYSTEM.md` §6.1: 66dp, r20, opaque surface,
@@ -46,7 +47,7 @@ class MiniPlayer extends ConsumerWidget {
               if ((details.primaryVelocity ?? 0) < -100) openPlayer();
             },
             child: Container(
-              height: 66,
+              constraints: const BoxConstraints(minHeight: 66),
               decoration: BoxDecoration(
                 color: tokens.miniPlayer,
                 borderRadius: BorderRadius.circular(AppRadius.xxl),
@@ -92,22 +93,28 @@ class MiniPlayer extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      _MiniControl(
+                      AppIconButton(
                         icon: Icons.skip_previous_rounded,
-                        onTap: previous,
-                        tooltip: 'Previous',
+                        semanticLabel: 'Previous',
+                        iconSize: 18,
+                        filled: false,
+                        onPressed: previous,
                       ),
-                      _MiniControl(
+                      AppIconButton(
                         icon: playerState.isPlaying
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
-                        onTap: toggle,
-                        tooltip: playerState.isPlaying ? 'Pause' : 'Play',
+                        semanticLabel: playerState.isPlaying ? 'Pause' : 'Play',
+                        iconSize: 18,
+                        filled: false,
+                        onPressed: toggle,
                       ),
-                      _MiniControl(
+                      AppIconButton(
                         icon: Icons.skip_next_rounded,
-                        onTap: next,
-                        tooltip: 'Next',
+                        semanticLabel: 'Next',
+                        iconSize: 18,
+                        filled: false,
+                        onPressed: next,
                       ),
                       const SizedBox(width: 6),
                     ],
@@ -130,35 +137,6 @@ class MiniPlayer extends ConsumerWidget {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniControl extends StatelessWidget {
-  const _MiniControl({
-    required this.icon,
-    required this.onTap,
-    required this.tooltip,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final String tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppColors.of(context);
-    return SizedBox(
-      width: 38,
-      height: 44,
-      child: Tooltip(
-        message: tooltip,
-        child: InkResponse(
-          onTap: onTap,
-          radius: 20,
-          child: Icon(icon, size: 18, color: tokens.textPrimary),
         ),
       ),
     );
