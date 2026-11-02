@@ -255,7 +255,7 @@ void main() {
       ),
     );
 
-    expect(find.text('1 playlists'), findsOneWidget);
+    expect(find.text('1 playlist'), findsOneWidget);
     expect(find.text('5 songs · 1 hr 32 min'), findsOneWidget);
   });
 
