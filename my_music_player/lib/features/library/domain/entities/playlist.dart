@@ -11,6 +11,11 @@ class Playlist {
   final DateTime updatedAt;
   final List<Track>? tracks;
 
+  /// Sum of [Track.durationMs] for every track in the playlist.
+  ///
+  /// Computed by the repository on read; never persisted.
+  final int totalDurationMs;
+
   Playlist({
     this.id,
     required this.name,
@@ -21,6 +26,7 @@ class Playlist {
     required this.createdAt,
     required this.updatedAt,
     this.tracks,
+    this.totalDurationMs = 0,
   });
 
   Playlist copyWith({
@@ -33,6 +39,7 @@ class Playlist {
     DateTime? createdAt,
     DateTime? updatedAt,
     List<Track>? tracks,
+    int? totalDurationMs,
   }) {
     return Playlist(
       id: id ?? this.id,
@@ -44,6 +51,7 @@ class Playlist {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       tracks: tracks ?? this.tracks,
+      totalDurationMs: totalDurationMs ?? this.totalDurationMs,
     );
   }
 }
