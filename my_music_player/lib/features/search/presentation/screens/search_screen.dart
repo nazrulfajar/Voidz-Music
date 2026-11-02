@@ -138,72 +138,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     AppSpacing.space4,
                     AppSpacing.space2,
                   ),
-                  child: SizedBox(
-                    height: 47,
-                    child: TextField(
-                      controller: _searchController,
-                      enabled: isOnline,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isOnline ? t.textPrimary : t.textMuted,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: isOnline
-                            ? 'Search songs, artists...'
-                            : 'Search unavailable offline',
-                        hintStyle: TextStyle(
-                          fontSize: 14,
-                          color: t.textMuted,
-                        ),
-                        filled: true,
-                        fillColor: t.surface,
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          size: 18,
-                          color: t.textSecondary,
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(
-                                  Icons.close_rounded,
-                                  size: 18,
-                                  color: t.textSecondary,
-                                ),
-                                onPressed: _clearSearch,
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          borderSide: BorderSide(color: t.border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          borderSide: BorderSide(color: t.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          borderSide: BorderSide(color: t.focusedBorder),
-                        ),
-                        disabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          borderSide: BorderSide(color: t.border),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.space4,
-                          vertical: AppSpacing.space3,
-                        ),
-                      ),
-                      onChanged: (_) => setState(() {}),
-                      onSubmitted: (value) {
-                        if (isOnline) {
-                          ref.read(searchQueryProvider.notifier).state = value;
-                        }
-                      },
-                    ),
-                  ),
+                  child: _buildSearchField(isOnline, t),
                 ),
                 SizedBox(
-                  height: 36,
+                  height: 48,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(
@@ -214,34 +152,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         const SizedBox(width: AppSpacing.space2),
                     itemBuilder: (context, index) {
                       final (label, value) = filters[index];
-                      final isActive = currentFilter == value;
-                      return GestureDetector(
+                      return _buildFilterChip(
+                        label: label,
+                        value: value,
+                        selected: currentFilter == value,
+                        tokens: t,
                         onTap: () => ref
                             .read(searchFilterProvider.notifier)
                             .state = value,
-                        child: Container(
-                          height: 29,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                          ),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isActive ? t.raised : t.surface,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            border: Border.all(
-                              color: isActive ? t.focusedBorder : t.border,
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight:
-                                  isActive ? FontWeight.w600 : FontWeight.w500,
-                              color: isActive ? t.textPrimary : t.textSecondary,
-                            ),
-                          ),
-                        ),
                       );
                     },
                   ),
@@ -274,24 +192,30 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                               bottom: AppSpacing.space2,
                                             ),
                                             child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
                                               children: [
-                                                Text(
-                                                  headerLabel(),
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                    letterSpacing: 1.1,
-                                                    color: t.textSecondary,
+                                                Expanded(
+                                                  child: Text(
+                                                    headerLabel(),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      letterSpacing: 1.1,
+                                                      color: t.textSecondary,
+                                                    ),
                                                   ),
+                                                ),
+                                                const SizedBox(
+                                                  width: AppSpacing.space2,
                                                 ),
                                                 Text(
                                                   '${items.length} tracks',
                                                   style: TextStyle(
                                                     fontSize: 11,
-                                                    color: t.textMuted,
+                                                    color: t.textSecondary,
                                                   ),
                                                 ),
                                               ],
@@ -547,44 +471,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   spacing: AppSpacing.space2,
                   runSpacing: AppSpacing.space2,
                   children: history.map((item) {
-                    return Container(
-                      height: 36,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.space3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: t.surface,
-                        borderRadius: BorderRadius.circular(AppRadius.xl),
-                        border: Border.all(color: t.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(searchQueryProvider.notifier)
-                                .state = item.query,
-                            child: Text(
-                              item.query,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: t.textPrimary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.space2),
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(searchHistoryControllerProvider)
-                                .deleteHistory(item.id),
-                            child: Icon(
-                              Icons.close_rounded,
-                              size: 14,
-                              color: t.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
+                    return _buildRecentChip(
+                      query: item.query,
+                      id: item.id,
+                      ref: ref,
+                      tokens: t,
                     );
                   }).toList(),
                 ),
@@ -595,6 +486,234 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildSearchField(bool isOnline, AppColorTokens t) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 47),
+            child: TextField(
+              controller: _searchController,
+              enabled: isOnline,
+              style: TextStyle(
+                fontSize: 14,
+                color: isOnline ? t.textPrimary : t.textMuted,
+              ),
+              decoration: InputDecoration(
+                hintText: isOnline
+                    ? 'Search songs, artists...'
+                    : 'Search unavailable offline',
+                hintStyle: TextStyle(
+                  fontSize: 14,
+                  color: t.textMuted,
+                ),
+                filled: true,
+                fillColor: t.surface,
+                isDense: true,
+                prefixIconConstraints: const BoxConstraints(minWidth: 40),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 8),
+                  child: Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: t.textSecondary,
+                  ),
+                ),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : const SizedBox(width: 48),
+                suffixIconConstraints: const BoxConstraints(minWidth: 48),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: BorderSide(color: t.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: BorderSide(color: t.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: BorderSide(color: t.focusedBorder),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: BorderSide(color: t.border),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.space4,
+                  vertical: AppSpacing.space3,
+                ),
+              ),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (value) {
+                if (isOnline) {
+                  ref.read(searchQueryProvider.notifier).state = value;
+                }
+              },
+            ),
+          ),
+          if (_searchController.text.isNotEmpty)
+            Positioned(
+              right: 0,
+              child: Semantics(
+                container: true,
+                button: true,
+                label: 'Clear search',
+                child: ExcludeSemantics(
+                  child: IconButton(
+                    tooltip: 'Clear search',
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: t.textSecondary,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 48,
+                      height: 48,
+                    ),
+                    onPressed: _clearSearch,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required String value,
+    required bool selected,
+    required AppColorTokens tokens,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: 'Filter $label',
+      excludeSemantics: true,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Center(
+              child: Container(
+                key: ValueKey('search-filter-chip-$value'),
+                constraints: const BoxConstraints(minHeight: 29),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? tokens.raised : tokens.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(
+                    color: selected ? tokens.focusedBorder : tokens.border,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    color: selected ? tokens.textPrimary : tokens.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentChip({
+    required String query,
+    required int id,
+    required WidgetRef ref,
+    required AppColorTokens tokens,
+  }) {
+    return Material(
+      color: tokens.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        side: BorderSide(color: tokens.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Semantics(
+                button: true,
+                label: 'Search $query',
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: () =>
+                      ref.read(searchQueryProvider.notifier).state = query,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        left: AppSpacing.space3,
+                        right: AppSpacing.space2,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          query,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Semantics(
+              container: true,
+              button: true,
+              label: 'Remove $query',
+              child: ExcludeSemantics(
+                child: IconButton(
+                  tooltip: 'Remove $query',
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: tokens.textSecondary,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 48,
+                    height: 48,
+                  ),
+                  onPressed: () => ref
+                      .read(searchHistoryControllerProvider)
+                      .deleteHistory(id),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -880,7 +999,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       _formatDuration(track.durationMs),
                       style: TextStyle(
                         fontSize: 12,
-                        color: t.textMuted,
+                        color: t.textSecondary,
                       ),
                     ),
                 ],

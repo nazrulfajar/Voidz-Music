@@ -42,8 +42,15 @@ class AppIconButton extends StatelessWidget {
       ),
     );
 
-    final labeledButton =
-        tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+    final labeledButton = tooltip == null
+        ? button
+        : Tooltip(
+            message: tooltip!,
+            // The surrounding Semantics widget is the single screen-reader
+            // label; a second Tooltip label would be announced twice.
+            excludeFromSemantics: true,
+            child: button,
+          );
 
     return Semantics(
       button: true,

@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
 import 'package:my_music_player/core/theme/app_theme.dart';
 
+import '../../helpers/pump_app.dart';
+
 void main() {
   group('AppColors', () {
     test('dark palette is monochrome', () {
@@ -86,32 +88,30 @@ void main() {
     testWidgets('AppColors.of resolves tokens from Theme brightness',
         (tester) async {
       late AppColorTokens resolved;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.darkTheme,
-          home: Builder(
-            builder: (context) {
-              resolved = AppColors.of(context);
-              return const SizedBox.shrink();
-            },
-          ),
+      await pumpApp(
+        tester,
+        Builder(
+          builder: (context) {
+            resolved = AppColors.of(context);
+            return const SizedBox.shrink();
+          },
         ),
+        themeMode: ThemeMode.dark,
       );
       expect(resolved.background, AppColors.dark.background);
     });
 
     testWidgets('AppColors.of resolves light tokens', (tester) async {
       late AppColorTokens resolved;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.lightTheme,
-          home: Builder(
-            builder: (context) {
-              resolved = AppColors.of(context);
-              return const SizedBox.shrink();
-            },
-          ),
+      await pumpApp(
+        tester,
+        Builder(
+          builder: (context) {
+            resolved = AppColors.of(context);
+            return const SizedBox.shrink();
+          },
         ),
+        themeMode: ThemeMode.light,
       );
       expect(resolved.background, AppColors.light.background);
       expect(resolved.textPrimary, AppColors.light.textPrimary);
