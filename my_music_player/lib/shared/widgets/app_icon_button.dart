@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_radius.dart';
 
 /// 44–48dp circular icon button on a raised surface.
 class AppIconButton extends StatelessWidget {
   const AppIconButton({
     super.key,
     required this.icon,
+    required this.semanticLabel,
     required this.onPressed,
     this.size = 48,
     this.iconSize = 20,
@@ -16,6 +16,9 @@ class AppIconButton extends StatelessWidget {
   });
 
   final IconData icon;
+
+  /// Screen-reader label. Required so no icon control ships unlabeled.
+  final String semanticLabel;
   final VoidCallback? onPressed;
   final double size;
   final double iconSize;
@@ -39,48 +42,14 @@ class AppIconButton extends StatelessWidget {
       ),
     );
 
-    if (tooltip == null) return button;
-    return Tooltip(message: tooltip!, child: button);
-  }
-}
+    final labeledButton =
+        tooltip == null ? button : Tooltip(message: tooltip!, child: button);
 
-/// Square-ish action button used by list rows and sheets.
-class AppSquareIconButton extends StatelessWidget {
-  const AppSquareIconButton({
-    super.key,
-    required this.icon,
-    required this.onPressed,
-    this.width = 40,
-    this.height = 44,
-    this.iconSize = 18,
-    this.tooltip,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final double width;
-  final double height;
-  final double iconSize;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = AppColors.of(context);
-    final button = SizedBox(
-      width: width,
-      height: height,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onPressed,
-          child: Icon(icon, size: iconSize, color: tokens.textSecondary),
-        ),
-      ),
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      enabled: onPressed != null,
+      child: labeledButton,
     );
-
-    if (tooltip == null) return button;
-    return Tooltip(message: tooltip!, child: button);
   }
 }

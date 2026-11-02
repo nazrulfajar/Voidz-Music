@@ -7,7 +7,17 @@ class AppEmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
+
+  /// Legacy custom action widget. Takes precedence over [actionLabel].
   final Widget? action;
+
+  /// Primary action label; rendered as a themed [FilledButton].
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  /// Optional secondary action; rendered as a themed [TextButton].
+  final String? secondaryLabel;
+  final VoidCallback? onSecondaryAction;
 
   const AppEmptyState({
     super.key,
@@ -15,11 +25,16 @@ class AppEmptyState extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.action,
+    this.actionLabel,
+    this.onAction,
+    this.secondaryLabel,
+    this.onSecondaryAction,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppColors.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -27,33 +42,57 @@ class AppEmptyState extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
             decoration: BoxDecoration(
-              color: AppColors.surfaceElevated,
+              color: tokens.surface,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                    color: AppColors.accentPrimary.withValues(alpha: 0.08),
-                    blurRadius: 30,
-                    spreadRadius: 10)
+                  color: tokens.accent.withValues(alpha: 0.08),
+                  blurRadius: 30,
+                  spreadRadius: 10,
+                ),
               ],
             ),
-            child: Icon(icon,
-                size: 64, color: AppColors.textTertiary.withValues(alpha: 0.6)),
+            child: Icon(
+              icon,
+              size: 64,
+              color: tokens.textInactive.withValues(alpha: 0.6),
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text(title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold, color: AppColors.textSecondary),
-              textAlign: TextAlign.center),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: tokens.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
           if (subtitle != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(subtitle!,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.textTertiary),
-                textAlign: TextAlign.center),
+            Text(
+              subtitle!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: tokens.textInactive,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
           if (action != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            action!
+            action!,
+          ] else if (actionLabel != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton(
+              onPressed: onAction,
+              child: Text(actionLabel!),
+            ),
+          ],
+          if (secondaryLabel != null) ...[
+            const SizedBox(height: AppSpacing.space1),
+            TextButton(
+              onPressed: onSecondaryAction,
+              child: Text(secondaryLabel!),
+            ),
           ],
         ],
       ),

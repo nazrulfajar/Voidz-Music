@@ -254,6 +254,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         children: [
                           AppIconButton(
                             icon: Icons.keyboard_arrow_down_rounded,
+                            semanticLabel: 'Close player',
                             onPressed: () => context.pop(),
                             iconSize: 22,
                           ),
