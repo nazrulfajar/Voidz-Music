@@ -102,13 +102,11 @@ void main() {
       await pumpSettings(tester);
 
       const topLabels = [
-        'Enable YouTube Source',
-        'Preferred Audio Quality',
-        'Storage Used',
-        'Max Cache Size',
-        'Auto-Cache on Play',
-        'Download on Wi-Fi Only',
-        'Clear Cache',
+        'Audio quality',
+        'Gapless / Crossfade',
+        'Resume on startup',
+        'Audio focus',
+        'YouTube source',
       ];
 
       for (final label in topLabels) {
@@ -120,19 +118,38 @@ void main() {
       }
 
       await tester.scrollUntilVisible(
-        find.text('Resume on Startup'),
+        find.text('Clear cache'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      const bottomLabels = [
-        'Resume on Startup',
-        'Pause on Audio Focus Loss',
-        'Crossfade',
+      const downloadLabels = [
+        'Wi-Fi only',
+        'Storage limit',
+        'Storage used',
+        'Auto-cache',
+        'Clear cache',
       ];
 
-      for (final label in bottomLabels) {
+      for (final label in downloadLabels) {
+        expect(
+          find.bySemanticsLabel(RegExp(label)),
+          findsWidgets,
+          reason: '"$label" must be readable by a screen reader',
+        );
+      }
+
+      await tester.scrollUntilVisible(
+        find.text('Licenses'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      const aboutLabels = ['Version', 'Licenses'];
+
+      for (final label in aboutLabels) {
         expect(
           find.bySemanticsLabel(RegExp(label)),
           findsWidgets,
@@ -146,27 +163,48 @@ void main() {
     testWidgets('every control meets the 48dp touch target', (tester) async {
       await pumpSettings(tester);
 
-      void expectMinHeight(Finder finder, String label) {
-        final widgets = finder.evaluate().length;
-        expect(widgets, greaterThan(0), reason: '$label should exist');
-        for (var i = 0; i < widgets; i++) {
-          final size = tester.getSize(finder.at(i));
-          expect(
-            size.height,
-            greaterThanOrEqualTo(48),
-            reason: '$label target ${size.height}dp is below 48dp',
-          );
-        }
+      const labels = [
+        'Audio quality',
+        'Gapless / Crossfade',
+        'Resume on startup',
+        'Audio focus',
+        'YouTube source',
+        'Wi-Fi only',
+        'Storage limit',
+        'Auto-cache',
+        'Clear cache',
+        'Theme',
+        'Licenses',
+      ];
+
+      for (final label in labels) {
+        await tester.scrollUntilVisible(
+          find.text(label),
+          120,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+
+        final row = find
+            .ancestor(
+              of: find.text(label),
+              matching: find.byType(InkWell),
+            )
+            .first;
+        final size = tester.getSize(row);
+        expect(
+          size.height,
+          greaterThanOrEqualTo(48),
+          reason: '$label row ${size.height}dp is below 48dp',
+        );
       }
 
-      expectMinHeight(find.byType(SwitchListTile), 'SwitchListTile');
-      expectMinHeight(find.byType(ListTile), 'ListTile');
-      expectMinHeight(
-        find.byType(DropdownButton<AudioQuality>),
-        'DropdownButton',
+      final backButton = tester.getSize(find.byType(IconButton).first);
+      expect(
+        backButton.height,
+        greaterThanOrEqualTo(48),
+        reason: 'Back button ${backButton.height}dp is below 48dp',
       );
-      expectMinHeight(find.byType(Slider), 'Slider');
-      expectMinHeight(find.byType(IconButton), 'IconButton');
     });
 
     for (final themeMode in [ThemeMode.dark, ThemeMode.light]) {
@@ -179,17 +217,17 @@ void main() {
             textScale: 2.0,
           );
 
-          expect(find.text('SOURCES'), findsOneWidget);
+          expect(find.text('PLAYBACK'), findsOneWidget);
           expect(tester.takeException(), isNull);
 
           await tester.scrollUntilVisible(
-            find.text('Gapless'),
+            find.text('ABOUT'),
             200,
             scrollable: find.byType(Scrollable).first,
           );
           await tester.pumpAndSettle();
 
-          expect(find.text('Gapless'), findsOneWidget);
+          expect(find.text('ABOUT'), findsOneWidget);
           expect(tester.takeException(), isNull);
         },
       );
@@ -202,17 +240,16 @@ void main() {
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, AppColors.light.background);
 
-      final sectionTitle = tester.widget<Text>(find.text('SOURCES'));
+      final sectionTitle = tester.widget<Text>(find.text('PLAYBACK'));
       expect(sectionTitle.style?.color, AppColors.light.textSecondary);
 
-      final switchTitle =
-          tester.widget<Text>(find.text('Enable YouTube Source'));
-      expect(switchTitle.style?.color, AppColors.light.textPrimary);
+      final rowLabel = tester.widget<Text>(find.text('Audio quality'));
+      expect(rowLabel.style?.color, AppColors.light.textPrimary);
 
       final card = tester.widget<Material>(
         find
             .ancestor(
-              of: find.text('Enable YouTube Source'),
+              of: find.text('Audio quality'),
               matching: find.byType(Material),
             )
             .first,
@@ -221,10 +258,8 @@ void main() {
       final shape = card.shape! as RoundedRectangleBorder;
       expect(shape.side.color, AppColors.light.border);
 
-      final cacheMeta = tester.widget<Text>(
-        find.textContaining('MB /').first,
-      );
-      expect(cacheMeta.style?.color, AppColors.light.textSecondary);
+      final value = tester.widget<Text>(find.text('Medium'));
+      expect(value.style?.color, AppColors.light.textSecondary);
     });
   });
 
