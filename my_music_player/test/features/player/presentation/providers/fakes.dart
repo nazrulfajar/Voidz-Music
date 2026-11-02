@@ -36,9 +36,11 @@ class FakeAudioPlayer extends Mock implements AudioPlayer {
   Duration? _durationValue;
   LoopMode _loopModeValue = LoopMode.off;
   double _volumeValue = 1.0;
+  ProcessingState _processingState = ProcessingState.idle;
   int seekToNextCalls = 0;
   int seekToPreviousCalls = 0;
   int seekCalls = 0;
+  int pauseCalls = 0;
 
   @override
   Stream<bool> get playingStream => _playing.stream;
@@ -77,8 +79,12 @@ class FakeAudioPlayer extends Mock implements AudioPlayer {
   bool get playing => _playingValue;
 
   @override
-  PlayerState get playerState =>
-      PlayerState(_playingValue, ProcessingState.idle);
+  PlayerState get playerState => PlayerState(_playingValue, _processingState);
+
+  void setProcessingState(ProcessingState state) {
+    _processingState = state;
+    _playerState.add(PlayerState(_playingValue, state));
+  }
 
   @override
   Duration get position => _positionValue;
@@ -199,6 +205,13 @@ class FakeAudioPlayer extends Mock implements AudioPlayer {
 
   @override
   Future<void> setVolume(double volume) async => _volumeValue = volume;
+
+  @override
+  Future<void> pause() async {
+    pauseCalls++;
+    _playingValue = false;
+    _playing.add(false);
+  }
 
   Future<void> disposeFake() async {
     await _playing.close();
@@ -515,10 +528,36 @@ class FakeQueueRepository extends QueueRepository {
 
 class FakePlaylistRepository implements PlaylistRepository {
   int addToPlayHistoryCalls = 0;
+  int clearPlayHistoryCalls = 0;
+  List<Track> recentTracks = [];
+  int recentCount = 0;
+  String? lastRecentNowSource;
 
   @override
   Future<void> addToPlayHistory(String trackSourceId) async {
     addToPlayHistoryCalls++;
+  }
+
+  @override
+  Future<List<Track>> getRecentlyPlayedTracks({
+    int days = 30,
+    int limit = 100,
+    DateTime? now,
+  }) async {
+    lastRecentNowSource = now?.toIso8601String();
+    return recentTracks.take(limit).toList();
+  }
+
+  @override
+  Future<int> getRecentlyPlayedCount({int days = 30, DateTime? now}) async {
+    return recentCount;
+  }
+
+  @override
+  Future<void> clearPlayHistory() async {
+    clearPlayHistoryCalls++;
+    recentTracks = [];
+    recentCount = 0;
   }
 
   @override

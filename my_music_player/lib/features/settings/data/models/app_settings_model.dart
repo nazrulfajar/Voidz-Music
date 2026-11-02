@@ -28,4 +28,9 @@ class AppSettingsModel {
 
   // Migration helper: track if cache has been migrated to new location
   bool cacheMigratedToSupportDir = false;
+
+  /// Persisted as an ordinal. Isar's generated deserializer falls back to the
+  /// first enum value ([AppThemeMode.system]) for unknown ordinals.
+  @enumerated
+  AppThemeMode appThemeMode = AppThemeMode.system;
 }

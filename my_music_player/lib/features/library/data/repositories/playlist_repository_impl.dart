@@ -294,6 +294,68 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
         
     return trackModels.map((m) => Track.fromModel(m)).toList();
   }
+
+  @override
+  Future<List<Track>> getRecentlyPlayedTracks({
+    int days = 30,
+    int limit = 100,
+    DateTime? now,
+  }) async {
+    if (days <= 0 || limit <= 0) return const [];
+
+    final history = await _playHistorySince(days: days, now: now);
+    final seen = <String>{};
+    final sourceIds = <String>[];
+    for (final entry in history) {
+      if (!seen.add(entry.trackSourceId)) continue;
+      sourceIds.add(entry.trackSourceId);
+      if (sourceIds.length >= limit) break;
+    }
+
+    final tracks = <Track>[];
+    for (final sourceId in sourceIds) {
+      final model = await isar.trackModels
+          .filter()
+          .sourceIdEqualTo(sourceId)
+          .findFirst();
+      if (model != null) tracks.add(Track.fromModel(model));
+    }
+    return tracks;
+  }
+
+  @override
+  Future<int> getRecentlyPlayedCount({int days = 30, DateTime? now}) async {
+    if (days <= 0) return 0;
+    final history = await _playHistorySince(days: days, now: now);
+    return history.map((entry) => entry.trackSourceId).toSet().length;
+  }
+
+  Future<List<PlayHistoryModel>> _playHistorySince({
+    required int days,
+    DateTime? now,
+  }) {
+    final cutoff = (now ?? DateTime.now()).subtract(Duration(days: days));
+    return isar.playHistoryModels
+        .filter()
+        .playedAtGreaterThan(cutoff, include: true)
+        .sortByPlayedAtDesc()
+        .findAll();
+  }
+
+  @override
+  Future<void> clearPlayHistory() async {
+    await isar.writeTxn(() async {
+      await isar.playHistoryModels.clear();
+      final tracks = await isar.trackModels
+          .filter()
+          .lastPlayedAtIsNotNull()
+          .findAll();
+      for (final track in tracks) {
+        track.lastPlayedAt = null;
+      }
+      await isar.trackModels.putAll(tracks);
+    });
+  }
   
   Playlist _mapPlaylistModelToEntity(PlaylistModel model, int trackCount, List<String> thumbnailUrls) {
     return Playlist(

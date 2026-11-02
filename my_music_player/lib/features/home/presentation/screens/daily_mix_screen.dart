@@ -1,240 +1,248 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_radius.dart';
-import '../../../../shared/widgets/playlist_mosaic_cover.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/shimmer_loading.dart';
-import '../../../player/presentation/providers/player_controller.dart';
-import '../../../player/domain/entities/track.dart';
-import '../providers/home_provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../player/domain/entities/track.dart';
+import '../../../player/presentation/providers/player_controller.dart';
+import '../../domain/entities/daily_mix.dart';
+import '../providers/mood_mix_provider.dart';
+import '../widgets/mix_card.dart';
+
+/// Detail screen for one Daily Mix mood (`/daily-mix/:mood`).
 class DailyMixScreen extends ConsumerWidget {
-  const DailyMixScreen({super.key});
+  const DailyMixScreen({super.key, required this.mood});
+
+  final DailyMixMood mood;
+
+  String _formatDuration(int ms) {
+    final duration = Duration(milliseconds: ms);
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = AppColors.of(context);
     final theme = Theme.of(context);
-    final recentlyAsync = ref.watch(recentlyPlayedProvider);
+    final mixAsync = ref.watch(moodMixProvider(mood));
     final playerState = ref.watch(playerControllerProvider);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: tokens.background,
       appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-              onPressed: () => context.pop())),
-      body: Stack(children: [
-        // Mosaic blur background from recently tracks
-        recentlyAsync.maybeWhen(
-          data: (tracks) => Positioned.fill(
-            child: PlaylistMosaicCover(
-                imageUrls: tracks
-                    .take(4)
-                    .map((t) => t.thumbnailUrl)
-                    .whereType<String>()
-                    .toList(),
-                size: 400),
-          ),
-          orElse: () => const SizedBox.shrink(),
+        backgroundColor: tokens.background,
+        surfaceTintColor: tokens.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: tokens.textPrimary),
+          tooltip: 'Back',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
         ),
-        Positioned.fill(
-            child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: Container(
-                    color: AppColors.surfaceBase.withValues(alpha: 0.7)))),
-        SafeArea(
-          child: recentlyAsync.when(
-            data: (tracks) {
-              if (tracks.isEmpty)
-                return const AppEmptyState(
-                    icon: Icons.queue_music,
-                    title: 'No tracks yet',
-                    subtitle: 'Play some songs first');
-              final imageUrls = tracks
-                  .take(4)
-                  .map((t) => t.thumbnailUrl)
-                  .whereType<String>()
-                  .toList();
-              return Column(children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
-                  child: Row(children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                          color: AppColors.surfaceElevated,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          boxShadow: [
-                            BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5))
-                          ]),
-                      child: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                          child: PlaylistMosaicCover(
-                              imageUrls: imageUrls, size: 120)),
-                    ),
-                    const SizedBox(width: AppSpacing.xl),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                          Text('Your Daily Mix',
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text('${tracks.length} tracks • Based on recent',
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(color: Colors.white70)),
-                          const SizedBox(height: AppSpacing.md),
-                          Row(children: [
-                            ElevatedButton.icon(
-                              onPressed: () => ref
-                                  .read(playerControllerProvider.notifier)
-                                  .playTrack(tracks.first, queue: tracks),
-                              icon: const Icon(Icons.play_arrow,
-                                  color: AppColors.textOnAccent),
-                              label: const Text('Play All',
-                                  style: TextStyle(
-                                      color: AppColors.textOnAccent,
-                                      fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accentPrimary,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                          AppRadius.full))),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            IconButton(
-                              onPressed: () {
-                                final shuffled = List<Track>.of(tracks)
-                                  ..shuffle();
-                                ref
-                                    .read(playerControllerProvider.notifier)
-                                    .playTrack(shuffled.first, queue: shuffled);
-                              },
-                              icon: const Icon(Icons.shuffle,
-                                  color: Colors.white),
-                              style: IconButton.styleFrom(
-                                  backgroundColor: AppColors.surfaceOverlay),
-                            ),
-                          ]),
-                        ])),
-                  ]),
+      ),
+      body: mixAsync.when(
+        data: (mix) {
+          if (mix.isEmpty) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenInset,
+                vertical: AppSpacing.space6,
+              ),
+              child: AppEmptyState(
+                icon: Icons.queue_music_rounded,
+                title: 'No tracks for ${mood.label}',
+                subtitle: 'Search for music or scan your device library.',
+                actionLabel: 'Search',
+                onAction: () => context.go('/search'),
+                secondaryLabel: 'Scan device songs',
+                onSecondaryAction: () => context.push('/library/device-songs'),
+              ),
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenInset,
+              AppSpacing.space2,
+              AppSpacing.screenInset,
+              AppSpacing.bottomPlayerPadding,
+            ),
+            children: [
+              Center(
+                child: MixArtwork(
+                  mood: mood,
+                  artworkUrls: mix.artworkUrls,
+                  width: 160,
+                  height: 160,
                 ),
-                const Divider(color: AppColors.surfaceOverlay),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.only(
-                        left: AppSpacing.md,
-                        right: AppSpacing.md,
-                        top: AppSpacing.md,
-                        bottom: AppSpacing.bottomPlayerPadding),
-                    itemCount: tracks.length,
-                    itemBuilder: (context, index) {
-                      final track = tracks[index];
-                      final isPlaying =
-                          track.sourceId == playerState.currentTrack?.sourceId;
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                          child: track.thumbnailUrl != null
-                              ? CachedNetworkImage(
-                                  imageUrl: track.thumbnailUrl!,
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover)
-                              : Container(
-                                  width: 48,
-                                  height: 48,
-                                  color: AppColors.surfaceOverlay,
-                                  child: const Icon(Icons.music_note)),
-                        ),
-                        title: Text(track.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: isPlaying
-                                    ? AppColors.accentPrimary
-                                    : AppColors.textPrimary,
-                                fontWeight: isPlaying
-                                    ? FontWeight.bold
-                                    : FontWeight.normal)),
-                        subtitle: Text(track.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: AppColors.textSecondary)),
-                        trailing:
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                          if (isPlaying)
-                            const Icon(Icons.equalizer,
-                                color: AppColors.accentPrimary, size: 18),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert,
-                                color: AppColors.textSecondary, size: 20),
-                            color: AppColors.surfaceElevated,
-                            onSelected: (v) async {
-                              final ctrl =
-                                  ref.read(playerControllerProvider.notifier);
-                              if (v == 'play_next') {
-                                await ctrl.addToQueue(track, playNext: true);
-                                if (context.mounted)
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Added to Play Next')));
-                              } else if (v == 'add_queue') {
-                                await ctrl.addToQueue(track);
-                                if (context.mounted)
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text('Added to Queue')));
-                              }
-                            },
-                            itemBuilder: (c) => const [
-                              PopupMenuItem(
-                                  value: 'play_next',
-                                  child: Text('Play Next',
-                                      style: TextStyle(
-                                          color: AppColors.textPrimary))),
-                              PopupMenuItem(
-                                  value: 'add_queue',
-                                  child: Text('Add to Queue',
-                                      style: TextStyle(
-                                          color: AppColors.textPrimary))),
-                            ],
-                          ),
-                        ]),
-                        onTap: () => ref
-                            .read(playerControllerProvider.notifier)
-                            .playTrack(track, queue: tracks),
-                      );
-                    },
+              ),
+              const SizedBox(height: AppSpacing.space4),
+              Center(
+                child: Text(
+                  mood.label,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: tokens.textPrimary,
                   ),
                 ),
-              ]);
-            },
-            loading: () => const Center(child: ShimmerSection(itemCount: 8)),
-            error: (e, st) => AppErrorState(
-                error: e.toString(),
-                onRetry: () => ref.invalidate(recentlyPlayedProvider)),
+              ),
+              const SizedBox(height: AppSpacing.space1),
+              Center(
+                child: Text(
+                  '${mix.tracks.length} tracks · Daily Mix',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: tokens.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.space5),
+              Center(
+                child: FilledButton.icon(
+                  onPressed: () => ref
+                      .read(playerControllerProvider.notifier)
+                      .playTrack(mix.tracks.first, queue: mix.tracks),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: tokens.accent,
+                    foregroundColor: tokens.onAccent,
+                    minimumSize: const Size(0, 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.space6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.xxxl),
+                    ),
+                  ),
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Play all'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.space6),
+              for (final track in mix.tracks)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.space2),
+                  child: _MixTrackTile(
+                    track: track,
+                    duration: _formatDuration(track.durationMs),
+                    isCurrent:
+                        playerState.currentTrack?.sourceId == track.sourceId,
+                    onTap: () => ref
+                        .read(playerControllerProvider.notifier)
+                        .playTrack(track, queue: mix.tracks),
+                  ),
+                ),
+            ],
+          );
+        },
+        loading: () => Center(
+          child: CircularProgressIndicator(color: tokens.accent),
+        ),
+        error: (error, stackTrace) => AppErrorState(
+          error: error.toString(),
+          onRetry: () => ref.invalidate(moodMixProvider(mood)),
+        ),
+      ),
+    );
+  }
+}
+
+class _MixTrackTile extends StatelessWidget {
+  const _MixTrackTile({
+    required this.track,
+    required this.duration,
+    required this.isCurrent,
+    required this.onTap,
+  });
+
+  final Track track;
+  final String duration;
+  final bool isCurrent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppColors.of(context);
+    final theme = Theme.of(context);
+    final radius = BorderRadius.circular(AppRadius.lg);
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 54),
+      decoration: BoxDecoration(
+        color: tokens.surface,
+        borderRadius: radius,
+        border: Border.all(color: tokens.border),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.space3,
+              vertical: AppSpacing.space2,
+            ),
+            child: Row(
+              children: [
+                AppArtwork(
+                  localPath: track.localThumbnailPath,
+                  imageUrl: track.thumbnailUrl,
+                  size: 34,
+                  radius: AppRadius.md,
+                ),
+                const SizedBox(width: AppSpacing.space3),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: isCurrent ? tokens.accent : tokens.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        track.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.space2),
+                Text(
+                  duration,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: tokens.textSecondary,
+                    fontSize: 11,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ]),
+      ),
     );
   }
 }
