@@ -297,7 +297,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Text(
                             'Unable to load',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: t.textMuted,
+                              color: t.textSecondary,
                             ),
                           ),
                         ),
@@ -494,7 +494,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Text(
                             'Unable to load',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: t.textMuted,
+                              color: t.textSecondary,
                             ),
                           ),
                         ),
