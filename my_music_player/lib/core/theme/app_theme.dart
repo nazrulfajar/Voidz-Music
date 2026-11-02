@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../constants/enums.dart';
 import 'app_colors.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
+
+/// Maps the persisted theme preference to Flutter's [ThemeMode].
+extension AppThemeModeX on AppThemeMode {
+  ThemeMode get themeMode {
+    switch (this) {
+      case AppThemeMode.system:
+        return ThemeMode.system;
+      case AppThemeMode.light:
+        return ThemeMode.light;
+      case AppThemeMode.dark:
+        return ThemeMode.dark;
+    }
+  }
+}
 
 /// Builds the dark "Obsidian" and light "Warm Neutral" themes.
 ///

@@ -15,6 +15,7 @@ import 'features/player/data/models/track_model.dart';
 import 'features/player/data/models/queue_state_model.dart';
 import 'features/player/data/models/queue_item_model.dart';
 import 'features/settings/data/models/app_settings_model.dart';
+import 'features/settings/presentation/providers/settings_provider.dart';
 import 'features/player/presentation/providers/player_controller.dart';
 import 'features/lyrics/data/models/lyrics_cache_model.dart';
 import 'features/library/data/models/playlist_model.dart';
@@ -222,12 +223,24 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final goRouter = ref.watch(appRouterProvider);
 
+    return VoidzApp(routerConfig: goRouter);
+  }
+}
+
+/// Root `MaterialApp` whose theme follows [themeModeProvider].
+class VoidzApp extends ConsumerWidget {
+  const VoidzApp({super.key, required this.routerConfig});
+
+  final RouterConfig<Object> routerConfig;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'Voidz Music',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
-      routerConfig: goRouter,
+      themeMode: ref.watch(themeModeProvider),
+      routerConfig: routerConfig,
       debugShowCheckedModeBanner: false,
     );
   }
