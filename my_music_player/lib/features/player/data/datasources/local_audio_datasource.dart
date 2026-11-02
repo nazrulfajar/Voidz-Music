@@ -15,6 +15,7 @@ class LocalAudioDataSource {
   static const _channel = MethodChannel('com.mymusic.my_music_player/media');
 
   Future<bool> checkAndRequestPermission({bool retryRequest = false}) async {
+    if (!Platform.isAndroid) return false;
     try {
       var status = await Permission.audio.status;
       if (status.isGranted) return true;
@@ -31,6 +32,7 @@ class LocalAudioDataSource {
   }
 
   Future<bool> hasPermission() async {
+    if (!Platform.isAndroid) return false;
     try {
       if (await Permission.audio.isGranted) return true;
       if (await Permission.storage.isGranted) return true;
@@ -48,7 +50,8 @@ class LocalAudioDataSource {
 
   Future<String?> _saveArtwork(int albumId, String sourceId) async {
     try {
-      final Uint8List? bytes = await _channel.invokeMethod<Uint8List>('queryArtwork', {'albumId': albumId});
+      final Uint8List? bytes = await _channel
+          .invokeMethod<Uint8List>('queryArtwork', {'albumId': albumId});
       if (bytes == null || bytes.isEmpty) return null;
       if (bytes.length < 3000) return null; // skip tiny broken
       final dir = await getApplicationSupportDirectory();
@@ -66,6 +69,8 @@ class LocalAudioDataSource {
   /// Optimized: tidak blok UI dengan File.existsSync per-lagu & tidak fetch artwork sync.
   /// Artwork hanya pakai cache yang sudah ada; yang belum akan di-fetch lazy di background.
   Future<List<Track>> scanDeviceSongs() async {
+    // MediaStore hanya ada di Android. iOS memakai streaming + cache dulu.
+    if (!Platform.isAndroid) return [];
     final hasPerm = await hasPermission();
     if (!hasPerm) {
       final granted = await checkAndRequestPermission();
@@ -85,7 +90,8 @@ class LocalAudioDataSource {
       } catch (_) {}
 
       // Pre-collect albumIds yang butuh artwork agar bisa di-fetch background (tidak blok scan)
-      final pendingArtworks = <int, String>{}; // albumId -> sourceId (first occurrence)
+      final pendingArtworks =
+          <int, String>{}; // albumId -> sourceId (first occurrence)
 
       for (final item in raw) {
         if (item is! Map) continue;
@@ -97,17 +103,24 @@ class LocalAudioDataSource {
         // Stale path akan difilter di provider/repo, tidak perlu blok loop.
         final rawTitle = (m['title'] as String?) ?? '';
         final display = (m['display_name'] as String?) ?? '';
-        final displayWoExt = display.contains('.') ? display.substring(0, display.lastIndexOf('.')) : display;
+        final displayWoExt = display.contains('.')
+            ? display.substring(0, display.lastIndexOf('.'))
+            : display;
         final title = rawTitle.trim().isEmpty ? displayWoExt : rawTitle.trim();
         final rawArtist = (m['artist'] as String?) ?? '';
-        final artist = (rawArtist.trim().isEmpty || rawArtist == '<unknown>') ? 'Unknown Artist' : rawArtist.trim();
+        final artist = (rawArtist.trim().isEmpty || rawArtist == '<unknown>')
+            ? 'Unknown Artist'
+            : rawArtist.trim();
         final rawAlbum = (m['album'] as String?) ?? '';
-        final album = (rawAlbum.trim().isEmpty || rawAlbum == '<unknown>') ? null : rawAlbum.trim();
+        final album = (rawAlbum.trim().isEmpty || rawAlbum == '<unknown>')
+            ? null
+            : rawAlbum.trim();
         final albumId = (m['album_id'] as int?) ?? 0;
         final dur = (m['duration'] as int?) ?? 0;
         if (dur < 30000) continue;
         final size = (m['size'] as int?) ?? 0;
-        final ext = (m['file_extension'] as String?) ?? (path.contains('.') ? path.split('.').last.toLowerCase() : 'mp3');
+        final ext = (m['file_extension'] as String?) ??
+            (path.contains('.') ? path.split('.').last.toLowerCase() : 'mp3');
         final rawTrack = (m['track'] as int?) ?? 0;
         final rawYear = (m['year'] as int?) ?? 0;
         int? trackNumber;
@@ -182,7 +195,8 @@ class LocalAudioDataSource {
   }
 
   /// Prefetch artwork yang belum cached — throttle 3 concurrent, low priority
-  Future<void> _prefetchArtworks(Map<int, String> pending, String thumbDirPath) async {
+  Future<void> _prefetchArtworks(
+      Map<int, String> pending, String thumbDirPath) async {
     // Batasi agar tidak membanjiri MethodChannel
     const maxConcurrent = 3;
     final entries = pending.entries.toList();
@@ -190,7 +204,8 @@ class LocalAudioDataSource {
       final batch = entries.skip(i).take(maxConcurrent);
       await Future.wait(batch.map((e) async {
         try {
-          final bytes = await _channel.invokeMethod<Uint8List>('queryArtwork', {'albumId': e.key});
+          final bytes = await _channel
+              .invokeMethod<Uint8List>('queryArtwork', {'albumId': e.key});
           if (bytes == null || bytes.length < 3000) return;
           final file = File('$thumbDirPath/${e.value}.jpg');
           if (file.existsSync()) return; // sudah diisi oleh scan lain
@@ -204,7 +219,8 @@ class LocalAudioDataSource {
 
   Future<Uint8List?> queryArtworkBytes(int albumId) async {
     try {
-      return await _channel.invokeMethod<Uint8List>('queryArtwork', {'albumId': albumId});
+      return await _channel
+          .invokeMethod<Uint8List>('queryArtwork', {'albumId': albumId});
     } catch (_) {
       return null;
     }

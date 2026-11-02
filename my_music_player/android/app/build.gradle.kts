@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.chaquo.python")
 }
 
 android {
@@ -37,7 +36,7 @@ android {
     }
 
     androidResources {
-        noCompress += listOf("imy", "so", "pem", "json", "py")
+        noCompress += listOf("imy", "so", "pem", "json")
     }
 
     buildTypes {
@@ -47,15 +46,6 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
             isShrinkResources = false
-        }
-    }
-}
-
-chaquopy {
-    defaultConfig {
-        version = "3.13"
-        pip {
-            install("yt-dlp")
         }
     }
 }

@@ -13,7 +13,7 @@ class LyricsRepositoryImpl implements LyricsRepository {
   @override
   Future<entity.Lyrics> getLyrics(
       String sourceId, String title, String artist) async {
-    // 1. Check local Isar cache
+    // 1. Cek cache lokal.
     final cached = await isar.lyricsCacheModels
         .where()
         .sourceIdEqualTo(sourceId)
@@ -27,48 +27,69 @@ class LyricsRepositoryImpl implements LyricsRepository {
       );
     }
 
-    // 2. Fetch from backend
+    // 2. Ambil langsung dari LRCLIB (tanpa proxy backend).
     try {
-      print('Fetching lyrics for: $title by $artist');
       final response = await dio.get(
-        '/api/lyrics',
+        '/api/get',
         queryParameters: {
           'track_name': title,
           'artist_name': artist,
         },
       );
 
-      print('Lyrics response status: ${response.statusCode}');
-
       final data = response.data;
-      final isFound = data['status'] == 'found';
+      if (data is! Map) {
+        return entity.Lyrics(
+          sourceId: sourceId,
+          type: entity.LyricsType.notFound,
+        );
+      }
 
-      final lyricsType = !isFound
+      final synced = data['syncedLyrics'] as String?;
+      final plain = data['plainLyrics'] as String?;
+      final instrumental = data['instrumental'] == true;
+
+      final lyricsType = instrumental || (synced == null && plain == null)
           ? LyricsType.notFound
-          : (data['syncedLyrics'] != null
-              ? LyricsType.synced
-              : LyricsType.plain);
+          : (synced != null ? LyricsType.synced : LyricsType.plain);
+
+      if (lyricsType == LyricsType.notFound) {
+        return entity.Lyrics(
+          sourceId: sourceId,
+          type: entity.LyricsType.notFound,
+        );
+      }
 
       final newCache = LyricsCacheModel()
         ..sourceId = sourceId
-        ..syncedLyrics = data['syncedLyrics']
-        ..plainLyrics = data['plainLyrics']
+        ..syncedLyrics = synced
+        ..plainLyrics = plain
         ..lyricsType = lyricsType
         ..fetchedAt = DateTime.now();
 
-      // 3. Save to Isar
       await isar.writeTxn(() async {
         await isar.lyricsCacheModels.put(newCache);
       });
 
       return entity.Lyrics(
         sourceId: sourceId,
-        syncedLyrics: newCache.syncedLyrics,
-        plainLyrics: newCache.plainLyrics,
-        type: _mapTypeToEntity(newCache.lyricsType),
+        syncedLyrics: synced,
+        plainLyrics: plain,
+        type: _mapTypeToEntity(lyricsType),
       );
-    } catch (e) {
-      print('Failed to fetch lyrics: \$e');
+    } on DioException catch (error) {
+      // 404 = lagu tidak ada di LRCLIB; bukan error fatal.
+      if (error.response?.statusCode == 404) {
+        return entity.Lyrics(
+          sourceId: sourceId,
+          type: entity.LyricsType.notFound,
+        );
+      }
+      return entity.Lyrics(
+        sourceId: sourceId,
+        type: entity.LyricsType.notFound,
+      );
+    } catch (_) {
       return entity.Lyrics(
         sourceId: sourceId,
         type: entity.LyricsType.notFound,

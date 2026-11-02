@@ -10,8 +10,7 @@
 -keepattributes *Annotation*,Signature,EnclosingMethod,InnerClasses,Exceptions,SourceFile,LineNumberTable
 -dontwarn com.ryanheise.**
 -dontwarn androidx.media3.**
-# Keep Flutter & chaquopy
--keep class com.chaquo.** { *; }
+# Keep Flutter
 # Keep notification icon tidak di-strip (keep.xml sudah jaga drawable)
 -keepclassmembers class **.R$drawable { public static <fields>; }
 # Fix crash updateNotification r8-map-id di Infinix — jangan optimize away

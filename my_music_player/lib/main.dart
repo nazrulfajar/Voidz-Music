@@ -24,7 +24,6 @@ import 'features/search/data/models/search_history_model.dart';
 import 'features/player/data/repositories/track_repository_impl.dart';
 import 'core/providers/isar_provider.dart';
 import 'core/network/local_proxy_server.dart';
-import 'core/network/api_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,11 +35,17 @@ Future<void> main() async {
     print('LocalProxyServer start failed (non-fatal): $e');
   }
 
-  // Request notification permission for Android 13+ — non-blocking
-  try {
-    await Permission.notification.request().timeout(const Duration(seconds: 3));
-  } catch (e) {
-    print('Permission request timeout/non-fatal: $e');
+  // Request notification permission for Android 13+ — non-blocking.
+  // iOS tidak memakai notifikasi lokal untuk playback; audio background
+  // ditangani UIBackgroundModes.
+  if (Platform.isAndroid) {
+    try {
+      await Permission.notification
+          .request()
+          .timeout(const Duration(seconds: 3));
+    } catch (e) {
+      print('Permission request timeout/non-fatal: $e');
+    }
   }
 
   // Initialize JustAudioBackground for background playback — premium MediaStyle (artcover + 3 controls)
@@ -48,7 +53,8 @@ Future<void> main() async {
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.mymusic.my_music_player.channel.audio',
       androidNotificationChannelName: 'Audio playback',
-      androidNotificationChannelDescription: 'Playback controls for Voidz Music',
+      androidNotificationChannelDescription:
+          'Playback controls for Voidz Music',
       androidNotificationIcon: 'drawable/ic_stat_music',
       androidNotificationOngoing: false,
       androidShowNotificationBadge: true,
@@ -105,7 +111,8 @@ Future<void> main() async {
       final transparentPath = '${supDir.path}/transparent.png';
       final f = File(transparentPath);
       if (!await f.exists() || await f.length() < 10) {
-        const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
+        const b64 =
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=';
         await f.writeAsBytes(base64Decode(b64), flush: true);
       }
       AudioPlayerService.transparentArtPath = transparentPath;
@@ -114,7 +121,8 @@ Future<void> main() async {
       print('Transparent art create failed: $e');
     }
   } catch (e) {
-    print('Isar open failed/timeout: $e — retrying documents dir without timeout (fix hot restart hilang)');
+    print(
+        'Isar open failed/timeout: $e — retrying documents dir without timeout (fix hot restart hilang)');
     // Ponytail: jangan fallback ke temp dir (akan bikin DB kosong & history hilang setelah hot restart).
     // Retry sekali lagi dengan documents dir tanpa timeout, baru fallback error UI.
     try {
@@ -139,7 +147,8 @@ Future<void> main() async {
       runApp(MaterialApp(
           home: Scaffold(
               body: Center(
-                  child: Text('Database init failed. Please reinstall app.\n$e2')))));
+                  child: Text(
+                      'Database init failed. Please reinstall app.\n$e2')))));
       return;
     }
   }
@@ -169,7 +178,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Restore queue on startup if enabled and warmup Python — fire & forget, never block UI
+    // Restore queue on startup if enabled — fire & forget, never block UI
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final isar = ref.read(isarProvider);
@@ -189,16 +198,6 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
         }
       } catch (e) {
         print('Settings load failed (non-fatal): $e');
-      }
-
-      // Warm up the Python engine in the background — never block
-      try {
-        await ref
-            .read(apiServiceProvider)
-            .warmupPython()
-            .timeout(const Duration(seconds: 10));
-      } catch (e) {
-        print('warmupPython failed (non-fatal): $e');
       }
     });
   }

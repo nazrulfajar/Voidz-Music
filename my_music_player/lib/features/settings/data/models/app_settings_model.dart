@@ -7,8 +7,7 @@ part 'app_settings_model.g.dart';
 class AppSettingsModel {
   Id id = 1; // Singleton
 
-  String backendBaseUrl =
-      'http://10.0.2.2:8000'; // Emulator default; ubah di Settings untuk device fisik
+  String backendBaseUrl = ''; // Legacy serverless; tidak dipakai
 
   bool enableYoutubeSource = true;
 

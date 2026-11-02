@@ -5,7 +5,6 @@ import '../../../../core/constants/enums.dart';
 import '../../data/models/app_settings_model.dart';
 import '../../../../features/cache/domain/usecases/cache_manager.dart';
 import '../../../../features/library/presentation/providers/downloaded_provider.dart';
-import '../../../../core/network/dio_client.dart';
 import '../../../player/data/repositories/track_repository_impl.dart';
 
 final appSettingsProvider = StreamProvider<AppSettingsModel>((ref) {
@@ -38,11 +37,6 @@ class SettingsController {
       updateFn(settings);
       await _isar.appSettingsModels.put(settings);
     });
-  }
-
-  Future<void> updateBackendUrl(String url) async {
-    await _updateSettings((settings) => settings.backendBaseUrl = url);
-    _ref.read(dioProvider).options.baseUrl = url;
   }
 
   Future<void> toggleYoutubeSource(bool enabled) async {

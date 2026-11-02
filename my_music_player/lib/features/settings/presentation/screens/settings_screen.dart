@@ -36,62 +36,6 @@ class SettingsScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
-              _buildSectionTitle(theme, 'Server'),
-              _buildCard(
-                child: ListTile(
-                  title: const Text('Backend URL',
-                      style: TextStyle(color: AppColors.textPrimary)),
-                  subtitle: Text(settings.backendBaseUrl,
-                      style: const TextStyle(color: AppColors.textSecondary)),
-                  trailing:
-                      const Icon(Icons.edit, color: AppColors.textSecondary),
-                  onTap: () {
-                    final textController =
-                        TextEditingController(text: settings.backendBaseUrl);
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        backgroundColor: AppColors.surfaceElevated,
-                        title: const Text('Edit Backend URL',
-                            style: TextStyle(color: AppColors.textPrimary)),
-                        content: TextField(
-                          controller: textController,
-                          style: const TextStyle(color: AppColors.textPrimary),
-                          decoration: const InputDecoration(
-                            hintText: 'http://123.45.67.89:8000',
-                            hintStyle:
-                                TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('CANCEL',
-                                style:
-                                    TextStyle(color: AppColors.textSecondary)),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              controller
-                                  .updateBackendUrl(textController.text.trim());
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Backend URL updated'),
-                                    backgroundColor: AppColors.surfaceOverlay),
-                              );
-                            },
-                            child: const Text('SAVE',
-                                style:
-                                    TextStyle(color: AppColors.accentPrimary)),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
               _buildSectionTitle(theme, 'Sources'),
               _buildCard(
                 child: Column(
@@ -102,13 +46,6 @@ class SettingsScreen extends ConsumerWidget {
                       activeTrackColor: AppColors.accentPrimary,
                       value: settings.enableYoutubeSource,
                       onChanged: (val) => controller.toggleYoutubeSource(val),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Enable Jamendo Source',
-                          style: TextStyle(color: AppColors.textPrimary)),
-                      activeThumbColor: AppColors.accentPrimary,
-                      value: settings.enableJamendoSource,
-                      onChanged: (val) => controller.toggleJamendoSource(val),
                     ),
                   ],
                 ),

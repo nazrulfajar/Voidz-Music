@@ -5,55 +5,15 @@ import android.provider.MediaStore
 import android.database.Cursor
 import android.net.Uri
 import android.content.ContentUris
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.ryanheise.audioservice.AudioServiceActivity
-import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
 
 class MainActivity : AudioServiceActivity() {
-    private val CHANNEL = "com.mymusic.my_music_player/python"
     private val MEDIA_CHANNEL = "com.mymusic.my_music_player/media"
-    private var pyGlobals: com.chaquo.python.PyObject? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-
-        if (!Python.isStarted()) {
-            Python.start(AndroidPlatform(this))
-        }
-
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "executePython") {
-                val code = call.argument<String>("code")
-                if (code != null) {
-                    Thread {
-                        try {
-                            val py = Python.getInstance()
-                            val builtins = py.getModule("builtins")
-                            if (pyGlobals == null) {
-                                pyGlobals = builtins.callAttr("dict")
-                            }
-                            builtins.callAttr("exec", code, pyGlobals)
-                            val output = pyGlobals?.callAttr("get", "output")?.toString()
-                            
-                            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                result.success(output)
-                            }
-                        } catch (e: Exception) {
-                            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                result.error("PYTHON_ERROR", e.message, null)
-                            }
-                        }
-                    }.start()
-                } else {
-                    result.error("INVALID_ARGUMENT", "Code string is null", null)
-                }
-            } else {
-                result.notImplemented()
-            }
-        }
 
         // MediaStore scan - ponytail: native platform before dependency
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MEDIA_CHANNEL).setMethodCallHandler { call, result ->
