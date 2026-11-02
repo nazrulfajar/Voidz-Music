@@ -12,7 +12,10 @@ import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
+import '../../domain/entities/daily_mix.dart';
 import '../providers/home_provider.dart';
+import '../providers/mood_mix_provider.dart';
+import '../widgets/mix_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -22,27 +25,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  static const List<double> _waveHeights = <double>[
-    40,
-    64,
-    32,
-    80,
-    56,
-    48,
-    72,
-    40,
-    88,
-    52,
-    68,
-    36,
-    60,
-    76,
-    44,
-    56,
-    64,
-    48,
-  ];
-
   String _greeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good Morning';
@@ -66,16 +48,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final t = AppColors.of(context);
     final theme = Theme.of(context);
     final recentlyPlayedAsync = ref.watch(recentlyPlayedProvider);
-    final quickPicksAsync = ref.watch(quickPicksProvider);
     final playerState = ref.watch(playerControllerProvider);
     final isOnline = ref.watch(connectivityProvider).value ?? true;
 
     Future<void> onRefresh() async {
       ref.invalidate(recentlyPlayedProvider);
-      ref.invalidate(quickPicksProvider);
+      ref.invalidate(moodMixProvider);
       try {
         await ref.read(recentlyPlayedProvider.future);
-        await ref.read(quickPicksProvider.future);
       } catch (_) {}
     }
 
@@ -405,81 +385,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       const SizedBox(height: AppSpacing.sectionGap),
 
-                      // Daily mix section
-                      AppSectionHeader(
-                        title: 'Daily Mix',
-                        actionLabel: 'View all',
-                        onAction: () => context.push('/daily-mix'),
-                      ),
-                      quickPicksAsync.when(
-                        data: (tracks) {
-                          if (tracks.isEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.screenInset,
-                              ),
-                              child: AppEmptyState(
-                                icon: Icons.queue_music_rounded,
-                                title: 'Nothing to suggest right now',
-                                actionLabel: 'Scan device songs',
-                                onAction: () =>
-                                    context.push('/library/device-songs'),
-                              ),
-                            );
-                          }
-                          final list = tracks.take(6).toList();
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.screenInset,
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (var index = 0;
-                                    index < list.length;
-                                    index++)
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      right: AppSpacing.space3,
-                                    ),
-                                    child: _MixCard(
-                                      index: index,
-                                      title: list[index].title,
-                                      artist: list[index].artist,
-                                      onTap: () => _playTrack(
-                                        list[index],
-                                        quickPicksAsync.value ?? list,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          );
-                        },
-                        loading: () => Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.screenInset,
-                          ),
-                          child: Container(
-                            height: 181,
-                            width: 184,
-                            decoration: BoxDecoration(
-                              color: t.raised,
-                              borderRadius: BorderRadius.circular(AppRadius.xl),
-                            ),
-                          ),
+                      // Daily mix section: five fixed mood cards.
+                      const AppSectionHeader(title: 'Daily Mix'),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.screenInset,
                         ),
-                        error: (_, __) => Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.screenInset,
-                          ),
-                          child: Text(
-                            'Unable to load',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: t.textMuted,
-                            ),
-                          ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final mood in DailyMixMood.values)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  right: AppSpacing.space3,
+                                ),
+                                child: Consumer(
+                                  builder: (context, ref, child) {
+                                    final artworkUrls = ref
+                                            .watch(moodMixProvider(mood))
+                                            .valueOrNull
+                                            ?.artworkUrls ??
+                                        const <String>[];
+                                    return MixCard(
+                                      mood: mood,
+                                      artworkUrls: artworkUrls,
+                                      onTap: () => context.push(
+                                        '/daily-mix/${mood.name}',
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                          ],
                         ),
                       ),
 
@@ -704,126 +642,6 @@ class _QuickCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MixCard extends StatelessWidget {
-  const _MixCard({
-    required this.index,
-    required this.title,
-    required this.artist,
-    required this.onTap,
-  });
-
-  final int index;
-  final String title;
-  final String artist;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppColors.of(context);
-    final theme = Theme.of(context);
-    return Container(
-      width: 184,
-      constraints: const BoxConstraints(minHeight: 181),
-      decoration: BoxDecoration(
-        color: t.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: t.border),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.space3),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 164,
-                  height: 112,
-                  decoration: BoxDecoration(
-                    gradient: t.artworkGradient,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: _HomeScreenState._waveHeights.map((h) {
-                            return Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 1.5),
-                              child: Container(
-                                width: 4,
-                                height: h.toDouble() * 0.9,
-                                decoration: BoxDecoration(
-                                  color: t.waveform,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      Positioned(
-                        top: 6,
-                        left: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                            border: Border.all(color: t.border),
-                          ),
-                          child: Text(
-                            'MIX ${(index + 1).toString().padLeft(2, '0')}',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w500,
-                              color: t.textPrimary.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.space2),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: t.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  artist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: t.textSecondary,
-                    fontSize: 11,
-                    letterSpacing: 0,
                   ),
                 ),
               ],
