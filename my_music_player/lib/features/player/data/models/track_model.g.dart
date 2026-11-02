@@ -430,12 +430,12 @@ P _trackModelDeserializeProp<P>(
 
 const _TrackModelsourceEnumValueMap = {
   'youtube': 0,
-  'jamendo': 1,
+  'reserved': 1,
   'local': 2,
 };
 const _TrackModelsourceValueEnumMap = {
   0: TrackSource.youtube,
-  1: TrackSource.jamendo,
+  1: TrackSource.reserved,
   2: TrackSource.local,
 };
 

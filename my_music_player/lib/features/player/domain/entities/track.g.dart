@@ -71,6 +71,6 @@ Map<String, dynamic> _$$TrackImplToJson(_$TrackImpl instance) =>
 
 const _$TrackSourceEnumMap = {
   TrackSource.youtube: 'youtube',
-  TrackSource.jamendo: 'jamendo',
+  TrackSource.reserved: 'reserved',
   TrackSource.local: 'local',
 };

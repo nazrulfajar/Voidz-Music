@@ -1,9 +1,9 @@
 enum TrackSource {
   youtube,
 
-  /// Legacy: sumber Jamendo sudah dihapus. Nilai ini dipertahankan hanya
-  /// agar index enum di Isar tidak bergeser dan data lama tetap terbaca.
-  jamendo,
+  /// Slot index 1 dipertahankan agar index `local` tetap 2 dan data Isar
+  /// lama tidak bergeser. Tidak ada fitur yang memakai nilai ini.
+  reserved,
 
   local
 }
