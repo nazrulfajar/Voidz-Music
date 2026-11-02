@@ -120,6 +120,47 @@ void main() {
       expect(queue.currentTrack?.sourceId, 't0');
     });
 
+    test('enqueue play-next after pre-eviction inserts after current', () {
+      final entries = [
+        for (var i = 0; i < PlayQueue.maxEntries; i++)
+          _entry('t$i', originalIndex: i),
+      ];
+      final queue = PlayQueue.fromSnapshot(
+        PlayQueueSnapshot(
+          entries: entries,
+          currentIndex: 2,
+          shuffleEnabled: true,
+          repeatMode: RepeatMode.off,
+        ),
+      );
+
+      queue.enqueue(_track('play-next'), playNext: true);
+
+      expect(queue.length, PlayQueue.maxEntries);
+      expect(queue.currentIndex, 1);
+      expect(queue.trackAt(queue.currentIndex + 1)?.sourceId, 'play-next');
+    });
+
+    test('enqueue play-next at the tail does not overflow', () {
+      final entries = [
+        for (var i = 0; i < PlayQueue.maxEntries; i++)
+          _entry('t$i', originalIndex: i),
+      ];
+      final queue = PlayQueue.fromSnapshot(
+        PlayQueueSnapshot(
+          entries: entries,
+          currentIndex: PlayQueue.maxEntries - 1,
+          shuffleEnabled: true,
+          repeatMode: RepeatMode.off,
+        ),
+      );
+
+      queue.enqueue(_track('play-next'), playNext: true);
+
+      expect(queue.length, PlayQueue.maxEntries);
+      expect(queue.trackAt(PlayQueue.maxEntries - 1)?.sourceId, 'play-next');
+    });
+
     test('appendAuto never truncates the user queue', () {
       final queue = PlayQueue(random: Random(1));
       final users = _tracks(PlayQueue.maxEntries);

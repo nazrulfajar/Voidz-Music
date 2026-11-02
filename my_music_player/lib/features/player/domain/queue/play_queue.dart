@@ -234,13 +234,17 @@ class PlayQueue {
     final insertIndex = playNext
         ? (_currentIndex + 1).clamp(0, _entries.length)
         : _entries.length;
+    var adjustedInsertIndex = insertIndex;
     if (playNext && _shuffleEnabled && _entries.length >= maxEntries) {
       // Make room before inserting: a play-next entry gets the smallest
       // non-current originalIndex, so the post-insert cap would evict it.
       final autoIndex = _oldestIndexWhere((entry) => entry.isAuto);
       final evictIndex =
           autoIndex != -1 ? autoIndex : _oldestIndexWhere((_) => true);
-      if (evictIndex != -1) _removeEntryAt(evictIndex);
+      if (evictIndex != -1) {
+        _removeEntryAt(evictIndex);
+        if (evictIndex < insertIndex) adjustedInsertIndex--;
+      }
     }
     final originalIndex = _nextInsertOriginalIndex(playNext: playNext);
     final entry = PlayEntry(
@@ -248,7 +252,7 @@ class PlayQueue {
       origin: QueueOrigin.user,
       originalIndex: originalIndex,
     );
-    _entries.insert(insertIndex, entry);
+    _entries.insert(adjustedInsertIndex, entry);
 
     _enforceCap();
     if (!_shuffleEnabled) _reindexOriginal();
