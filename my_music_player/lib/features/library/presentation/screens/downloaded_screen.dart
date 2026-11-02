@@ -1,12 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:io';
+
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../providers/downloaded_provider.dart';
-import '../../../player/presentation/providers/player_controller.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../cache/domain/usecases/cache_manager.dart';
+import '../../../player/presentation/providers/player_controller.dart';
+import '../providers/downloaded_provider.dart';
 
 class DownloadedScreen extends ConsumerWidget {
   const DownloadedScreen({super.key});
@@ -17,14 +20,19 @@ class DownloadedScreen extends ConsumerWidget {
     final cacheManager = ref.watch(cacheManagerProvider);
     final playerState = ref.watch(playerControllerProvider);
     final theme = Theme.of(context);
+    final t = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceBase,
+      backgroundColor: t.background,
       appBar: AppBar(
-        backgroundColor: AppColors.surfaceBase,
-        title: Text('Downloaded',
-            style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        backgroundColor: t.background,
+        title: Text(
+          'Downloaded',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: t.textPrimary,
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -33,8 +41,8 @@ class DownloadedScreen extends ConsumerWidget {
             child: downloadedTracks.when(
               data: (tracks) {
                 int bytes = 0;
-                for (var t in tracks) {
-                  bytes += (t.fileSizeBytes ?? 0);
+                for (var track in tracks) {
+                  bytes += (track.fileSizeBytes ?? 0);
                 }
 
                 final double mbUsed = bytes / (1024 * 1024);
@@ -51,10 +59,13 @@ class DownloadedScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       margin: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceElevated,
+                        color: t.surface,
                         borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: t.border),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,65 +73,73 @@ class DownloadedScreen extends ConsumerWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('Storage Used',
+                              Expanded(
+                                child: Text(
+                                  'Storage Used',
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: AppColors.textSecondary)),
+                                    color: t.textSecondary,
+                                  ),
+                                ),
+                              ),
                               Flexible(
                                 child: Text(
-                                    '${mbUsed.toStringAsFixed(1)} MB / ${maxMb.toStringAsFixed(0)} MB',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary),
-                                    textAlign: TextAlign.right),
+                                  '${mbUsed.toStringAsFixed(1)} MB / '
+                                  '${maxMb.toStringAsFixed(0)} MB',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: t.textPrimary,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           LinearProgressIndicator(
                             value: progress,
-                            backgroundColor: AppColors.surfaceOverlay,
-                            color: progress > 0.9
-                                ? AppColors.statusError
-                                : AppColors.accentPrimary,
+                            backgroundColor: t.track,
+                            color: t.accent,
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(AppRadius.full),
                           ),
                           if (progress > 0.9) ...[
                             const SizedBox(height: AppSpacing.xs),
-                            Text(
-                                'Storage is almost full. Old unpinned tracks will be removed automatically.',
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(color: AppColors.statusWarning)),
-                          ]
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 16,
+                                  color: t.textPrimary,
+                                ),
+                                const SizedBox(width: AppSpacing.xs),
+                                Expanded(
+                                  child: Text(
+                                    'Storage is almost full. Old unpinned '
+                                    'tracks will be removed automatically.',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: t.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
                     Expanded(
                       child: tracks.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.offline_pin_outlined,
-                                      size: 64,
-                                      color: AppColors.textTertiary
-                                          .withValues(alpha: 0.5)),
-                                  const SizedBox(height: AppSpacing.md),
-                                  Text(
-                                    'No downloaded tracks yet',
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(
-                                            color: AppColors.textSecondary),
-                                  ),
-                                ],
-                              ),
+                          ? const AppEmptyState(
+                              icon: Icons.offline_pin_outlined,
+                              title: 'No downloaded tracks yet',
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.only(
-                                  left: AppSpacing.md,
-                                  right: AppSpacing.md,
-                                  top: AppSpacing.md,
-                                  bottom: 160),
+                                left: AppSpacing.md,
+                                right: AppSpacing.md,
+                                top: AppSpacing.md,
+                                bottom: 160,
+                              ),
                               itemCount: tracks.length,
                               itemBuilder: (context, index) {
                                 final track = tracks[index];
@@ -128,7 +147,8 @@ class DownloadedScreen extends ConsumerWidget {
                                     playerState.currentTrack?.sourceId;
                                 return Padding(
                                   padding: const EdgeInsets.only(
-                                      bottom: AppSpacing.sm),
+                                    bottom: AppSpacing.sm,
+                                  ),
                                   child: ListTile(
                                     contentPadding:
                                         const EdgeInsets.all(AppSpacing.xs),
@@ -136,12 +156,13 @@ class DownloadedScreen extends ConsumerWidget {
                                       borderRadius:
                                           BorderRadius.circular(AppRadius.md),
                                     ),
-                                    tileColor: AppColors.transparent,
-                                    hoverColor: AppColors.surfaceHover,
+                                    tileColor: Colors.transparent,
+                                    hoverColor: t.well,
                                     onTap: () {
                                       ref
                                           .read(
-                                              playerControllerProvider.notifier)
+                                            playerControllerProvider.notifier,
+                                          )
                                           .playTrack(track, queue: tracks);
                                     },
                                     leading: ClipRRect(
@@ -155,9 +176,9 @@ class DownloadedScreen extends ConsumerWidget {
                                               fit: BoxFit.cover,
                                               errorBuilder: (context, error,
                                                       stackTrace) =>
-                                                  _buildFallbackThumbnail(),
+                                                  _buildFallbackThumbnail(t),
                                             )
-                                          : _buildFallbackThumbnail(),
+                                          : _buildFallbackThumbnail(t),
                                     ),
                                     title: Row(
                                       children: [
@@ -168,36 +189,44 @@ class DownloadedScreen extends ConsumerWidget {
                                             overflow: TextOverflow.ellipsis,
                                             style: theme.textTheme.bodyLarge
                                                 ?.copyWith(
-                                                    fontWeight: FontWeight.w500,
-                                                    color: isPlaying
-                                                        ? AppColors
-                                                            .accentPrimary
-                                                        : AppColors
-                                                            .textPrimary),
+                                              fontWeight: FontWeight.w500,
+                                              color: isPlaying
+                                                  ? t.accent
+                                                  : t.textPrimary,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: AppSpacing.xs),
-                                        const Icon(Icons.offline_pin,
-                                            color: AppColors.statusSuccess,
-                                            size: 16),
+                                        Semantics(
+                                          label: 'Downloaded',
+                                          child: Icon(
+                                            Icons.offline_pin,
+                                            color: t.textPrimary,
+                                            size: 16,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     subtitle: Text(
-                                      '${track.artist} • ${((track.fileSizeBytes ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB',
+                                      '${track.artist} • '
+                                      '${((track.fileSizeBytes ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                              color: AppColors.textSecondary),
+                                          ?.copyWith(color: t.textSecondary),
                                     ),
                                     trailing: IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          color: AppColors.textTertiary),
+                                      tooltip: 'Remove download',
+                                      icon: Icon(
+                                        Icons.delete_outline,
+                                        color: t.textSecondary,
+                                      ),
                                       onPressed: () async {
                                         await cacheManager
                                             .removeTrackFromCache(track);
                                         ref.invalidate(
-                                            downloadedTracksProvider);
+                                          downloadedTracksProvider,
+                                        );
                                       },
                                     ),
                                   ),
@@ -208,12 +237,14 @@ class DownloadedScreen extends ConsumerWidget {
                   ],
                 );
               },
-              loading: () => const Center(
-                  child: CircularProgressIndicator(
-                      color: AppColors.accentPrimary)),
+              loading: () => Center(
+                child: CircularProgressIndicator(color: t.accent),
+              ),
               error: (err, stack) => Center(
-                child: Text('Error: $err',
-                    style: const TextStyle(color: AppColors.statusError)),
+                child: Text(
+                  'Error: $err',
+                  style: TextStyle(color: t.textPrimary),
+                ),
               ),
             ),
           ),
@@ -222,12 +253,12 @@ class DownloadedScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFallbackThumbnail() {
+  Widget _buildFallbackThumbnail(AppColorTokens t) {
     return Container(
       width: 56,
       height: 56,
-      color: AppColors.surfaceOverlay,
-      child: const Icon(Icons.music_note, color: AppColors.textTertiary),
+      color: t.raised,
+      child: Icon(Icons.music_note, color: t.textMuted),
     );
   }
 }
