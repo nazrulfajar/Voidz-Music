@@ -25,10 +25,4 @@ class PlayQueueSnapshot {
 
   /// Source ids that came from auto-queue.
   final Set<String> autoQueueIds;
-
-  /// Whether the snapshot has no entries.
-  bool get isEmpty => entries.isEmpty;
-
-  /// Number of entries in the snapshot.
-  int get length => entries.length;
 }

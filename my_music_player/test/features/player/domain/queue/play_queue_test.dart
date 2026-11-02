@@ -290,6 +290,23 @@ void main() {
       expect(queue.currentIndex, 0);
       expect(queue.currentTrack?.sourceId, 'auto0');
     });
+
+    test('toggles without a current entry after removing the last track', () {
+      final queue = PlayQueue(random: Random(1));
+      queue.start(
+        _track('c'),
+        queue: [_track('a'), _track('b'), _track('c')],
+      );
+      queue.removeAt(2);
+
+      expect(queue.toggleShuffle(), isTrue);
+      expect(queue.currentIndex, -1);
+      expect(_ids(queue.tracks).toSet(), {'a', 'b'});
+
+      expect(queue.toggleShuffle(), isFalse);
+      expect(_ids(queue.tracks), ['a', 'b']);
+      expect(queue.currentIndex, -1);
+    });
   });
 
   group('PlayQueue reorder and removeAt', () {
@@ -353,7 +370,8 @@ void main() {
       expect(_ids(queue.tracks), ['a', 'c']);
     });
 
-    test('removing the last current track falls back to the previous', () {
+    test('removing the last current track clears the current but keeps queue',
+        () {
       final queue = PlayQueue(random: Random(1));
       queue.start(
         _track('c'),
@@ -363,8 +381,10 @@ void main() {
       final result = queue.removeAt(2);
 
       expect(result?.wasCurrent, isTrue);
-      expect(result?.currentTrack?.sourceId, 'b');
-      expect(queue.currentIndex, 1);
+      expect(result?.currentTrack, isNull);
+      expect(result?.isEmpty, isFalse);
+      expect(queue.currentIndex, -1);
+      expect(_ids(queue.tracks), ['a', 'b']);
     });
 
     test('removing the only track clears the current', () {
@@ -415,6 +435,24 @@ void main() {
       expect(restored.autoQueueIds, {'auto0'});
       expect(restored.cycleRepeat(), RepeatMode.one);
     });
+
+    test('restores a snapshot that has no current entry', () {
+      final snapshot = PlayQueueSnapshot(
+        entries: [
+          _entry('a', originalIndex: 0),
+          _entry('b', originalIndex: 1),
+        ],
+        currentIndex: -1,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+      );
+
+      final queue = PlayQueue.fromSnapshot(snapshot, random: Random(1));
+
+      expect(queue.currentIndex, -1);
+      expect(queue.currentTrack, isNull);
+      expect(_ids(queue.tracks), ['a', 'b']);
+    });
   });
 
   group('PlayQueue nextUserIndex', () {
@@ -450,6 +488,18 @@ void main() {
       queue.select(queue.indexOfSourceId('auto0'));
 
       expect(queue.nextUserIndex(), 0);
+    });
+
+    test('advances by the requested number of entries', () {
+      final queue = PlayQueue(random: Random(1));
+      queue.start(
+        _track('b'),
+        queue: [_track('a'), _track('b'), _track('c'), _track('d')],
+      );
+
+      expect(queue.nextUserIndex(ahead: 3), 0);
+      expect(queue.nextUserIndex(ahead: 10), 3);
+      expect(queue.nextUserIndex(ahead: 0), 1);
     });
 
     test('returns -1 when there is no user entry', () {

@@ -5,7 +5,7 @@ import 'package:my_music_player/features/player/domain/entities/track.dart';
 import 'package:my_music_player/features/player/domain/queue/play_entry.dart';
 import 'package:my_music_player/features/player/domain/queue/play_queue_snapshot.dart';
 
-/// Result of a queue mutation that does not change playback.
+/// Result of a queue mutation. Playback is owned by the controller.
 class QueueMutationResult {
   const QueueMutationResult({
     required this.inserted,
@@ -17,7 +17,8 @@ class QueueMutationResult {
   /// Whether an entry was inserted (false for a duplicate/no-op).
   final bool inserted;
 
-  /// Queue index where the entry ended up.
+  /// Queue index where the mutation left the entry: the inserted/updated
+  /// entry for `enqueue`, the selected current entry for `start`.
   final int insertIndex;
 
   /// Current queue index after the mutation.
@@ -107,7 +108,8 @@ class PlayQueue {
   /// Whether the queue has at least one entry.
   bool get isNotEmpty => _entries.isNotEmpty;
 
-  /// Index of the current entry, or -1 when the queue is empty.
+  /// Index of the current entry, or -1 when the queue is empty or has no
+  /// active entry (for example after removing the last playing track).
   int get currentIndex => _currentIndex;
 
   /// Whether shuffle is enabled.
@@ -166,6 +168,9 @@ class PlayQueue {
   bool containsSourceId(String sourceId) => indexOfSourceId(sourceId) != -1;
 
   /// Starts a new queue and discards the old one. Auto origin is cleared.
+  ///
+  /// Duplicate source ids are collapsed: queue identity is `sourceId`-based in
+  /// `enqueue`, the snapshot mapper, and next-track selection.
   QueueMutationResult start(Track track, {List<Track>? queue}) {
     final source = queue ?? [track];
     final deduped = <Track>[];
@@ -238,9 +243,7 @@ class PlayQueue {
     if (playNext && _shuffleEnabled && _entries.length >= maxEntries) {
       // Make room before inserting: a play-next entry gets the smallest
       // non-current originalIndex, so the post-insert cap would evict it.
-      final autoIndex = _oldestIndexWhere((entry) => entry.isAuto);
-      final evictIndex =
-          autoIndex != -1 ? autoIndex : _oldestIndexWhere((_) => true);
+      final evictIndex = _evictionIndex();
       if (evictIndex != -1) {
         _removeEntryAt(evictIndex);
         if (evictIndex < insertIndex) adjustedInsertIndex--;
@@ -384,7 +387,31 @@ class PlayQueue {
   bool toggleShuffle() {
     if (_entries.isEmpty) return _shuffleEnabled;
 
-    final current = currentEntry!;
+    final current = currentEntry;
+    if (current == null) {
+      if (!_shuffleEnabled) {
+        final users = [
+          for (final entry in _entries)
+            if (!entry.isAuto) entry,
+        ]..shuffle(_random);
+        _entries
+          ..clear()
+          ..addAll(users);
+        _shuffleEnabled = true;
+      } else {
+        final users = [
+          for (final entry in _entries)
+            if (!entry.isAuto) entry,
+        ]..sort((a, b) => a.originalIndex.compareTo(b.originalIndex));
+        _entries
+          ..clear()
+          ..addAll(users);
+        _shuffleEnabled = false;
+        _reindexOriginal();
+      }
+      return _shuffleEnabled;
+    }
+
     if (!_shuffleEnabled) {
       final rest = [
         for (final entry in _entries)
@@ -440,8 +467,9 @@ class PlayQueue {
 
   /// Next index in the user-only list, wrapping around.
   ///
+  /// [ahead] selects the nth entry after current; 0 is the current entry.
   /// Returns the first user entry when current is auto or not found.
-  int nextUserIndex() {
+  int nextUserIndex({int ahead = 1}) {
     final users = [
       for (final entry in _entries)
         if (!entry.isAuto) entry,
@@ -455,16 +483,7 @@ class PlayQueue {
       (entry) => entry.track.sourceId == current.track.sourceId,
     );
     if (currentPosition == -1) return 0;
-    return (currentPosition + 1) % users.length;
-  }
-
-  /// Up to [count] tracks after the current entry.
-  List<Track> upcoming({int count = 2}) {
-    if (count <= 0 || _currentIndex < 0) return const [];
-    final end = min(_entries.length, _currentIndex + 1 + count);
-    return [
-      for (var i = _currentIndex + 1; i < end; i++) _entries[i].track,
-    ];
+    return (currentPosition + ahead) % users.length;
   }
 
   /// Replaces the track at [index]; returns false when out of range.
@@ -535,9 +554,11 @@ class PlayQueue {
 
     _shuffleEnabled = snapshot.shuffleEnabled;
     _repeatMode = snapshot.repeatMode;
-    _currentIndex = _entries.isEmpty
-        ? -1
-        : snapshot.currentIndex.clamp(0, _entries.length - 1);
+    if (_entries.isEmpty || snapshot.currentIndex < 0) {
+      _currentIndex = -1;
+    } else {
+      _currentIndex = snapshot.currentIndex.clamp(0, _entries.length - 1);
+    }
     _nextOriginalIndex = _entries.isEmpty
         ? 0
         : _entries
@@ -581,7 +602,7 @@ class PlayQueue {
     } else if (index < _currentIndex) {
       _currentIndex--;
     } else if (index == _currentIndex) {
-      _currentIndex = index.clamp(0, _entries.length - 1);
+      _currentIndex = index < _entries.length ? index : -1;
     }
   }
 
@@ -589,13 +610,16 @@ class PlayQueue {
   /// The current entry is never evicted.
   void _enforceCap() {
     while (_entries.length > maxEntries) {
-      var removeIndex = _oldestIndexWhere((entry) => entry.isAuto);
-      if (removeIndex == -1) {
-        removeIndex = _oldestIndexWhere((_) => true);
-      }
+      final removeIndex = _evictionIndex();
       if (removeIndex == -1) break;
       _removeEntryAt(removeIndex);
     }
+  }
+
+  /// Index the cap should evict next, or -1 when nothing can be evicted.
+  int _evictionIndex() {
+    final autoIndex = _oldestIndexWhere((entry) => entry.isAuto);
+    return autoIndex != -1 ? autoIndex : _oldestIndexWhere((_) => true);
   }
 
   int _oldestIndexWhere(bool Function(PlayEntry entry) test) {

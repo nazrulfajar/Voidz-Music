@@ -47,8 +47,9 @@ class QueueSnapshotMapper {
       currentIndex = entries.indexWhere(
         (entry) => entry.track.sourceId == state.currentTrackId,
       );
+      // Legacy rows may point at a track that no longer exists.
+      if (entries.isNotEmpty && currentIndex == -1) currentIndex = 0;
     }
-    if (entries.isNotEmpty && currentIndex == -1) currentIndex = 0;
 
     return PlayQueueSnapshot(
       entries: entries,

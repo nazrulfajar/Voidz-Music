@@ -73,7 +73,7 @@ void main() {
 
   Future<void> seedQueue({
     required List<Track> tracks,
-    required String currentId,
+    required String? currentId,
     List<String>? playOrder,
     bool shuffle = false,
     RepeatMode repeat = RepeatMode.off,
@@ -140,6 +140,67 @@ void main() {
       expect(audio.stopCalls, 1);
       expect(queueRepo.clearCalls, 1);
     });
+
+    test('stops playback but keeps the queue when the last current is removed',
+        () async {
+      await seedQueue(
+        tracks: [_track('a'), _track('b')],
+        currentId: 'b',
+      );
+
+      await controller.removeFromQueue(1);
+      await settle();
+
+      expect(_ids(controller.state.currentQueue), ['a']);
+      expect(controller.state.currentTrack, isNull);
+      expect(controller.state.currentIndex, -1);
+      expect(controller.state.isPlaying, isFalse);
+      expect(audio.stopCalls, 1);
+      expect(audio.player.sequenceLength, 0);
+      expect(queueRepo.clearCalls, 0);
+    });
+
+    test('shuffle after stopping keeps no current and does not refill window',
+        () async {
+      await seedQueue(
+        tracks: [_track('a'), _track('b')],
+        currentId: 'b',
+      );
+      await controller.removeFromQueue(1);
+      await settle();
+      final appendsBefore = audio.appendToPlaylistCalls;
+
+      await controller.toggleShuffle();
+      await settle();
+
+      expect(controller.state.currentTrack, isNull);
+      expect(controller.state.currentIndex, -1);
+      expect(audio.appendToPlaylistCalls, appendsBefore);
+      expect(audio.player.sequenceLength, 0);
+    });
+
+    test('stops playback when the track after the removed one cannot resolve',
+        () async {
+      const broken = Track(
+        sourceId: 'broken',
+        title: 'Broken',
+        durationMs: 1000,
+        source: TrackSource.local,
+      );
+      await seedQueue(
+        tracks: [_track('a'), broken],
+        currentId: 'a',
+      );
+
+      await controller.removeFromQueue(0);
+      await settle();
+
+      expect(_ids(controller.state.currentQueue), ['broken']);
+      expect(controller.state.currentTrack?.sourceId, 'broken');
+      expect(controller.state.errorMessage, isNotNull);
+      expect(audio.stopCalls, greaterThanOrEqualTo(1));
+      expect(audio.player.sequenceLength, 0);
+    });
   });
 
   group('shuffle (Q12)', () {
@@ -179,6 +240,23 @@ void main() {
 
       expect(controller.state.isShuffleEnabled, isFalse);
       expect(_ids(controller.state.currentQueue), ['a', 'c']);
+    });
+
+    test('removing an earlier track drops it from the player window', () async {
+      await seedQueue(
+        tracks: [_track('a'), _track('b'), _track('c')],
+        currentId: 'b',
+      );
+      expect(audio.player.sequenceLength, 3);
+
+      await controller.removeFromQueue(0);
+      await settle();
+
+      expect(_ids(controller.state.currentQueue), ['b', 'c']);
+      expect(controller.state.currentTrack?.sourceId, 'b');
+      expect(controller.state.currentIndex, 0);
+      expect(audio.removeFromPlaylistCalls, 1);
+      expect(audio.player.sequenceLength, 2);
     });
   });
 
@@ -227,6 +305,20 @@ void main() {
       );
       expect(queueRepo.lastState?.autoQueueIds, 'c');
       expect(queueRepo.lastState?.currentTrackId, 'a');
+    });
+
+    test('restores a queue with no current track without starting playback',
+        () async {
+      await seedQueue(
+        tracks: [_track('a'), _track('b')],
+        currentId: null,
+      );
+
+      expect(_ids(controller.state.currentQueue), ['a', 'b']);
+      expect(controller.state.currentIndex, -1);
+      expect(controller.state.currentTrack, isNull);
+      expect(audio.startPlaylistCalls, 0);
+      expect(audio.player.sequenceLength, 0);
     });
   });
 }

@@ -191,8 +191,18 @@ class PlayerController extends StateNotifier<PlayerState> {
   }
 
   void _syncQueueState() {
+    final currentTrack = _queue.currentTrack;
+    if (currentTrack == null) {
+      state = PlayerState(
+        currentQueue: _queue.tracks,
+        currentIndex: _queue.currentIndex,
+        isShuffleEnabled: _queue.shuffleEnabled,
+        loopMode: _loopModeFromRepeat(_queue.repeatMode),
+      );
+      return;
+    }
     state = state.copyWith(
-      currentTrack: _queue.currentTrack,
+      currentTrack: currentTrack,
       currentQueue: _queue.tracks,
       currentIndex: _queue.currentIndex,
       isShuffleEnabled: _queue.shuffleEnabled,
@@ -211,7 +221,35 @@ class PlayerController extends StateNotifier<PlayerState> {
     );
   }
 
+  /// Stops playback and drops the player window while keeping the queue.
+  ///
+  /// Used when the removed current track had no next entry: the spec says
+  /// playback stops, but the remaining queue must survive.
+  Future<void> _stopAndKeepQueue() async {
+    await _stopPlayerWindow();
+    _syncQueueState();
+  }
+
+  /// Stops playback, clears the `just_audio` window, and cancels async work.
+  Future<void> _stopPlayerWindow() async {
+    try {
+      await _audioService.stop();
+      await _audioService.startPlaylist(const []);
+    } catch (e) {
+      _log.w('Player window reset failed', error: e);
+    }
+
+    _queueSessionId++;
+    _isResolvingNext = false;
+    _isFetchingUpNext = false;
+    _windowStartQueueIndex = 0;
+  }
+
   void _syncWindowAnchor() {
+    if (_queue.currentIndex < 0) {
+      _windowStartQueueIndex = 0;
+      return;
+    }
     final playerIndex = _audioService.player.currentIndex ?? 0;
     // Anchor can be negative when the player still holds a previous track that
     // is no longer before current in the queue (e.g. after shuffle ON).
@@ -583,6 +621,7 @@ class PlayerController extends StateNotifier<PlayerState> {
   bool _needsResolve = false;
 
   Future<void> _resolveAndAppendNextTrack() async {
+    if (_queue.currentIndex < 0) return;
     _needsResolve = true;
     if (_isResolvingNext) return;
     _isResolvingNext = true;
@@ -607,19 +646,9 @@ class PlayerController extends StateNotifier<PlayerState> {
             final userQueueTracks = _queue.userTracks;
 
             if (userQueueTracks.isNotEmpty) {
-              final currentTrackId = _queue.currentTrack?.sourceId;
-              final currentPosInUser = userQueueTracks
-                  .indexWhere((t) => t.sourceId == currentTrackId);
-
-              // Premium: jika current adalah auto (pos -1), next = first user track, bukan offset
-              final int nextUserIndex;
-              if (currentPosInUser == -1) {
-                nextUserIndex = 0;
-              } else {
-                final offset = currentPlaylistLen - playerIndex;
-                nextUserIndex =
-                    (currentPosInUser + offset) % userQueueTracks.length;
-              }
+              final ahead = currentPlaylistLen - playerIndex;
+              final nextUserIndex = _queue.nextUserIndex(ahead: ahead);
+              if (nextUserIndex == -1) break;
               final nextUserTrack = userQueueTracks[nextUserIndex];
 
               final resolvedTrack = await _resolveTrack(nextUserTrack);
@@ -1009,6 +1038,8 @@ class PlayerController extends StateNotifier<PlayerState> {
     }
   }
 
+  /// Selects and plays a queue index. On failure the stale player window is
+  /// cleared so the previous track cannot keep playing behind the error state.
   Future<void> skipToQueueItem(int index) async {
     if (!_queue.select(index)) return;
 
@@ -1026,6 +1057,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       state = state.copyWith(
           errorMessage:
               'Failed to resolve "${track.title}". Please check your connection.');
+      await _stopPlayerWindow();
       return;
     }
 
@@ -1049,6 +1081,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       state = state.copyWith(
           errorMessage:
               'Network error: Failed to stream track. Please check connection.');
+      await _stopPlayerWindow();
       return;
     }
 
@@ -1072,6 +1105,10 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     _queue.toggleShuffle();
     _syncQueueState();
+    if (_queue.currentIndex < 0) {
+      _scheduleSaveQueue();
+      return;
+    }
 
     // Clear the upcoming tracks in the player's playlist and resolve the new next track.
     await _audioService.clearUpcoming();
@@ -1182,17 +1219,29 @@ class PlayerController extends StateNotifier<PlayerState> {
       }
 
       // Q8: current removed -> move playback to the next track via skip path.
+      // No next entry: stop playback but keep the queue (PLAYBACK_SPEC §1.8).
+      if (result.currentTrack == null) {
+        await _stopAndKeepQueue();
+        _scheduleSaveQueue();
+        return;
+      }
+      // Q8: current removed -> move playback to the next track via skip path.
+      // Failure clears the stale window; the queue itself is kept.
       await skipToQueueItem(_queue.currentIndex);
       _scheduleSaveQueue();
       return;
     }
 
-    // Player only holds current + 2 ahead — try direct remove if within window, else rebuild
+    // Player only holds a window around current — remove directly when the
+    // entry is in that window (including entries before current, so a deleted
+    // track cannot be replayed via Previous); otherwise rebuild.
     final playlistLen = _audioService.player.sequence?.length ?? 0;
     final playlistIndex = index - _windowStartQueueIndex;
-    final withinWindow =
-        playlistIndex > (_audioService.player.currentIndex ?? 0) &&
-            playlistIndex < playlistLen;
+    final playerIndex = _audioService.player.currentIndex;
+    final withinWindow = playerIndex != null &&
+        playlistIndex >= 0 &&
+        playlistIndex < playlistLen &&
+        playlistIndex != playerIndex;
     if (withinWindow) {
       try {
         await _audioService.removeFromPlaylist(playlistIndex);
@@ -1245,6 +1294,7 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     _queue = PlayQueue.fromSnapshot(snapshot);
     _syncQueueState();
+    if (_queue.currentIndex < 0) return;
 
     // Setup player but DO NOT auto play — premium: load window prev+current+next2 agar hasPrevious/hasNext benar setelah restore
     final loopMode = _loopModeFromRepeat(_queue.repeatMode);

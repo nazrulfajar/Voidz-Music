@@ -189,6 +189,47 @@ void main() {
       expect(snapshot.currentIndex, 1);
     });
 
+    test('keeps no current entry when the state has no current track id', () {
+      final snapshot = QueueSnapshotMapper.toSnapshot(
+        items: [
+          _item('a', originalIndex: 0),
+          _item('b', originalIndex: 1),
+        ],
+        state: _state(),
+        tracksById: {'a': _track('a'), 'b': _track('b')},
+      );
+
+      expect(snapshot.currentIndex, -1);
+      expect(snapshot.entries, hasLength(2));
+    });
+
+    test('round-trips a snapshot with no current entry', () {
+      final snapshot = PlayQueueSnapshot(
+        entries: [
+          _entry('a', originalIndex: 0),
+          _entry('b', originalIndex: 1),
+        ],
+        currentIndex: -1,
+        shuffleEnabled: false,
+        repeatMode: RepeatMode.off,
+      );
+
+      final restored = QueueSnapshotMapper.toSnapshot(
+        items: QueueSnapshotMapper.toItemModels(snapshot),
+        state: QueueSnapshotMapper.toStateModel(
+          snapshot,
+          currentPositionMs: 0,
+        ),
+        tracksById: {
+          for (final entry in snapshot.entries)
+            entry.track.sourceId: entry.track,
+        },
+      );
+
+      expect(restored.currentIndex, -1);
+      expect(restored.entries, snapshot.entries);
+    });
+
     test('parses and ignores empty auto queue CSV values', () {
       expect(QueueSnapshotMapper.parseAutoQueueIds(null), isEmpty);
       expect(QueueSnapshotMapper.parseAutoQueueIds(''), isEmpty);
