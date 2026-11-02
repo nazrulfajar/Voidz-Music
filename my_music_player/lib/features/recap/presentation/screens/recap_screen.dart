@@ -21,7 +21,7 @@ class RecapScreen extends ConsumerWidget {
     final tokens = AppColors.of(context);
     final period = ref.watch(selectedRecapPeriodProvider);
     final year = ref.watch(selectedRecapYearProvider);
-    final month = ref.watch(selectedRecapMonthProvider);
+    final month = ref.watch(selectedRecapMonthProvider).clamp(1, 12);
     final label = _recapPeriodLabel(period, year, month);
     final periodPhrase = _recapPeriodPhrase(period, year, month);
     final query = (
@@ -54,7 +54,6 @@ class RecapScreen extends ConsumerWidget {
             period: period,
             year: year,
             month: month,
-            label: label,
             years: years,
             onPeriodChanged: (value) =>
                 ref.read(selectedRecapPeriodProvider.notifier).state = value,
@@ -142,12 +141,9 @@ class RecapScreen extends ConsumerWidget {
                 );
               },
               loading: () => const ShimmerSection(isGrid: false, itemCount: 6),
-              error: (e, st) => Center(
-                child: AppEmptyState(
-                  icon: Icons.error_outline,
-                  title: 'Gagal memuat rekap',
-                  subtitle: e.toString(),
-                ),
+              error: (e, st) => AppErrorState(
+                error: 'Gagal memuat rekap. Periksa koneksi lalu coba lagi.',
+                onRetry: () => ref.invalidate(recapProvider(query)),
               ),
             ),
           ),
@@ -174,7 +170,8 @@ const _monthNames = [
 
 String _recapPeriodLabel(RecapPeriod period, int year, int month) {
   if (period == RecapPeriod.year) return '$year';
-  return '${_monthNames[month - 1]} $year';
+  final safeMonth = month.clamp(1, 12);
+  return '${_monthNames[safeMonth - 1]} $year';
 }
 
 String _recapPeriodPhrase(RecapPeriod period, int year, int month) {
@@ -187,7 +184,6 @@ class _PeriodControls extends StatelessWidget {
     required this.period,
     required this.year,
     required this.month,
-    required this.label,
     required this.years,
     required this.onPeriodChanged,
     required this.onMonthChanged,
@@ -197,7 +193,6 @@ class _PeriodControls extends StatelessWidget {
   final RecapPeriod period;
   final int year;
   final int month;
-  final String label;
   final List<int> years;
   final ValueChanged<RecapPeriod> onPeriodChanged;
   final ValueChanged<int> onMonthChanged;
@@ -233,14 +228,32 @@ class _PeriodControls extends StatelessWidget {
                 onSelected: (_) => onPeriodChanged(RecapPeriod.year),
               ),
               if (period == RecapPeriod.month)
-                _MonthDropdown(value: month, onChanged: onMonthChanged),
-              _YearDropdown(
-                  value: year, years: years, onChanged: onYearChanged),
+                _PeriodDropdown<int>(
+                  value: month,
+                  semanticLabel: 'Pilih bulan',
+                  items: [
+                    for (var month = 1; month <= 12; month++)
+                      DropdownMenuItem(
+                        value: month,
+                        child: Text(_monthNames[month - 1]),
+                      ),
+                  ],
+                  onChanged: onMonthChanged,
+                ),
+              _PeriodDropdown<int>(
+                value: year,
+                semanticLabel: 'Pilih tahun',
+                items: [
+                  for (final year in years)
+                    DropdownMenuItem(value: year, child: Text('$year')),
+                ],
+                onChanged: onYearChanged,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            label,
+            _recapPeriodLabel(period, year, month),
             style: theme.textTheme.titleMedium?.copyWith(
               color: tokens.textPrimary,
               fontWeight: FontWeight.bold,
@@ -252,60 +265,26 @@ class _PeriodControls extends StatelessWidget {
   }
 }
 
-class _MonthDropdown extends StatelessWidget {
-  const _MonthDropdown({required this.value, required this.onChanged});
-
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tokens = AppColors.of(context);
-    return Semantics(
-      label: 'Pilih bulan',
-      child: DropdownButton<int>(
-        value: value,
-        dropdownColor: tokens.raised,
-        underline: const SizedBox.shrink(),
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: tokens.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-        icon: Icon(Icons.arrow_drop_down, color: tokens.textPrimary),
-        items: [
-          for (var month = 1; month <= 12; month++)
-            DropdownMenuItem(
-              value: month,
-              child: Text(_monthNames[month - 1]),
-            ),
-        ],
-        onChanged: (month) {
-          if (month != null) onChanged(month);
-        },
-      ),
-    );
-  }
-}
-
-class _YearDropdown extends StatelessWidget {
-  const _YearDropdown({
+class _PeriodDropdown<T> extends StatelessWidget {
+  const _PeriodDropdown({
     required this.value,
-    required this.years,
+    required this.items,
     required this.onChanged,
+    required this.semanticLabel,
   });
 
-  final int value;
-  final List<int> years;
-  final ValueChanged<int> onChanged;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T> onChanged;
+  final String semanticLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = AppColors.of(context);
     return Semantics(
-      label: 'Pilih tahun',
-      child: DropdownButton<int>(
+      label: semanticLabel,
+      child: DropdownButton<T>(
         value: value,
         dropdownColor: tokens.raised,
         underline: const SizedBox.shrink(),
@@ -314,12 +293,9 @@ class _YearDropdown extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
         icon: Icon(Icons.arrow_drop_down, color: tokens.textPrimary),
-        items: [
-          for (final year in years)
-            DropdownMenuItem(value: year, child: Text('$year')),
-        ],
-        onChanged: (year) {
-          if (year != null) onChanged(year);
+        items: items,
+        onChanged: (value) {
+          if (value != null) onChanged(value);
         },
       ),
     );

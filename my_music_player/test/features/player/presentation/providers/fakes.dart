@@ -528,10 +528,36 @@ class FakeQueueRepository extends QueueRepository {
 
 class FakePlaylistRepository implements PlaylistRepository {
   int addToPlayHistoryCalls = 0;
+  int clearPlayHistoryCalls = 0;
+  List<Track> recentTracks = [];
+  int recentCount = 0;
+  String? lastRecentNowSource;
 
   @override
   Future<void> addToPlayHistory(String trackSourceId) async {
     addToPlayHistoryCalls++;
+  }
+
+  @override
+  Future<List<Track>> getRecentlyPlayedTracks({
+    int days = 30,
+    int limit = 100,
+    DateTime? now,
+  }) async {
+    lastRecentNowSource = now?.toIso8601String();
+    return recentTracks.take(limit).toList();
+  }
+
+  @override
+  Future<int> getRecentlyPlayedCount({int days = 30, DateTime? now}) async {
+    return recentCount;
+  }
+
+  @override
+  Future<void> clearPlayHistory() async {
+    clearPlayHistoryCalls++;
+    recentTracks = [];
+    recentCount = 0;
   }
 
   @override

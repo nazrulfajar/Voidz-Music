@@ -8,8 +8,12 @@ import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/core/providers/connectivity_provider.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
 import 'package:my_music_player/core/theme/app_theme.dart';
+import 'package:my_music_player/features/home/domain/entities/daily_mix.dart';
 import 'package:my_music_player/features/home/presentation/providers/home_provider.dart';
+import 'package:my_music_player/features/home/presentation/providers/mood_mix_provider.dart';
+import 'package:my_music_player/features/home/presentation/screens/daily_mix_screen.dart';
 import 'package:my_music_player/features/home/presentation/screens/home_screen.dart';
+import 'package:my_music_player/features/home/presentation/widgets/mix_card.dart';
 import 'package:my_music_player/features/player/data/repositories/track_repository_impl.dart';
 import 'package:my_music_player/features/player/domain/entities/track.dart';
 import 'package:my_music_player/features/player/domain/repositories/track_repository.dart';
@@ -20,6 +24,26 @@ import '../../helpers/pump_app.dart';
 import '../player/presentation/providers/fakes.dart';
 
 class _MockTrackRepository extends Mock implements TrackRepository {}
+
+class _RecordingPlayerController extends PlayerController {
+  _RecordingPlayerController(Ref ref)
+      : super(
+          FakeAudioPlayerService(),
+          FakeApiService(),
+          FakeTrackRepository(),
+          FakeCacheDownloadService(),
+          ref,
+        );
+
+  Track? playedTrack;
+  List<Track>? playedQueue;
+
+  @override
+  Future<void> playTrack(Track track, {List<Track>? queue}) async {
+    playedTrack = track;
+    playedQueue = queue;
+  }
+}
 
 class _RouteStub extends StatelessWidget {
   const _RouteStub(this.label);
@@ -73,8 +97,10 @@ void main() {
           builder: (context, state) => const _RouteStub('device-songs-route'),
         ),
         GoRoute(
-          path: '/daily-mix',
-          builder: (context, state) => const _RouteStub('daily-mix-route'),
+          path: '/daily-mix/:mood',
+          builder: (context, state) => _RouteStub(
+            'daily-mix-${state.pathParameters['mood']}-route',
+          ),
         ),
       ],
     );
@@ -86,6 +112,9 @@ void main() {
         overrides: [
           recentlyPlayedProvider.overrideWith((ref) async => recentlyPlayed),
           quickPicksProvider.overrideWith((ref) async => quickPicks),
+          moodMixProvider.overrideWith(
+            (ref, mood) async => DailyMix(mood: mood),
+          ),
           connectivityProvider.overrideWith(
             (ref) => Stream<bool>.value(true),
           ),
@@ -143,20 +172,29 @@ void main() {
     expect(find.text('search-route'), findsOneWidget);
   });
 
-  testWidgets('empty daily mix offers a device scan action', (tester) async {
+  testWidgets('daily mix renders the five mood cards', (tester) async {
+    final semantics = tester.ensureSemantics();
     await pumpHome(tester);
 
-    expect(
-      find.widgetWithText(FilledButton, 'Scan device songs'),
-      findsOneWidget,
-    );
+    expect(find.byType(MixCard), findsNWidgets(5));
+    for (final mood in DailyMixMood.values) {
+      expect(find.text(mood.label), findsOneWidget);
+    }
+    expect(find.bySemanticsLabel('Daily Mix Energize'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Scan device songs'));
+    semantics.dispose();
+  });
+
+  testWidgets('tapping a mood card opens its detail route', (tester) async {
+    await pumpHome(tester);
+
+    final card = find.byType(MixCard).first;
+    await tester.ensureVisible(card);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Scan device songs'));
+    await tester.tap(card);
     await tester.pumpAndSettle();
 
-    expect(find.text('device-songs-route'), findsOneWidget);
+    expect(find.text('daily-mix-energize-route'), findsOneWidget);
   });
 
   testWidgets('hides the recently played header when nothing was played',
@@ -195,7 +233,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Search music'), findsOneWidget);
-    expect(find.text('Scan device songs'), findsOneWidget);
+    expect(find.byType(MixCard), findsNWidgets(5));
   });
 
   testWidgets('populated home renders at 200% text scale without overflow',
@@ -206,6 +244,103 @@ void main() {
       quickPicks: [_track(sourceId: 't2', title: 'Beta')],
       textScale: 2.0,
     );
+
+    expect(tester.takeException(), isNull);
+  });
+
+  Future<_RecordingPlayerController> pumpDailyMix(
+    WidgetTester tester, {
+    required List<Track> tracks,
+    double textScale = 1.0,
+  }) async {
+    late _RecordingPlayerController controller;
+    final router = GoRouter(
+      initialLocation: '/daily-mix/energize',
+      routes: [
+        GoRoute(
+          path: '/daily-mix/:mood',
+          builder: (context, state) => DailyMixScreen(
+            mood: DailyMixMood.fromSlug(state.pathParameters['mood'] ?? ''),
+          ),
+        ),
+        GoRoute(
+          path: '/search',
+          builder: (context, state) => const _RouteStub('search-route'),
+        ),
+        GoRoute(
+          path: '/library/device-songs',
+          builder: (context, state) => const _RouteStub('device-songs-route'),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await pumpApp(
+      tester,
+      ProviderScope(
+        overrides: [
+          moodMixProvider.overrideWith(
+            (ref, mood) async =>
+                DailyMix(mood: mood, tracks: tracks, artworkUrls: const []),
+          ),
+          playerControllerProvider.overrideWith((ref) {
+            controller = _RecordingPlayerController(ref);
+            return controller;
+          }),
+          appSettingsProvider.overrideWith((ref) => const Stream.empty()),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.darkTheme,
+          routerConfig: router,
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler: TextScaler.linear(textScale),
+              ),
+              child: child!,
+            );
+          },
+        ),
+      ),
+      textScale: textScale,
+    );
+    await tester.pumpAndSettle();
+    return controller;
+  }
+
+  testWidgets('daily mix detail lists tracks and plays all', (tester) async {
+    final tracks = [_track(), _track(sourceId: 't2', title: 'Beta')];
+
+    final controller = await pumpDailyMix(tester, tracks: tracks);
+
+    expect(find.text('Energize'), findsOneWidget);
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsOneWidget);
+
+    await tester.tap(find.text('Play all'));
+    await tester.pump();
+
+    expect(controller.playedTrack, tracks.first);
+    expect(controller.playedQueue, tracks);
+  });
+
+  testWidgets('empty daily mix offers search and device scan actions',
+      (tester) async {
+    await pumpDailyMix(tester, tracks: const []);
+
+    expect(find.text('No tracks for Energize'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Search'), findsOneWidget);
+    expect(find.text('Scan device songs'), findsOneWidget);
+
+    await tester.tap(find.text('Scan device songs'));
+    await tester.pumpAndSettle();
+    expect(find.text('device-songs-route'), findsOneWidget);
+  });
+
+  testWidgets('empty daily mix renders at 200% text scale without overflow',
+      (tester) async {
+    await pumpDailyMix(tester, tracks: const [], textScale: 2.0);
 
     expect(tester.takeException(), isNull);
   });
