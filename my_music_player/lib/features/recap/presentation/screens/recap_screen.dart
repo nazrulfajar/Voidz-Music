@@ -6,10 +6,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_filter_chip.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
 import '../../domain/entities/recap.dart';
+import '../../domain/entities/recap_period.dart';
 import '../providers/recap_provider.dart';
 
 class RecapScreen extends ConsumerWidget {
@@ -17,78 +19,300 @@ class RecapScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final period = ref.watch(selectedRecapPeriodProvider);
     final year = ref.watch(selectedRecapYearProvider);
-    final recapAsync = ref.watch(recapProvider(year));
+    final month = ref.watch(selectedRecapMonthProvider);
+    final label = _recapPeriodLabel(period, year, month);
+    final periodPhrase = _recapPeriodPhrase(period, year, month);
+    final query = (
+      year: year,
+      month: period == RecapPeriod.month ? month : null,
+    );
+    final recapAsync = ref.watch(recapProvider(query));
     final yearsAsync = ref.watch(recapYearsProvider);
-    final theme = Theme.of(context);
+    final years = <int>{
+      year,
+      ...?yearsAsync.valueOrNull,
+    }.toList()
+      ..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
       backgroundColor: AppColors.surfaceBase,
       appBar: AppBar(
         backgroundColor: AppColors.surfaceBase,
-        title: const Text('Rekap', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-        actions: [
-          yearsAsync.when(
-            data: (years) => DropdownButton<int>(
-              value: years.contains(year) ? year : years.first,
-              dropdownColor: AppColors.surfaceElevated,
-              underline: const SizedBox.shrink(),
-              style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-              icon: const Icon(Icons.arrow_drop_down, color: AppColors.textPrimary),
-              items: years.map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
-              onChanged: (v) {
-                if (v != null) ref.read(selectedRecapYearProvider.notifier).state = v;
-              },
-            ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
+        title: const Text(
+          'Rekap',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(width: AppSpacing.sm),
+        ),
+      ),
+      body: Column(
+        children: [
+          _PeriodControls(
+            period: period,
+            year: year,
+            month: month,
+            label: label,
+            years: years,
+            onPeriodChanged: (value) =>
+                ref.read(selectedRecapPeriodProvider.notifier).state = value,
+            onMonthChanged: (value) =>
+                ref.read(selectedRecapMonthProvider.notifier).state = value,
+            onYearChanged: (value) =>
+                ref.read(selectedRecapYearProvider.notifier).state = value,
+          ),
+          Expanded(
+            child: recapAsync.when(
+              data: (recap) {
+                if (recap.totalPlays == 0) {
+                  return Center(
+                    child: AppEmptyState(
+                      icon: Icons.auto_awesome_outlined,
+                      title: 'Belum ada rekap $label',
+                      subtitle:
+                          'Putar lagu dulu, rekap akan muncul di sini.\nHistory max 10000 play.',
+                    ),
+                  );
+                }
+                return RefreshIndicator(
+                  color: AppColors.accentPrimary,
+                  backgroundColor: AppColors.surfaceElevated,
+                  onRefresh: () async => ref.invalidate(recapProvider(query)),
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(child: _HeaderStats(recap: recap)),
+                      SliverToBoxAdapter(
+                        child: _MostPlayedCard(
+                          track: recap.mostPlayed!,
+                          count: recap.mostPlayedCount,
+                          periodLabel: label,
+                          ref: ref,
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: _SectionHeader(
+                          title: 'Top 5 Lagu',
+                          subtitle: 'Paling sering diputar $periodPhrase',
+                        ),
+                      ),
+                      SliverList.builder(
+                        itemCount: recap.topSongs.length,
+                        itemBuilder: (c, i) => _SongTile(
+                          rank: i + 1,
+                          track: recap.topSongs[i],
+                          count: recap.topSongCounts[i],
+                          ref: ref,
+                          queue: recap.topSongs,
+                        ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: _SectionHeader(
+                          title: 'Top 5 Artis',
+                          subtitle: 'Artis teratasmu',
+                        ),
+                      ),
+                      SliverList.builder(
+                        itemCount: recap.topArtists.length,
+                        itemBuilder: (c, i) => _ArtistTile(
+                          rank: i + 1,
+                          data: recap.topArtists[i],
+                        ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: _SectionHeader(
+                          title: 'Top 5 Album',
+                          subtitle: 'Album paling diputar',
+                        ),
+                      ),
+                      SliverList.builder(
+                        itemCount: recap.topAlbums.length,
+                        itemBuilder: (c, i) => _AlbumTile(
+                          rank: i + 1,
+                          data: recap.topAlbums[i],
+                        ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: 120),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              loading: () => const ShimmerSection(isGrid: false, itemCount: 6),
+              error: (e, st) => Center(
+                child: AppEmptyState(
+                  icon: Icons.error_outline,
+                  title: 'Gagal memuat rekap',
+                  subtitle: e.toString(),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
-      body: recapAsync.when(
-        data: (recap) {
-          if (recap.totalPlays == 0) {
-            return Center(
-              child: AppEmptyState(
-                icon: Icons.auto_awesome_outlined,
-                title: 'Belum ada rekap $year',
-                subtitle: 'Putar lagu dulu, rekap akan muncul di sini.\nHistory max 10000 play.',
-              ),
-            );
-          }
-          return RefreshIndicator(
-            color: AppColors.accentPrimary,
-            backgroundColor: AppColors.surfaceElevated,
-            onRefresh: () async => ref.invalidate(recapProvider(year)),
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(child: _HeaderStats(recap: recap)),
-                SliverToBoxAdapter(child: _MostPlayedCard(track: recap.mostPlayed!, count: recap.mostPlayedCount, year: recap.year, ref: ref)),
-                SliverToBoxAdapter(child: _SectionHeader(title: 'Top 5 Lagu', subtitle: 'Paling sering diputar tahun $year')),
-                SliverList.builder(
-                  itemCount: recap.topSongs.length,
-                  itemBuilder: (c, i) => _SongTile(rank: i + 1, track: recap.topSongs[i], count: recap.topSongCounts[i], ref: ref, queue: recap.topSongs),
-                ),
-                SliverToBoxAdapter(child: _SectionHeader(title: 'Top 5 Artis', subtitle: 'Artis teratasmu')),
-                SliverList.builder(
-                  itemCount: recap.topArtists.length,
-                  itemBuilder: (c, i) => _ArtistTile(rank: i + 1, data: recap.topArtists[i]),
-                ),
-                SliverToBoxAdapter(child: _SectionHeader(title: 'Top 5 Album', subtitle: 'Album paling diputar')),
-                SliverList.builder(
-                  itemCount: recap.topAlbums.length,
-                  itemBuilder: (c, i) => _AlbumTile(rank: i + 1, data: recap.topAlbums[i]),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 120)),
-              ],
-            ),
-          );
-        },
-        loading: () => const ShimmerSection(isGrid: false, itemCount: 6),
-        error: (e, st) => Center(child: AppEmptyState(icon: Icons.error_outline, title: 'Gagal memuat rekap', subtitle: e.toString())),
+    );
+  }
+}
+
+const _monthNames = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+];
+
+String _recapPeriodLabel(RecapPeriod period, int year, int month) {
+  if (period == RecapPeriod.year) return '$year';
+  return '${_monthNames[month - 1]} $year';
+}
+
+String _recapPeriodPhrase(RecapPeriod period, int year, int month) {
+  if (period == RecapPeriod.year) return 'tahun $year';
+  return _recapPeriodLabel(period, year, month);
+}
+
+class _PeriodControls extends StatelessWidget {
+  const _PeriodControls({
+    required this.period,
+    required this.year,
+    required this.month,
+    required this.label,
+    required this.years,
+    required this.onPeriodChanged,
+    required this.onMonthChanged,
+    required this.onYearChanged,
+  });
+
+  final RecapPeriod period;
+  final int year;
+  final int month;
+  final String label;
+  final List<int> years;
+  final ValueChanged<RecapPeriod> onPeriodChanged;
+  final ValueChanged<int> onMonthChanged;
+  final ValueChanged<int> onYearChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        0,
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              AppFilterChip(
+                label: 'Bulan',
+                selected: period == RecapPeriod.month,
+                onSelected: () => onPeriodChanged(RecapPeriod.month),
+              ),
+              AppFilterChip(
+                label: 'Tahun',
+                selected: period == RecapPeriod.year,
+                onSelected: () => onPeriodChanged(RecapPeriod.year),
+              ),
+              if (period == RecapPeriod.month)
+                _MonthDropdown(value: month, onChanged: onMonthChanged),
+              _YearDropdown(
+                  value: year, years: years, onChanged: onYearChanged),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            label,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthDropdown extends StatelessWidget {
+  const _MonthDropdown({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DropdownButton<int>(
+      value: value,
+      dropdownColor: AppColors.surfaceElevated,
+      underline: const SizedBox.shrink(),
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      icon: const Icon(Icons.arrow_drop_down, color: AppColors.textPrimary),
+      items: [
+        for (var month = 1; month <= 12; month++)
+          DropdownMenuItem(
+            value: month,
+            child: Text(_monthNames[month - 1]),
+          ),
+      ],
+      onChanged: (month) {
+        if (month != null) onChanged(month);
+      },
+    );
+  }
+}
+
+class _YearDropdown extends StatelessWidget {
+  const _YearDropdown({
+    required this.value,
+    required this.years,
+    required this.onChanged,
+  });
+
+  final int value;
+  final List<int> years;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DropdownButton<int>(
+      value: value,
+      dropdownColor: AppColors.surfaceElevated,
+      underline: const SizedBox.shrink(),
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      icon: const Icon(Icons.arrow_drop_down, color: AppColors.textPrimary),
+      items: [
+        for (final year in years)
+          DropdownMenuItem(value: year, child: Text('$year')),
+      ],
+      onChanged: (year) {
+        if (year != null) onChanged(year);
+      },
     );
   }
 }
@@ -98,7 +322,6 @@ class _HeaderStats extends StatelessWidget {
   const _HeaderStats({required this.recap});
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.all(AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -133,9 +356,9 @@ class _StatItem extends StatelessWidget {
 class _MostPlayedCard extends StatelessWidget {
   final Track track;
   final int count;
-  final int year;
+  final String periodLabel;
   final WidgetRef ref;
-  const _MostPlayedCard({required this.track, required this.count, required this.year, required this.ref});
+  const _MostPlayedCard({required this.track, required this.count, required this.periodLabel, required this.ref});
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -156,7 +379,7 @@ class _MostPlayedCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.full)), child: Text('#1 MOST PLAYED $year', style: theme.textTheme.labelSmall?.copyWith(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 1))),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.full)), child: Text('#1 MOST PLAYED $periodLabel', style: theme.textTheme.labelSmall?.copyWith(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 1))),
                   const Spacer(),
                   const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
                 ]),
