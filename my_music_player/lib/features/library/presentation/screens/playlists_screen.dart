@@ -178,7 +178,8 @@ class _PlaylistsBody extends StatelessWidget {
             bottom: AppSpacing.space3,
           ),
           child: Text(
-            '${playlists.length} playlists',
+            '${playlists.length} '
+            '${playlists.length == 1 ? 'playlist' : 'playlists'}',
             style: TextStyle(fontSize: 11, color: tokens.textSecondary),
           ),
         ),

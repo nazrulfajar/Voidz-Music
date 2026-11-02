@@ -150,7 +150,9 @@ class DailyMixScreen extends ConsumerWidget {
           child: CircularProgressIndicator(color: tokens.accent),
         ),
         error: (error, stackTrace) => AppErrorState(
-          error: error.toString(),
+          error:
+              'Couldn\'t load this mix. Check your connection and try again.',
+          cause: error,
           onRetry: () => ref.invalidate(moodMixProvider(mood)),
         ),
       ),
