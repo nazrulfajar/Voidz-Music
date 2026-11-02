@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/browse/presentation/screens/artist_screen.dart';
 import '../../features/browse/presentation/screens/album_screen.dart';
+import '../../features/browse/presentation/screens/browse_screen.dart';
 import '../../features/browse/presentation/screens/playlist_screen.dart';
 
 /// Single source of truth for browse detail routes.
@@ -64,10 +65,26 @@ GoRoute buildPlaylistRoute() => GoRoute(
       },
     );
 
+/// Browse hub child of the Search branch.
+///
+/// It lives inside the `StatefulShellRoute` so the bottom navigation and mini
+/// player stay visible. The canonical `/browse` deep-link redirects here
+/// (see [buildCanonicalDeepLinkRoutes]) instead of opening a second shell-less
+/// browse screen.
+GoRoute buildBrowseRoute() => GoRoute(
+      path: 'browse',
+      pageBuilder: (context, state) =>
+          _smooth(context: context, state: state, child: const BrowseScreen()),
+    );
+
 /// Canonical top-level routes for external deep-links `myapp://artist/xyz`.
 /// They redirect to the current branch's artist route so tab state is preserved
 /// but deep-link still works. Alternatively they directly render the screen.
 List<GoRoute> buildCanonicalDeepLinkRoutes() => [
+      GoRoute(
+        path: '/browse',
+        redirect: (context, state) => '/search/browse',
+      ),
       GoRoute(
         path: '/artist/:id',
         pageBuilder: (context, state) {

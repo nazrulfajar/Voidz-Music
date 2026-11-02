@@ -141,16 +141,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.handle),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Lyrics',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: t.textPrimary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.xs),
               const Expanded(child: LyricsView()),
             ],
           ),
@@ -162,7 +153,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void _showQueueSheet(BuildContext context) {
     final t = AppColors.of(context);
     final mq = MediaQuery.of(context);
-    final queueLength = ref.read(playerControllerProvider).currentQueue.length;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -186,16 +176,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.handle),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Queue ($queueLength)',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: t.textPrimary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.xs),
               const Expanded(child: QueueView()),
             ],
           ),

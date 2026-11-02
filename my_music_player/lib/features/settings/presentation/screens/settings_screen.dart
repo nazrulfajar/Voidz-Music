@@ -348,6 +348,34 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: AppSpacing.lg),
+              _buildSectionTitle(tokens, 'Appearance'),
+              _buildCard(
+                tokens,
+                child: ListTile(
+                  title: Text(
+                    'Theme',
+                    style: theme.textTheme.bodyLarge
+                        ?.copyWith(color: tokens.textPrimary),
+                  ),
+                  subtitle: Text(
+                    _themeModeLabel(settings.appThemeMode),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: tokens.textSecondary),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: tokens.textPrimary,
+                  ),
+                  onTap: () => _pickThemeMode(
+                    context,
+                    tokens,
+                    theme,
+                    controller,
+                    settings.appThemeMode,
+                  ),
+                ),
+              ),
               const SizedBox(height: AppSpacing.xxxl),
             ],
           );
@@ -363,6 +391,65 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _pickThemeMode(
+    BuildContext context,
+    AppColorTokens tokens,
+    ThemeData theme,
+    SettingsController controller,
+    AppThemeMode current,
+  ) async {
+    final choice = await showDialog<AppThemeMode>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: tokens.raised,
+        title: Text(
+          'Theme',
+          style:
+              theme.textTheme.titleMedium?.copyWith(color: tokens.textPrimary),
+        ),
+        children: [
+          for (final mode in AppThemeMode.values)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, mode),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.xs,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _themeModeLabel(mode),
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: tokens.textPrimary),
+                      ),
+                    ),
+                    if (mode == current)
+                      Icon(Icons.check, size: 18, color: tokens.accent),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (choice != null && choice != current) {
+      await controller.setThemeMode(choice);
+    }
+  }
+
+  String _themeModeLabel(AppThemeMode mode) {
+    switch (mode) {
+      case AppThemeMode.system:
+        return 'System';
+      case AppThemeMode.light:
+        return 'Light';
+      case AppThemeMode.dark:
+        return 'Dark';
+    }
   }
 
   Widget _buildSectionTitle(AppColorTokens tokens, String title) {
