@@ -22,6 +22,23 @@ abstract class PlaylistRepository {
   // Play History
   Future<void> addToPlayHistory(String trackSourceId);
   Future<List<Track>> getPlayHistory({int limit = 20});
+
+  /// Distinct tracks played since [now] minus [days], newest first.
+  ///
+  /// [now] is injectable so tests can pin the cutoff.
+  Future<List<Track>> getRecentlyPlayedTracks({
+    int days = 30,
+    int limit = 100,
+    DateTime? now,
+  });
+
+  /// Distinct `trackSourceId` values played since [now] minus [days].
+  Future<int> getRecentlyPlayedCount({int days = 30, DateTime? now});
+
+  /// Deletes the play history and clears `lastPlayedAt`.
+  ///
+  /// `playCount` is intentionally preserved for recap and track stats.
+  Future<void> clearPlayHistory();
 }
 
 // Constants for virtual playlists
