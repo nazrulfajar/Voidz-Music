@@ -225,7 +225,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     return MaterialApp.router(
       title: 'Voidz Music',
       theme: AppTheme.darkTheme,
-      darkTheme: AppTheme.darkTheme, // We only have a dark theme for now
+      darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
       routerConfig: goRouter,
       debugShowCheckedModeBanner: false,
