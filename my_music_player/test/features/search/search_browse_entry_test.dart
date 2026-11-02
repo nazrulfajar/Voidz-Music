@@ -93,7 +93,10 @@ void main() {
     expect(find.text('Browse by source'), findsOneWidget);
     expect(find.text('Browse sources'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('search-browse-entry')));
+    final browseEntry = find.byKey(const ValueKey('search-browse-entry'));
+    await tester.ensureVisible(browseEntry);
+    await tester.pumpAndSettle();
+    await tester.tap(browseEntry);
     await tester.pumpAndSettle();
 
     expect(find.text('browse-route'), findsOneWidget);

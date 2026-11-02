@@ -91,11 +91,16 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
           child: lyricsAsync.when(
             data: (lyrics) {
               if (lyrics == null || lyrics.type == LyricsType.notFound) {
-                return const Center(
-                  child: AppEmptyState(
-                    icon: Icons.lyrics_outlined,
-                    title: 'Lirik tidak ditemukan',
-                  ),
+                return AppStatePanel(
+                  variant: AppStateVariant.empty,
+                  icon: Icons.lyrics_outlined,
+                  title: 'No lyrics found',
+                  message: 'LRCLIB has no lyrics for this track. Instrumental '
+                      'tracks never show lyrics.',
+                  actionLabel: 'Retry',
+                  actionIcon: Icons.refresh_rounded,
+                  onAction: () => ref.invalidate(currentLyricsProvider),
+                  footnote: 'Playback continues without lyrics.',
                 );
               }
 
@@ -190,11 +195,10 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
             loading: () => Center(
               child: CircularProgressIndicator(color: t.accent),
             ),
-            error: (err, stack) => Center(
-              child: Text(
-                'Error: $err',
-                style: TextStyle(color: t.textPrimary),
-              ),
+            error: (err, stack) => AppErrorState(
+              error: 'Lyrics are unavailable right now.',
+              cause: err,
+              onRetry: () => ref.invalidate(currentLyricsProvider),
             ),
           ),
         ),

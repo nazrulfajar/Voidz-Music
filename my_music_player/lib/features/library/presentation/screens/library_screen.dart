@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_section_header.dart';
+import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../cache/presentation/providers/cache_stats_provider.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/device_songs_provider.dart';
@@ -23,6 +26,7 @@ class LibraryScreen extends ConsumerWidget {
     final t = AppColors.of(context);
     final playlistsAsync = ref.watch(allPlaylistsProvider);
     final totalTracks = ref.watch(libraryTrackTotalProvider).valueOrNull;
+    final isOnline = ref.watch(connectivityProvider).value ?? true;
 
     return Scaffold(
       backgroundColor: t.background,
@@ -55,6 +59,10 @@ class LibraryScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildHeader(context, t, totalTracks),
+                    if (!isOnline) ...[
+                      const SizedBox(height: AppSpacing.space4),
+                      const AppOfflineBanner(),
+                    ],
                     const SizedBox(height: AppSpacing.space6),
                     playlistsAsync.when(
                       data: (playlists) => _buildContent(
@@ -63,8 +71,8 @@ class LibraryScreen extends ConsumerWidget {
                         t,
                         playlists,
                       ),
-                      loading: () => _buildSkeleton(t),
-                      error: (e, _) => _buildError(context, ref, t),
+                      loading: () => _buildSkeleton(),
+                      error: (e, _) => _buildError(context, ref, e),
                     ),
                   ],
                 ),
@@ -464,47 +472,28 @@ class LibraryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSkeleton(AppColorTokens t) {
-    Widget block(double height) => Container(
-          height: height,
-          margin: const EdgeInsets.only(bottom: AppSpacing.space2),
-          decoration: BoxDecoration(
-            color: t.textPrimary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-        );
-    return Column(
+  Widget _buildSkeleton() {
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        block(104),
-        const SizedBox(height: AppSpacing.space2),
-        block(56),
-        block(56),
-        block(56),
-        const SizedBox(height: AppSpacing.space4),
-        block(64),
+        ShimmerBox(height: 104, radius: 22),
+        SizedBox(height: AppSpacing.space4),
+        ShimmerBox(height: 56, radius: AppRadius.lg),
+        SizedBox(height: AppSpacing.space2),
+        ShimmerBox(height: 56, radius: AppRadius.lg),
+        SizedBox(height: AppSpacing.space2),
+        ShimmerBox(height: 56, radius: AppRadius.lg),
+        SizedBox(height: AppSpacing.space4),
+        ShimmerBox(height: 64, radius: AppRadius.lg),
       ],
     );
   }
 
-  Widget _buildError(BuildContext context, WidgetRef ref, AppColorTokens t) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: AppSpacing.space8),
-        Text(
-          'Failed to load library',
-          style: TextStyle(color: t.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.space3),
-        TextButton(
-          onPressed: () => ref.invalidate(allPlaylistsProvider),
-          child: Text(
-            'Retry',
-            style: TextStyle(color: t.textPrimary),
-          ),
-        ),
-      ],
+  Widget _buildError(BuildContext context, WidgetRef ref, Object error) {
+    return AppErrorState(
+      error: 'Check your connection and try again.',
+      cause: error,
+      onRetry: () => ref.invalidate(allPlaylistsProvider),
     );
   }
 }

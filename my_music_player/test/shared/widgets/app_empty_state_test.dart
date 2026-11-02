@@ -68,6 +68,6 @@ void main() {
     );
 
     final title = tester.widget<Text>(find.text('Empty'));
-    expect(title.style?.color, AppColors.light.textSecondary);
+    expect(title.style?.color, AppColors.light.textPrimary);
   });
 }

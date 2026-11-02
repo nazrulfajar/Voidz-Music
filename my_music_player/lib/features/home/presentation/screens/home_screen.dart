@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
+import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
 import '../../domain/entities/daily_mix.dart';
@@ -110,56 +111,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       // Offline banner
                       if (!isOnline)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(
                             AppSpacing.screenInset,
                             AppSpacing.space2,
                             AppSpacing.screenInset,
                             AppSpacing.space2,
                           ),
-                          child: Container(
-                            constraints: const BoxConstraints(minHeight: 72),
-                            decoration: BoxDecoration(
-                              color: t.raised,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.xxl),
-                              border: Border.all(color: t.border),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.space4,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.cloud_off,
-                                    color: t.textPrimary, size: 20),
-                                const SizedBox(width: AppSpacing.space3),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Offline mode',
-                                        style:
-                                            theme.textTheme.bodyLarge?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: t.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Showing cached content',
-                                        style:
-                                            theme.textTheme.bodySmall?.copyWith(
-                                          color: t.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          child: AppOfflineBanner(),
                         ),
 
                       // Continue listening section
@@ -325,18 +284,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           );
                         },
-                        loading: () => Padding(
-                          padding: const EdgeInsets.symmetric(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(
                             horizontal: AppSpacing.screenInset,
                           ),
-                          child: Container(
-                            height: 98,
-                            decoration: BoxDecoration(
-                              color: t.raised,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.xxl),
-                            ),
-                          ),
+                          child: ShimmerContinueCard(),
                         ),
                         error: (_, __) => Padding(
                           padding: const EdgeInsets.symmetric(
@@ -534,18 +486,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             }).toList(),
                           );
                         },
-                        loading: () => Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.screenInset,
-                          ),
-                          child: Container(
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: t.raised,
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                            ),
-                          ),
-                        ),
+                        loading: () => const ShimmerSection(itemCount: 3),
                         error: (_, __) => Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.screenInset,

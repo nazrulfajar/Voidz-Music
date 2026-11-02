@@ -8,7 +8,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_section_header.dart';
+import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../browse/domain/entities/browse_models.dart';
 import '../../../browse/presentation/widgets/browse_source_card.dart';
 import '../../../player/domain/entities/track.dart';
@@ -168,13 +170,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 const SizedBox(height: AppSpacing.space2),
                 Expanded(
                   child: !isOnline
-                      ? _buildOfflineState(t)
+                      ? _buildOfflineState()
                       : searchResults.isLoading && !searchResults.hasValue
-                          ? const Center(
-                              child: CircularProgressIndicator(),
-                            )
+                          ? const ShimmerSection(itemCount: 6)
                           : searchResults.hasError && !searchResults.hasValue
-                              ? _buildErrorState(t, searchResults.error, ref)
+                              ? _buildErrorState(searchResults.error, ref)
                               : items.isEmpty
                                   ? _buildEmptyOrHistory(context, ref, t)
                                   : ListView.builder(
@@ -328,65 +328,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildOfflineState(AppColorTokens t) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(
-        bottom: AppSpacing.bottomPlayerPadding,
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 100),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.cloud_off_rounded,
-                size: 64,
-                color: t.textSecondary,
-              ),
-              const SizedBox(height: AppSpacing.space4),
-              Text(
-                'You are offline',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: t.textPrimary,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.space2),
-              Text(
-                'Search is available when connected',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: t.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _buildOfflineState() {
+    return const AppStatePanel(
+      variant: AppStateVariant.offline,
+      title: "You're offline",
+      message: 'Search is available when connected',
     );
   }
 
-  Widget _buildErrorState(AppColorTokens t, Object? error, WidgetRef ref) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Error: $error',
-            style: TextStyle(color: t.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.space3),
-          TextButton(
-            onPressed: () => ref.invalidate(searchResultsProvider),
-            child: Text(
-              'Retry',
-              style: TextStyle(color: t.textPrimary),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildErrorState(Object? error, WidgetRef ref) {
+    return AppErrorState(
+      error: 'Check your connection and try again.',
+      cause: error,
+      onRetry: () => ref.invalidate(searchResultsProvider),
     );
   }
 
@@ -394,15 +348,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       BuildContext context, WidgetRef ref, AppColorTokens t) {
     final query = ref.watch(searchQueryProvider);
     if (query.isNotEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.space4),
-          child: Text(
-            'No results found for "$query"',
-            style: TextStyle(color: t.textSecondary, fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-        ),
+      return AppStatePanel(
+        variant: AppStateVariant.empty,
+        icon: Icons.search_off_rounded,
+        title: 'No results found',
+        message: 'No results for "$query"',
+        actionLabel: 'Clear search',
+        onAction: _clearSearch,
       );
     }
 
@@ -418,49 +370,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: AppSpacing.space12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.space4,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: t.raised,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: t.border),
-                        ),
-                        child: Icon(
-                          Icons.search_rounded,
-                          size: 33,
-                          color: t.textPrimary.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.space6),
-                      Text(
-                        'What do you want to listen to?',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: t.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.space1),
-                      Text(
-                        'Search for artists, songs, or albums',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: t.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                const AppStatePanel(
+                  variant: AppStateVariant.empty,
+                  icon: Icons.search_rounded,
+                  title: 'What do you want to listen to?',
+                  message: 'Search for artists, songs, or albums',
                 ),
                 const SizedBox(height: AppSpacing.space8),
                 _buildBrowseSection(context, t),
