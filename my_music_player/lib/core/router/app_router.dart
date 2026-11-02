@@ -13,6 +13,7 @@ import '../../features/library/domain/entities/playlist.dart';
 import '../../features/library/presentation/screens/playlist_detail_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/home/domain/entities/daily_mix.dart';
 import '../../features/home/presentation/screens/daily_mix_screen.dart';
 import 'browse_routes.dart';
 
@@ -111,7 +112,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   buildPlaylistRoute(),
                   GoRoute(
                     path: 'daily-mix',
-                    pageBuilder: (context, state) => _smoothTransition(context: context, state: state, child: const DailyMixScreen()),
+                    redirect: (context, state) => state.uri.path == '/daily-mix'
+                        ? '/daily-mix/energize'
+                        : null,
+                    routes: [
+                      GoRoute(
+                        path: ':mood',
+                        pageBuilder: (context, state) => _smoothTransition(
+                          context: context,
+                          state: state,
+                          child: DailyMixScreen(
+                            mood: DailyMixMood.fromSlug(
+                              state.pathParameters['mood'] ?? '',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -124,6 +141,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/search',
                 builder: (context, state) => const SearchScreen(),
                 routes: [
+                  buildBrowseRoute(),
                   buildArtistRoute(),
                   buildAlbumRoute(),
                   buildPlaylistRoute(),
