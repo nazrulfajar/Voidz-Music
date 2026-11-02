@@ -1,14 +1,17 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../providers/browse_provider.dart';
-import '../../domain/entities/browse_models.dart';
-import '../../../player/presentation/providers/player_controller.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/providers/palette_provider.dart';
 import '../../../../shared/widgets/add_to_playlist_sheet.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_icon_button.dart';
+import '../../../player/presentation/providers/player_controller.dart';
+import '../../domain/entities/browse_models.dart';
+import '../providers/browse_provider.dart';
 
 class AlbumScreen extends ConsumerWidget {
   final String albumId;
@@ -19,25 +22,35 @@ class AlbumScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final albumAsync = ref.watch(albumDetailsProvider(albumId));
     final theme = Theme.of(context);
+    final t = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceBase,
+      backgroundColor: t.background,
       body: albumAsync.when(
         data: (album) => _buildBody(context, ref, album, theme),
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.accentPrimary)),
-        error: (err, stack) => Center(
-            child: Text('Error: $err',
-                style: const TextStyle(color: AppColors.statusError))),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: t.accent),
+        ),
+        error: (err, stack) => AppEmptyState(
+          icon: Icons.error_outline,
+          title: 'Gagal memuat album',
+          subtitle: '$err',
+          actionLabel: 'Coba lagi',
+          onAction: () => ref.invalidate(albumDetailsProvider(albumId)),
+        ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, AlbumDetails album,
-      ThemeData theme) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    AlbumDetails album,
+    ThemeData theme,
+  ) {
+    final t = AppColors.of(context);
     final palette = ref.watch(paletteProvider(album.thumbnailUrl ?? ''));
-    final dominantColor =
-        palette.value?.dominantColor?.color ?? AppColors.surfaceBase;
+    final dominantColor = palette.value?.dominantColor?.color ?? t.background;
 
     return CustomScrollView(
       slivers: [
@@ -55,10 +68,14 @@ class AlbumScreen extends ConsumerWidget {
                     fit: BoxFit.cover,
                   )
                 else
-                  const ColoredBox(
-                      color: AppColors.surfaceElevated,
-                      child: Icon(Icons.album,
-                          size: 80, color: AppColors.textSecondary)),
+                  ColoredBox(
+                    color: t.surface,
+                    child: Icon(
+                      Icons.album,
+                      size: 80,
+                      color: t.textSecondary,
+                    ),
+                  ),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -66,8 +83,8 @@ class AlbumScreen extends ConsumerWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         dominantColor.withValues(alpha: 0.4),
-                        AppColors.surfaceBase.withValues(alpha: 0.8),
-                        AppColors.surfaceBase,
+                        t.background.withValues(alpha: 0.8),
+                        t.background,
                       ],
                     ),
                   ),
@@ -82,86 +99,115 @@ class AlbumScreen extends ConsumerWidget {
                       Text(
                         album.title,
                         style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold, color: Colors.white),
+                          fontWeight: FontWeight.bold,
+                          color: t.textPrimary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         album.artist ?? 'Unknown Artist',
                         style: theme.textTheme.titleMedium?.copyWith(
-                            color: dominantColor != AppColors.surfaceBase
-                                ? dominantColor
-                                : AppColors.accentPrimary,
-                            fontWeight: FontWeight.bold),
+                          color: dominantColor != t.background
+                              ? dominantColor
+                              : t.accent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Album • ${album.year ?? ""} • ${album.trackCount ?? 0} songs',
+                        'Album • ${album.year ?? ""} • '
+                        '${album.trackCount ?? 0} songs',
                         style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary),
+                            ?.copyWith(color: t.textSecondary),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: AppSpacing.md,
+                        runSpacing: AppSpacing.sm,
                         children: [
                           ElevatedButton.icon(
                             onPressed: () {
                               if (album.tracks.isNotEmpty) {
                                 ref
                                     .read(playerControllerProvider.notifier)
-                                    .playTrack(album.tracks.first,
-                                        queue: album.tracks);
+                                    .playTrack(
+                                      album.tracks.first,
+                                      queue: album.tracks,
+                                    );
                               }
                             },
-                            icon: const Icon(Icons.play_arrow,
-                                color: Colors.black),
-                            label: const Text('Play',
-                                style: TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold)),
+                            icon: Icon(Icons.play_arrow, color: t.onAccent),
+                            label: Text(
+                              'Play',
+                              style: TextStyle(
+                                color: t.onAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accentPrimary,
+                              backgroundColor: t.accent,
+                              foregroundColor: t.onAccent,
+                              minimumSize: const Size(0, 48),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.xl,
-                                  vertical: AppSpacing.md),
+                                horizontal: AppSpacing.xl,
+                                vertical: AppSpacing.md,
+                              ),
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(AppRadius.full)),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.full),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.md),
                           OutlinedButton.icon(
                             onPressed: () {
                               if (album.tracks.isNotEmpty) {
-                                final shuffled = List.of(album.tracks)..shuffle();
-                                ref.read(playerControllerProvider.notifier).playTrack(shuffled.first, queue: shuffled);
+                                final shuffled = List.of(album.tracks)
+                                  ..shuffle();
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .playTrack(
+                                      shuffled.first,
+                                      queue: shuffled,
+                                    );
                               }
                             },
-                            icon: const Icon(Icons.shuffle, color: AppColors.textPrimary),
-                            label: const Text('Acak', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
+                            icon: Icon(Icons.shuffle, color: t.textPrimary),
+                            label: Text(
+                              'Acak',
+                              style: TextStyle(
+                                color: t.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: const BorderSide(color: AppColors.surfaceOverlay),
-                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
+                              foregroundColor: t.textPrimary,
+                              side: BorderSide(color: t.border),
+                              minimumSize: const Size(0, 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.xl,
+                                vertical: AppSpacing.md,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.full),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.md),
-                          Container(
-                            decoration: const BoxDecoration(
-                              color: AppColors.surfaceHover,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(Icons.playlist_add,
-                                  color: AppColors.textPrimary),
-                              onPressed: () {
-                                if (album.tracks.isNotEmpty) {
-                                  showAddToPlaylistSheet(context,
-                                      tracks: album.tracks);
-                                }
-                              },
-                            ),
+                          AppIconButton(
+                            icon: Icons.playlist_add,
+                            semanticLabel: 'Tambah ke playlist',
+                            onPressed: () {
+                              if (album.tracks.isNotEmpty) {
+                                showAddToPlaylistSheet(
+                                  context,
+                                  tracks: album.tracks,
+                                );
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -181,45 +227,51 @@ class AlbumScreen extends ConsumerWidget {
                   playerState.currentTrack?.sourceId == track.sourceId;
 
               return ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                ),
                 leading: isPlaying
-                    ? const Icon(Icons.equalizer,
-                        color: AppColors.accentPrimary)
+                    ? Icon(
+                        Icons.equalizer,
+                        color: t.accent,
+                        semanticLabel: 'Sedang diputar',
+                      )
                     : Text(
                         '${index + 1}',
                         style: theme.textTheme.titleMedium
-                            ?.copyWith(color: AppColors.textTertiary),
+                            ?.copyWith(color: t.textInactive),
                       ),
                 title: Text(
                   track.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: isPlaying
-                        ? AppColors.accentPrimary
-                        : AppColors.textPrimary,
+                    color: isPlaying ? t.accent : t.textPrimary,
                     fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
-                subtitle: Text(track.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textSecondary)),
+                subtitle: Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textSecondary),
+                ),
                 trailing: PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert,
-                      color: AppColors.textSecondary),
-                  color: AppColors.surfaceElevated,
+                  icon: Icon(Icons.more_vert, color: t.textSecondary),
+                  color: t.raised,
+                  tooltip: 'Opsi lagu',
                   onSelected: (value) {
                     if (value == 'add_playlist') {
                       showAddToPlaylistSheet(context, track: track);
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'add_playlist',
-                      child: Text('Add to Playlist',
-                          style: TextStyle(color: AppColors.textPrimary)),
+                      child: Text(
+                        'Add to Playlist',
+                        style: TextStyle(color: t.textPrimary),
+                      ),
                     ),
                   ],
                 ),
