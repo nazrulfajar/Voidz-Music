@@ -237,7 +237,7 @@ class _QueueHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm,
                 ),
-                textStyle: const TextStyle(
+                textStyle: theme.textTheme.labelLarge?.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),

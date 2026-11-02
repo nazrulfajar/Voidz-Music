@@ -27,7 +27,7 @@ class DownloadedScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: t.background,
         title: Text(
-          'Downloaded',
+          'Downloads',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: t.textPrimary,
@@ -45,14 +45,11 @@ class DownloadedScreen extends ConsumerWidget {
                   bytes += (track.fileSizeBytes ?? 0);
                 }
 
-                final double mbUsed = bytes / (1024 * 1024);
-                final double maxMb = (cacheManager.maxCacheSizeBytes > 0
-                        ? cacheManager.maxCacheSizeBytes
-                        : 1) /
-                    (1024 * 1024);
                 final double progress = cacheManager.maxCacheSizeBytes > 0
                     ? (bytes / cacheManager.maxCacheSizeBytes).clamp(0.0, 1.0)
                     : 0.0;
+                final storageLabel = '${_formatBytes(bytes)} / '
+                    '${_formatBytes(cacheManager.maxCacheSizeBytes)}';
 
                 return Column(
                   children: [
@@ -83,8 +80,7 @@ class DownloadedScreen extends ConsumerWidget {
                               ),
                               Flexible(
                                 child: Text(
-                                  '${mbUsed.toStringAsFixed(1)} MB / '
-                                  '${maxMb.toStringAsFixed(0)} MB',
+                                  storageLabel,
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: t.textPrimary,
@@ -240,17 +236,26 @@ class DownloadedScreen extends ConsumerWidget {
               loading: () => Center(
                 child: CircularProgressIndicator(color: t.accent),
               ),
-              error: (err, stack) => Center(
-                child: Text(
-                  'Error: $err',
-                  style: TextStyle(color: t.textPrimary),
-                ),
+              error: (err, stack) => AppErrorState(
+                error: 'Failed to load downloads',
+                onRetry: () => ref.invalidate(downloadedTracksProvider),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatBytes(int bytes) {
+    const gb = 1024 * 1024 * 1024;
+    if (bytes >= gb) {
+      final value = (bytes / gb).toStringAsFixed(1);
+      final trimmed =
+          value.endsWith('.0') ? value.substring(0, value.length - 2) : value;
+      return '$trimmed GB';
+    }
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Widget _buildFallbackThumbnail(AppColorTokens t) {
