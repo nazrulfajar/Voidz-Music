@@ -43,10 +43,6 @@ class SettingsController {
     await _updateSettings((settings) => settings.enableYoutubeSource = enabled);
   }
 
-  Future<void> toggleJamendoSource(bool enabled) async {
-    await _updateSettings((settings) => settings.enableJamendoSource = enabled);
-  }
-
   Future<void> setAudioQuality(AudioQuality quality) async {
     await _updateSettings(
         (settings) => settings.preferredAudioQuality = quality);

@@ -42,34 +42,29 @@ const AppSettingsModelSchema = CollectionSchema(
       name: r'crossfadeSeconds',
       type: IsarType.long,
     ),
-    r'enableJamendoSource': PropertySchema(
-      id: 5,
-      name: r'enableJamendoSource',
-      type: IsarType.bool,
-    ),
     r'enableYoutubeSource': PropertySchema(
-      id: 6,
+      id: 5,
       name: r'enableYoutubeSource',
       type: IsarType.bool,
     ),
     r'maxCacheSizeBytes': PropertySchema(
-      id: 7,
+      id: 6,
       name: r'maxCacheSizeBytes',
       type: IsarType.long,
     ),
     r'preferredAudioQuality': PropertySchema(
-      id: 8,
+      id: 7,
       name: r'preferredAudioQuality',
       type: IsarType.byte,
       enumMap: _AppSettingsModelpreferredAudioQualityEnumValueMap,
     ),
     r'resumeOnStartup': PropertySchema(
-      id: 9,
+      id: 8,
       name: r'resumeOnStartup',
       type: IsarType.bool,
     ),
     r'wifiOnlyDownload': PropertySchema(
-      id: 10,
+      id: 9,
       name: r'wifiOnlyDownload',
       type: IsarType.bool,
     )
@@ -109,12 +104,11 @@ void _appSettingsModelSerialize(
   writer.writeString(offsets[2], object.backendBaseUrl);
   writer.writeBool(offsets[3], object.cacheMigratedToSupportDir);
   writer.writeLong(offsets[4], object.crossfadeSeconds);
-  writer.writeBool(offsets[5], object.enableJamendoSource);
-  writer.writeBool(offsets[6], object.enableYoutubeSource);
-  writer.writeLong(offsets[7], object.maxCacheSizeBytes);
-  writer.writeByte(offsets[8], object.preferredAudioQuality.index);
-  writer.writeBool(offsets[9], object.resumeOnStartup);
-  writer.writeBool(offsets[10], object.wifiOnlyDownload);
+  writer.writeBool(offsets[5], object.enableYoutubeSource);
+  writer.writeLong(offsets[6], object.maxCacheSizeBytes);
+  writer.writeByte(offsets[7], object.preferredAudioQuality.index);
+  writer.writeBool(offsets[8], object.resumeOnStartup);
+  writer.writeBool(offsets[9], object.wifiOnlyDownload);
 }
 
 AppSettingsModel _appSettingsModelDeserialize(
@@ -129,16 +123,15 @@ AppSettingsModel _appSettingsModelDeserialize(
   object.backendBaseUrl = reader.readString(offsets[2]);
   object.cacheMigratedToSupportDir = reader.readBool(offsets[3]);
   object.crossfadeSeconds = reader.readLong(offsets[4]);
-  object.enableJamendoSource = reader.readBool(offsets[5]);
-  object.enableYoutubeSource = reader.readBool(offsets[6]);
+  object.enableYoutubeSource = reader.readBool(offsets[5]);
   object.id = id;
-  object.maxCacheSizeBytes = reader.readLong(offsets[7]);
+  object.maxCacheSizeBytes = reader.readLong(offsets[6]);
   object.preferredAudioQuality =
       _AppSettingsModelpreferredAudioQualityValueEnumMap[
-              reader.readByteOrNull(offsets[8])] ??
+              reader.readByteOrNull(offsets[7])] ??
           AudioQuality.low;
-  object.resumeOnStartup = reader.readBool(offsets[9]);
-  object.wifiOnlyDownload = reader.readBool(offsets[10]);
+  object.resumeOnStartup = reader.readBool(offsets[8]);
+  object.wifiOnlyDownload = reader.readBool(offsets[9]);
   return object;
 }
 
@@ -162,16 +155,14 @@ P _appSettingsModelDeserializeProp<P>(
     case 5:
       return (reader.readBool(offset)) as P;
     case 6:
-      return (reader.readBool(offset)) as P;
-    case 7:
       return (reader.readLong(offset)) as P;
-    case 8:
+    case 7:
       return (_AppSettingsModelpreferredAudioQualityValueEnumMap[
               reader.readByteOrNull(offset)] ??
           AudioQuality.low) as P;
-    case 9:
+    case 8:
       return (reader.readBool(offset)) as P;
-    case 10:
+    case 9:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -506,16 +497,6 @@ extension AppSettingsModelQueryFilter
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
-      enableJamendoSourceEqualTo(bool value) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'enableJamendoSource',
-        value: value,
-      ));
-    });
-  }
-
-  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
       enableYoutubeSourceEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
@@ -793,20 +774,6 @@ extension AppSettingsModelQuerySortBy
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
-      sortByEnableJamendoSource() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'enableJamendoSource', Sort.asc);
-    });
-  }
-
-  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
-      sortByEnableJamendoSourceDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'enableJamendoSource', Sort.desc);
-    });
-  }
-
-  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
       sortByEnableYoutubeSource() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'enableYoutubeSource', Sort.asc);
@@ -950,20 +917,6 @@ extension AppSettingsModelQuerySortThenBy
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
-      thenByEnableJamendoSource() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'enableJamendoSource', Sort.asc);
-    });
-  }
-
-  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
-      thenByEnableJamendoSourceDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'enableJamendoSource', Sort.desc);
-    });
-  }
-
-  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
       thenByEnableYoutubeSource() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'enableYoutubeSource', Sort.asc);
@@ -1086,13 +1039,6 @@ extension AppSettingsModelQueryWhereDistinct
   }
 
   QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
-      distinctByEnableJamendoSource() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'enableJamendoSource');
-    });
-  }
-
-  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
       distinctByEnableYoutubeSource() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'enableYoutubeSource');
@@ -1168,13 +1114,6 @@ extension AppSettingsModelQueryProperty
       crossfadeSecondsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'crossfadeSeconds');
-    });
-  }
-
-  QueryBuilder<AppSettingsModel, bool, QQueryOperations>
-      enableJamendoSourceProperty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'enableJamendoSource');
     });
   }
 

@@ -11,8 +11,6 @@ class AppSettingsModel {
 
   bool enableYoutubeSource = true;
 
-  bool enableJamendoSource = true;
-
   @enumerated
   AudioQuality preferredAudioQuality = AudioQuality.medium;
 
