@@ -10,6 +10,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../browse/domain/entities/browse_models.dart';
+import '../../../browse/presentation/widgets/browse_source_card.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
 import '../providers/search_provider.dart';
@@ -410,41 +411,59 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return historyAsync.when(
       data: (history) {
         if (history.isEmpty) {
-          return Center(
+          return SingleChildScrollView(
+            padding: const EdgeInsets.only(
+              bottom: AppSpacing.bottomPlayerPadding,
+            ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: t.raised,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: t.border),
+                const SizedBox(height: AppSpacing.space12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.space4,
                   ),
-                  child: Icon(
-                    Icons.search_rounded,
-                    size: 33,
-                    color: t.textPrimary.withValues(alpha: 0.6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: t.raised,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: t.border),
+                        ),
+                        child: Icon(
+                          Icons.search_rounded,
+                          size: 33,
+                          color: t.textPrimary.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.space6),
+                      Text(
+                        'What do you want to listen to?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: t.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.space1),
+                      Text(
+                        'Search for artists, songs, or albums',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: t.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.space6),
-                Text(
-                  'What do you want to listen to?',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: t.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.space1),
-                Text(
-                  'Search for artists, songs, or albums',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: t.textSecondary,
-                  ),
-                ),
+                const SizedBox(height: AppSpacing.space8),
+                _buildBrowseSection(context, t),
               ],
             ),
           );
@@ -480,12 +499,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   }).toList(),
                 ),
               ),
+              const SizedBox(height: AppSpacing.space5),
+              _buildBrowseSection(context, t),
             ],
           ),
         );
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildBrowseSection(BuildContext context, AppColorTokens t) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.space4,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Browse by source',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: t.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.space3),
+          BrowseSourceCard(
+            key: const ValueKey('search-browse-entry'),
+            icon: Icons.travel_explore_rounded,
+            title: 'Browse sources',
+            subtitle: 'YouTube Music and device songs',
+            semanticLabel: 'Browse by source',
+            onTap: () => context.push('/search/browse'),
+          ),
+        ],
+      ),
     );
   }
 
