@@ -9,8 +9,8 @@ final youtubeResolverServiceProvider = Provider<YoutubeResolverService>((ref) {
 
 /// Resolver stream YouTube murni Dart.
 ///
-/// Memakai beberapa client InnerTube secara berurutan. Ini menggantikan
-/// Chaquopy/yt-dlp dan bekerja di Android maupun iOS.
+/// Memakai beberapa client InnerTube secara berurutan. Resolver berjalan
+/// on-device dan bekerja di Android maupun iOS.
 class YoutubeResolverService {
   YoutubeResolverService();
 

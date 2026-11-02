@@ -124,6 +124,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/search',
                 builder: (context, state) => const SearchScreen(),
                 routes: [
+                  buildBrowseRoute(),
                   buildArtistRoute(),
                   buildAlbumRoute(),
                   buildPlaylistRoute(),
