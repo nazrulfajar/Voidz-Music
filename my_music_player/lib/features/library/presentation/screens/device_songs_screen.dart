@@ -1,14 +1,17 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../../../player/domain/entities/track.dart';
+
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_list_tile.dart';
 import '../../../../shared/widgets/app_filter_chip.dart';
+import '../../../../shared/widgets/app_icon_button.dart';
+import '../../../../shared/widgets/app_list_tile.dart';
+import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/device_songs_provider.dart';
 import '../../../player/presentation/providers/player_controller.dart';
 
@@ -76,8 +79,11 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
   Map<String, List<Track>> _groupByAlbum(List<Track> tracks) {
     final map = <String, List<Track>>{};
     for (final t in tracks) {
-      final album = (t.album == null || t.album!.trim().isEmpty) ? 'Unknown Album' : t.album!.trim();
-      final artist = t.artist.trim().isEmpty ? 'Unknown Artist' : t.artist.trim();
+      final album = (t.album == null || t.album!.trim().isEmpty)
+          ? 'Unknown Album'
+          : t.album!.trim();
+      final artist =
+          t.artist.trim().isEmpty ? 'Unknown Artist' : t.artist.trim();
       final key = '$album|||$artist';
       map.putIfAbsent(key, () => []).add(t);
     }
@@ -113,6 +119,8 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = AppColors.of(context);
+    final textScaler = MediaQuery.textScalerOf(context);
     final deviceAsync = ref.watch(deviceSongsProvider);
     final scanState = ref.watch(deviceScanControllerProvider);
     final playerState = ref.watch(playerControllerProvider);
@@ -133,30 +141,40 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppColors.surfaceBase,
+        backgroundColor: t.background,
         appBar: AppBar(
-          backgroundColor: AppColors.surfaceBase,
+          backgroundColor: t.background,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
+          toolbarHeight: textScaler.scale(56),
           leading: hasDrill
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                  onPressed: () => setState(() {
-                    if (_selectedAlbumKey != null) {
-                      _selectedAlbumKey = null;
-                    } else {
-                      _selectedArtist = null;
-                    }
-                  }),
+              ? Center(
+                  child: AppIconButton(
+                    icon: Icons.arrow_back,
+                    semanticLabel: 'Kembali',
+                    filled: false,
+                    onPressed: () => setState(() {
+                      if (_selectedAlbumKey != null) {
+                        _selectedAlbumKey = null;
+                      } else {
+                        _selectedArtist = null;
+                      }
+                    }),
+                  ),
                 )
               : null,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isAlbumDetail ? _selectedAlbumKey!.split('|||').first : (_selectedArtist ?? 'Di Perangkat'),
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                isAlbumDetail
+                    ? _selectedAlbumKey!.split('|||').first
+                    : (_selectedArtist ?? 'Di Perangkat'),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: t.textPrimary,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -165,62 +183,115 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
                   if (isAlbumDetail) {
                     final list = _groupByAlbum(tracks)[_selectedAlbumKey] ?? [];
                     if (list.isEmpty) return const SizedBox.shrink();
-                    final totalMs = list.fold<int>(0, (s, t) => s + t.durationMs);
-                    return Text('${list.length} lagu • ${_formatTotalDuration(totalMs)} • ${list.first.artist}',
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis);
+                    final totalMs =
+                        list.fold<int>(0, (s, t) => s + t.durationMs);
+                    return Text(
+                      '${list.length} lagu • '
+                      '${_formatTotalDuration(totalMs)} • ${list.first.artist}',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: t.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
                   }
                   if (isArtistAlbums) {
-                    final albumCount = _groupByAlbum(tracks).keys.where((k) => k.split('|||').last == _selectedArtist).length;
-                    final songCount = tracks.where((t) => t.artist == _selectedArtist).length;
-                    return Text('$albumCount album • $songCount lagu', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary));
+                    final albumCount = _groupByAlbum(tracks)
+                        .keys
+                        .where((k) => k.split('|||').last == _selectedArtist)
+                        .length;
+                    final songCount =
+                        tracks.where((t) => t.artist == _selectedArtist).length;
+                    return Text(
+                      '$albumCount album • $songCount lagu',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: t.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
                   }
                   int bytes = 0;
-                  for (final t in tracks) bytes += t.fileSizeBytes ?? 0;
+                  for (final t in tracks) {
+                    bytes += t.fileSizeBytes ?? 0;
+                  }
                   final mb = (bytes / (1024 * 1024)).toStringAsFixed(1);
-                  return Text('${tracks.length} lagu • $mb MB', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary));
+                  return Text(
+                    '${tracks.length} lagu • $mb MB',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: t.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
                 },
-                loading: () => Text('Memuat...', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                loading: () => Text(
+                  'Memuat...',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: t.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 error: (_, __) => const SizedBox.shrink(),
               ),
             ],
           ),
           actions: [
             if (scanState.isScanning)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentPrimary)),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: t.accent,
+                  ),
+                ),
               )
             else
-              IconButton(
-                icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
-                onPressed: () => ref.read(deviceScanControllerProvider.notifier).scan(),
-                tooltip: 'Pindai ulang',
+              AppIconButton(
+                icon: Icons.refresh,
+                semanticLabel: 'Pindai ulang',
+                filled: false,
+                onPressed: () =>
+                    ref.read(deviceScanControllerProvider.notifier).scan(),
               ),
           ],
         ),
         body: RefreshIndicator(
-          color: AppColors.accentPrimary,
-          backgroundColor: AppColors.surfaceElevated,
-          onRefresh: () async => await ref.read(deviceScanControllerProvider.notifier).scan(),
+          color: t.accent,
+          backgroundColor: t.surface,
+          onRefresh: () async =>
+              await ref.read(deviceScanControllerProvider.notifier).scan(),
           child: CustomScrollView(
             slivers: [
               // Search — opaque sticky
               SliverToBoxAdapter(
                 child: Container(
-                  color: AppColors.surfaceBase,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  color: t.background,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
                   child: TextField(
-                    onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                    onChanged: (v) =>
+                        setState(() => _query = v.trim().toLowerCase()),
                     decoration: InputDecoration(
-                      hintText: hasDrill ? 'Cari di daftar ini' : 'Cari lagu, artis, album',
-                      hintStyle: const TextStyle(color: AppColors.textTertiary),
-                      prefixIcon: const Icon(Icons.search, color: AppColors.textTertiary),
+                      hintText: hasDrill
+                          ? 'Cari di daftar ini'
+                          : 'Cari lagu, artis, album',
+                      hintStyle: TextStyle(color: t.textMuted),
+                      prefixIcon: Icon(Icons.search, color: t.textMuted),
                       filled: true,
-                      fillColor: AppColors.surfaceElevated,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.full), borderSide: BorderSide.none),
+                      fillColor: t.field,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: t.textPrimary),
                   ),
                 ),
               ),
@@ -228,19 +299,81 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
               if (scanState.permissionDenied)
                 SliverToBoxAdapter(
                   child: Container(
-                    color: AppColors.surfaceBase,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                    color: t.background,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
                     child: Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(color: AppColors.surfaceElevated, borderRadius: BorderRadius.circular(AppRadius.md)),
+                      decoration: BoxDecoration(
+                        color: t.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: t.border),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(children: [const Icon(Icons.folder_off, color: AppColors.statusWarning), const SizedBox(width: AppSpacing.sm), Expanded(child: Text('Izin akses musik diperlukan', style: theme.textTheme.titleSmall?.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.bold)))]),
+                          Row(
+                            children: [
+                              Icon(Icons.folder_off, color: t.textPrimary),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  'Izin akses musik diperlukan',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: t.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: AppSpacing.xs),
-                          Text('Agar dapat menampilkan lagu di penyimpanan, izinkan akses media audio.', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                          Text(
+                            'Agar dapat menampilkan lagu di penyimpanan, '
+                            'izinkan akses media audio.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: t.textSecondary),
+                          ),
                           const SizedBox(height: AppSpacing.md),
-                          Row(children: [Expanded(child: ElevatedButton(onPressed: () async { if (scanState.permanentlyDenied) { await openAppSettings(); } else { await ref.read(deviceScanControllerProvider.notifier).scan(); } }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentPrimary, foregroundColor: Colors.black), child: Text(scanState.permanentlyDenied ? 'Buka Pengaturan' : 'Izinkan'))), const SizedBox(width: AppSpacing.sm), TextButton(onPressed: () => ref.read(deviceScanControllerProvider.notifier).checkPermissionStatus(), child: const Text('Cek lagi', style: TextStyle(color: AppColors.textSecondary)))]),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    if (scanState.permanentlyDenied) {
+                                      await openAppSettings();
+                                    } else {
+                                      await ref
+                                          .read(deviceScanControllerProvider
+                                              .notifier)
+                                          .scan();
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: t.accent,
+                                    foregroundColor: t.onAccent,
+                                  ),
+                                  child: Text(
+                                    scanState.permanentlyDenied
+                                        ? 'Buka Pengaturan'
+                                        : 'Izinkan',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              TextButton(
+                                onPressed: () => ref
+                                    .read(deviceScanControllerProvider.notifier)
+                                    .checkPermissionStatus(),
+                                child: Text(
+                                  'Cek lagi',
+                                  style: TextStyle(color: t.textSecondary),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -249,12 +382,46 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
               if (scanState.error != null)
                 SliverToBoxAdapter(
                   child: Container(
-                    color: AppColors.surfaceBase,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                    color: t.background,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
                     child: Container(
                       padding: const EdgeInsets.all(AppSpacing.sm),
-                      decoration: BoxDecoration(color: AppColors.statusError.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.md)),
-                      child: Row(children: [const Icon(Icons.error_outline, color: AppColors.statusError, size: 20), const SizedBox(width: AppSpacing.sm), Expanded(child: Text(scanState.error!, style: const TextStyle(color: AppColors.statusError, fontSize: 13))), IconButton(icon: const Icon(Icons.close, size: 18, color: AppColors.statusError), onPressed: () => ref.read(deviceScanControllerProvider.notifier).scan())]),
+                      decoration: BoxDecoration(
+                        color: t.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(color: t.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: t.textPrimary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              scanState.error!,
+                              style: TextStyle(
+                                color: t.textPrimary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          AppIconButton(
+                            icon: Icons.close,
+                            iconSize: 18,
+                            semanticLabel: 'Tutup pesan error',
+                            filled: false,
+                            onPressed: () => ref
+                                .read(deviceScanControllerProvider.notifier)
+                                .scan(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -262,20 +429,78 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
               if (hasDrill)
                 SliverToBoxAdapter(
                   child: Container(
-                    color: AppColors.surfaceBase,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                    color: t.background,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
                     child: deviceAsync.when(
                       data: (tracks) {
                         final List<Track> groupTracks;
                         if (isAlbumDetail) {
-                          groupTracks = _sortedAlbumTracks(_groupByAlbum(tracks)[_selectedAlbumKey] ?? []);
+                          groupTracks = _sortedAlbumTracks(
+                            _groupByAlbum(tracks)[_selectedAlbumKey] ?? [],
+                          );
                         } else {
-                          groupTracks = tracks.where((t) => t.artist == _selectedArtist).toList();
+                          groupTracks = tracks
+                              .where((t) => t.artist == _selectedArtist)
+                              .toList();
                         }
                         final filtered = _filterSongs(groupTracks);
-                        if (filtered.isEmpty) return const SizedBox.shrink();
-                        final playQueue = isAlbumDetail ? _sortedAlbumTracks(filtered) : filtered;
-                        return Row(children: [Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.play_arrow, size: 20), label: Text('Putar ${playQueue.length} lagu'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentPrimary, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full))), onPressed: () => ref.read(playerControllerProvider.notifier).playTrack(playQueue.first, queue: playQueue))), const SizedBox(width: AppSpacing.sm), OutlinedButton.icon(icon: const Icon(Icons.shuffle, size: 18), label: const Text('Acak'), style: OutlinedButton.styleFrom(foregroundColor: AppColors.textPrimary, side: const BorderSide(color: AppColors.surfaceOverlay), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full))), onPressed: () { final shuffled = List<Track>.of(playQueue)..shuffle(); ref.read(playerControllerProvider.notifier).playTrack(shuffled.first, queue: shuffled); })]);
+                        if (filtered.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        final playQueue = isAlbumDetail
+                            ? _sortedAlbumTracks(filtered)
+                            : filtered;
+                        return Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.play_arrow, size: 20),
+                              label: Text('Putar ${playQueue.length} lagu'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: t.accent,
+                                foregroundColor: t.onAccent,
+                                minimumSize: const Size(0, 48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.full),
+                                ),
+                              ),
+                              onPressed: () => ref
+                                  .read(playerControllerProvider.notifier)
+                                  .playTrack(
+                                    playQueue.first,
+                                    queue: playQueue,
+                                  ),
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.shuffle, size: 18),
+                              label: const Text('Acak'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: t.textPrimary,
+                                side: BorderSide(color: t.border),
+                                minimumSize: const Size(0, 48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.full),
+                                ),
+                              ),
+                              onPressed: () {
+                                final shuffled = List<Track>.of(playQueue)
+                                  ..shuffle();
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .playTrack(
+                                      shuffled.first,
+                                      queue: shuffled,
+                                    );
+                              },
+                            ),
+                          ],
+                        );
                       },
                       loading: () => const SizedBox.shrink(),
                       error: (_, __) => const SizedBox.shrink(),
@@ -286,8 +511,11 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
               if (!hasDrill)
                 SliverToBoxAdapter(
                   child: Container(
-                    color: AppColors.surfaceBase,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+                    color: t.background,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 4,
+                    ),
                     child: deviceAsync.when(
                       data: (tracks) {
                         if (tracks.isEmpty) return const SizedBox.shrink();
@@ -295,7 +523,31 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
                         final albums = _groupByAlbum(tracks);
                         return SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: Row(children: [AppFilterChip(label: 'Lagu • ${tracks.length}', selected: _filter == DeviceFilter.songs, onSelected: () => setState(() => _filter = DeviceFilter.songs)), AppFilterChip(label: 'Artis • ${artists.length}', selected: _filter == DeviceFilter.artists, onSelected: () => setState(() => _filter = DeviceFilter.artists)), AppFilterChip(label: 'Album • ${albums.length}', selected: _filter == DeviceFilter.albums, onSelected: () => setState(() => _filter = DeviceFilter.albums))]),
+                          child: Row(
+                            children: [
+                              AppFilterChip(
+                                label: 'Lagu • ${tracks.length}',
+                                selected: _filter == DeviceFilter.songs,
+                                onSelected: () => setState(
+                                  () => _filter = DeviceFilter.songs,
+                                ),
+                              ),
+                              AppFilterChip(
+                                label: 'Artis • ${artists.length}',
+                                selected: _filter == DeviceFilter.artists,
+                                onSelected: () => setState(
+                                  () => _filter = DeviceFilter.artists,
+                                ),
+                              ),
+                              AppFilterChip(
+                                label: 'Album • ${albums.length}',
+                                selected: _filter == DeviceFilter.albums,
+                                onSelected: () => setState(
+                                  () => _filter = DeviceFilter.albums,
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       },
                       loading: () => const SizedBox.shrink(),
@@ -307,27 +559,109 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
               if (!hasDrill && _filter == DeviceFilter.songs)
                 SliverToBoxAdapter(
                   child: Container(
-                    color: AppColors.surfaceBase,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                    color: t.background,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
                     child: deviceAsync.when(
                       data: (tracks) {
                         if (tracks.isEmpty) return const SizedBox.shrink();
                         final filtered = _filterSongs(tracks);
                         if (filtered.isEmpty) return const SizedBox.shrink();
-                        return Row(children: [Expanded(child: ElevatedButton.icon(icon: const Icon(Icons.play_arrow, size: 20), label: const Text('Putar Semua'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentPrimary, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full))), onPressed: () => ref.read(playerControllerProvider.notifier).playTrack(filtered.first, queue: filtered))), const SizedBox(width: AppSpacing.sm), Expanded(child: OutlinedButton.icon(icon: const Icon(Icons.shuffle, size: 18), label: const Text('Acak'), style: OutlinedButton.styleFrom(foregroundColor: AppColors.textPrimary, side: const BorderSide(color: AppColors.surfaceOverlay), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full))), onPressed: () { final shuffled = List<Track>.of(filtered)..shuffle(); ref.read(playerControllerProvider.notifier).playTrack(shuffled.first, queue: shuffled); }))]);
+                        return Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.play_arrow, size: 20),
+                              label: const Text('Putar Semua'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: t.accent,
+                                foregroundColor: t.onAccent,
+                                minimumSize: const Size(0, 48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.full),
+                                ),
+                              ),
+                              onPressed: () => ref
+                                  .read(playerControllerProvider.notifier)
+                                  .playTrack(
+                                    filtered.first,
+                                    queue: filtered,
+                                  ),
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.shuffle, size: 18),
+                              label: const Text('Acak'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: t.textPrimary,
+                                side: BorderSide(color: t.border),
+                                minimumSize: const Size(0, 48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.full),
+                                ),
+                              ),
+                              onPressed: () {
+                                final shuffled = List<Track>.of(filtered)
+                                  ..shuffle();
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .playTrack(
+                                      shuffled.first,
+                                      queue: shuffled,
+                                    );
+                              },
+                            ),
+                          ],
+                        );
                       },
                       loading: () => const SizedBox.shrink(),
                       error: (_, __) => const SizedBox.shrink(),
                     ),
                   ),
                 ),
-              SliverToBoxAdapter(child: Container(color: AppColors.surfaceBase, height: AppSpacing.xs)),
-              SliverToBoxAdapter(child: Container(color: AppColors.surfaceBase, child: const Divider(height: 1, color: AppColors.surfaceOverlay))),
+              SliverToBoxAdapter(
+                child: Container(color: t.background, height: AppSpacing.xs),
+              ),
+              SliverToBoxAdapter(
+                child: Container(
+                  color: t.background,
+                  child: Divider(height: 1, color: t.border),
+                ),
+              ),
               // Content sliver
               deviceAsync.when(
-                data: (tracks) => _buildContentSliver(tracks, playerState, isArtistAlbums, isAlbumDetail, theme),
-                loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: AppColors.accentPrimary)))),
-                error: (e, st) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.all(24), child: Text('Error: $e', style: const TextStyle(color: AppColors.statusError)))),
+                data: (tracks) => _buildContentSliver(
+                  tracks,
+                  playerState,
+                  isArtistAlbums,
+                  isAlbumDetail,
+                  theme,
+                  t,
+                ),
+                loading: () => SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(
+                      child: CircularProgressIndicator(color: t.accent),
+                    ),
+                  ),
+                ),
+                error: (e, st) => SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: AppEmptyState(
+                      icon: Icons.error_outline,
+                      title: 'Gagal memuat lagu',
+                      subtitle: '$e',
+                      actionLabel: 'Coba lagi',
+                      onAction: () => ref.invalidate(deviceSongsProvider),
+                    ),
+                  ),
+                ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 160)),
             ],
@@ -337,7 +671,14 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
     );
   }
 
-  Widget _buildContentSliver(List<Track> tracks, dynamic playerState, bool isArtistAlbums, bool isAlbumDetail, ThemeData theme) {
+  Widget _buildContentSliver(
+    List<Track> tracks,
+    dynamic playerState,
+    bool isArtistAlbums,
+    bool isAlbumDetail,
+    ThemeData theme,
+    AppColorTokens t,
+  ) {
     if (tracks.isEmpty) {
       return SliverToBoxAdapter(
         child: Padding(
@@ -345,49 +686,121 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
           child: AppEmptyState(
             icon: Icons.folder_special_outlined,
             title: 'Tidak ada lagu di perangkat',
-            subtitle: 'Letakkan file MP3/M4A/FLAC di folder Music atau Download, lalu tarik untuk pindai',
-            action: ElevatedButton.icon(onPressed: () => ref.read(deviceScanControllerProvider.notifier).scan(), icon: const Icon(Icons.refresh), label: const Text('Pindai Sekarang'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentPrimary, foregroundColor: Colors.black)),
+            subtitle: 'Letakkan file MP3/M4A/FLAC di folder Music atau '
+                'Download, lalu tarik untuk pindai',
+            actionLabel: 'Pindai Sekarang',
+            onAction: () =>
+                ref.read(deviceScanControllerProvider.notifier).scan(),
           ),
         ),
       );
     }
     if (isArtistAlbums) {
       final map = _groupByAlbum(tracks);
-      var entries = map.entries.where((e) => e.key.split('|||').last == _selectedArtist).toList();
+      var entries = map.entries
+          .where((e) => e.key.split('|||').last == _selectedArtist)
+          .toList();
       if (_query.isNotEmpty) {
         final q = _query.toLowerCase();
-        entries = entries.where((e) => e.key.split('|||').first.toLowerCase().contains(q)).toList();
+        entries = entries
+            .where((e) => e.key.split('|||').first.toLowerCase().contains(q))
+            .toList();
       }
       entries.sort((a, b) {
         final ya = a.value.first.year ?? 0;
         final yb = b.value.first.year ?? 0;
         if (ya != 0 && yb != 0 && ya != yb) return ya.compareTo(yb);
-        return a.key.split('|||').first.toLowerCase().compareTo(b.key.split('|||').first.toLowerCase());
+        return a.key.split('|||').first.toLowerCase().compareTo(
+              b.key.split('|||').first.toLowerCase(),
+            );
       });
       if (entries.isEmpty) {
-        return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.only(top: 60), child: AppEmptyState(icon: Icons.search_off, title: 'Tidak ada album', subtitle: 'Coba kata kunci lain')));
+        return const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: 60),
+            child: AppEmptyState(
+              icon: Icons.search_off,
+              title: 'Tidak ada album',
+              subtitle: 'Coba kata kunci lain',
+            ),
+          ),
+        );
       }
       return SliverPadding(
-        padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.md, top: 4),
+        padding: const EdgeInsets.only(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          top: 4,
+        ),
         sliver: SliverList.builder(
           itemCount: entries.length,
           itemBuilder: (context, idx) {
             final e = entries[idx];
             final album = e.key.split('|||').first;
             final list = _sortedAlbumTracks(e.value);
-            final thumb = list.firstWhere((t) => t.localThumbnailPath != null, orElse: () => list.first).localThumbnailPath;
-            final isPlayingAlbum = list.any((t) => t.sourceId == playerState.currentTrack?.sourceId);
+            final thumb = list
+                .firstWhere(
+                  (t) => t.localThumbnailPath != null,
+                  orElse: () => list.first,
+                )
+                .localThumbnailPath;
+            final isPlayingAlbum = list.any(
+              (t) => t.sourceId == playerState.currentTrack?.sourceId,
+            );
             final totalMs = list.fold<int>(0, (s, t) => s + t.durationMs);
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                tileColor: isPlayingAlbum ? AppColors.surfaceHover : null,
-                leading: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.sm), child: thumb != null ? Image.file(File(thumb), width: 56, height: 56, fit: BoxFit.cover, cacheWidth: 120, errorBuilder: (_, __, ___) => Container(width: 56, height: 56, color: AppColors.surfaceOverlay, child: const Icon(Icons.album, color: AppColors.textTertiary))) : Container(width: 56, height: 56, color: AppColors.surfaceOverlay, child: const Icon(Icons.album, color: AppColors.textTertiary))),
-                title: Text(album, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: isPlayingAlbum ? AppColors.accentPrimary : AppColors.textPrimary)),
-                subtitle: Text('${list.length} lagu • ${_formatTotalDuration(totalMs)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
-                trailing: const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                tileColor: isPlayingAlbum ? t.well : null,
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: thumb != null
+                      ? Image.file(
+                          File(thumb),
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          cacheWidth: 120,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 56,
+                            height: 56,
+                            color: t.raised,
+                            child: Icon(Icons.album, color: t.textMuted),
+                          ),
+                        )
+                      : Container(
+                          width: 56,
+                          height: 56,
+                          color: t.raised,
+                          child: Icon(Icons.album, color: t.textMuted),
+                        ),
+                ),
+                title: Text(
+                  album,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isPlayingAlbum ? t.accent : t.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  '${list.length} lagu • ${_formatTotalDuration(totalMs)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: t.textSecondary),
+                ),
+                trailing: ExcludeSemantics(
+                  child: Icon(Icons.chevron_right, color: t.textInactive),
+                ),
                 onTap: () => setState(() => _selectedAlbumKey = e.key),
               ),
             );
@@ -400,19 +813,82 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
       final sorted = _sortedAlbumTracks(rawList);
       final filtered = _filterSongs(sorted);
       if (filtered.isEmpty) {
-        return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.only(top: 60), child: AppEmptyState(icon: Icons.search_off, title: 'Tidak ada hasil', subtitle: 'Coba kata kunci lain')));
+        return const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: 60),
+            child: AppEmptyState(
+              icon: Icons.search_off,
+              title: 'Tidak ada hasil',
+              subtitle: 'Coba kata kunci lain',
+            ),
+          ),
+        );
       }
       return SliverPadding(
-        padding: const EdgeInsets.only(left: AppSpacing.sm, right: AppSpacing.sm, top: 4),
+        padding: const EdgeInsets.only(
+          left: AppSpacing.sm,
+          right: AppSpacing.sm,
+          top: 4,
+        ),
         sliver: SliverList.builder(
           itemCount: filtered.length,
           itemBuilder: (context, index) {
             final track = filtered[index];
-            final isPlaying = track.sourceId == playerState.currentTrack?.sourceId;
-            final bitrateLabel = _formatBitrate(track.bitrateKbps, track.audioFormat);
-            final subtitleParts = <String>[track.artist, _formatDuration(track.durationMs), if (bitrateLabel.isNotEmpty) bitrateLabel];
+            final isPlaying =
+                track.sourceId == playerState.currentTrack?.sourceId;
+            final bitrateLabel =
+                _formatBitrate(track.bitrateKbps, track.audioFormat);
+            final subtitleParts = <String>[
+              track.artist,
+              _formatDuration(track.durationMs),
+              if (bitrateLabel.isNotEmpty) bitrateLabel,
+            ];
             final trackNo = track.trackNumber;
-            return AppTrackTile(title: track.title, subtitle: subtitleParts.join(' • '), localThumbnailPath: track.localThumbnailPath, isPlaying: isPlaying, isCached: true, leadingCustom: trackNo != null ? Container(width: 48, height: 48, alignment: Alignment.center, decoration: BoxDecoration(color: isPlaying ? AppColors.accentPrimary.withValues(alpha: 0.15) : AppColors.surfaceOverlay, borderRadius: BorderRadius.circular(AppRadius.sm)), child: Text('$trackNo', style: TextStyle(color: isPlaying ? AppColors.accentPrimary : AppColors.textSecondary, fontWeight: FontWeight.bold, fontSize: 14))) : null, trailing: isPlaying ? const Icon(Icons.equalizer, color: AppColors.accentPrimary) : IconButton(icon: const Icon(Icons.more_vert, color: AppColors.textTertiary, size: 20), onPressed: () => _showOptions(context, ref, track, filtered)), onTap: () => ref.read(playerControllerProvider.notifier).playTrack(track, queue: filtered));
+            return AppTrackTile(
+              title: track.title,
+              subtitle: subtitleParts.join(' • '),
+              localThumbnailPath: track.localThumbnailPath,
+              isPlaying: isPlaying,
+              isCached: true,
+              leadingCustom: trackNo != null
+                  ? Container(
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isPlaying
+                            ? t.accent.withValues(alpha: 0.15)
+                            : t.raised,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        '$trackNo',
+                        style: TextStyle(
+                          color: isPlaying ? t.accent : t.textSecondary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    )
+                  : null,
+              trailing: isPlaying
+                  ? Icon(
+                      Icons.equalizer,
+                      color: t.accent,
+                      semanticLabel: 'Sedang diputar',
+                    )
+                  : AppIconButton(
+                      icon: Icons.more_vert,
+                      semanticLabel: 'Opsi lagu',
+                      iconSize: 20,
+                      filled: false,
+                      onPressed: () =>
+                          _showOptions(context, ref, track, filtered),
+                    ),
+              onTap: () => ref
+                  .read(playerControllerProvider.notifier)
+                  .playTrack(track, queue: filtered),
+            );
           },
         ),
       );
@@ -422,14 +898,30 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
       var entries = map.entries.toList();
       if (_query.isNotEmpty) {
         final q = _query.toLowerCase();
-        entries = entries.where((e) => e.key.toLowerCase().contains(q)).toList();
+        entries =
+            entries.where((e) => e.key.toLowerCase().contains(q)).toList();
       }
-      entries.sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
+      entries.sort(
+        (a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()),
+      );
       if (entries.isEmpty) {
-        return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.only(top: 60), child: AppEmptyState(icon: Icons.search_off, title: 'Tidak ada artis', subtitle: 'Coba kata kunci lain')));
+        return const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: 60),
+            child: AppEmptyState(
+              icon: Icons.search_off,
+              title: 'Tidak ada artis',
+              subtitle: 'Coba kata kunci lain',
+            ),
+          ),
+        );
       }
       return SliverPadding(
-        padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.md, top: 4),
+        padding: const EdgeInsets.only(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          top: 4,
+        ),
         sliver: SliverList.builder(
           itemCount: entries.length,
           itemBuilder: (context, idx) {
@@ -437,9 +929,74 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
             final artist = e.key;
             final list = e.value;
             final totalMs = list.fold<int>(0, (s, t) => s + t.durationMs);
-            final thumb = list.firstWhere((t) => t.localThumbnailPath != null, orElse: () => list.first).localThumbnailPath;
-            final isPlayingArtist = list.any((t) => t.sourceId == playerState.currentTrack?.sourceId);
-            return Padding(padding: const EdgeInsets.only(bottom: AppSpacing.xs), child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)), tileColor: isPlayingArtist ? AppColors.surfaceHover : null, leading: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.full), child: thumb != null ? Image.file(File(thumb), width: 56, height: 56, fit: BoxFit.cover, cacheWidth: 120, errorBuilder: (_, __, ___) => Container(width: 56, height: 56, color: AppColors.surfaceOverlay, child: const Icon(Icons.person, color: AppColors.textTertiary))) : Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.surfaceOverlay, borderRadius: BorderRadius.circular(AppRadius.full)), child: const Icon(Icons.person, color: AppColors.textTertiary))), title: Text(artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: isPlayingArtist ? AppColors.accentPrimary : AppColors.textPrimary)), subtitle: Text('${list.length} lagu • ${_formatTotalDuration(totalMs)}', style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)), trailing: const Icon(Icons.chevron_right, color: AppColors.textTertiary), onTap: () => setState(() => _selectedArtist = artist)));
+            final thumb = list
+                .firstWhere(
+                  (t) => t.localThumbnailPath != null,
+                  orElse: () => list.first,
+                )
+                .localThumbnailPath;
+            final isPlayingArtist = list.any(
+              (t) => t.sourceId == playerState.currentTrack?.sourceId,
+            );
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                tileColor: isPlayingArtist ? t.well : null,
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  child: thumb != null
+                      ? Image.file(
+                          File(thumb),
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          cacheWidth: 120,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 56,
+                            height: 56,
+                            color: t.raised,
+                            child: Icon(Icons.person, color: t.textMuted),
+                          ),
+                        )
+                      : Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: t.raised,
+                            borderRadius: BorderRadius.circular(AppRadius.full),
+                          ),
+                          child: Icon(Icons.person, color: t.textMuted),
+                        ),
+                ),
+                title: Text(
+                  artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isPlayingArtist ? t.accent : t.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  '${list.length} lagu • ${_formatTotalDuration(totalMs)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: t.textSecondary),
+                ),
+                trailing: ExcludeSemantics(
+                  child: Icon(Icons.chevron_right, color: t.textInactive),
+                ),
+                onTap: () => setState(() => _selectedArtist = artist),
+              ),
+            );
           },
         ),
       );
@@ -449,48 +1006,319 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
       var entries = map.entries.toList();
       if (_query.isNotEmpty) {
         final q = _query.toLowerCase();
-        entries = entries.where((e) { final album = e.key.split('|||').first.toLowerCase(); final artist = e.key.split('|||').last.toLowerCase(); return album.contains(q) || artist.contains(q); }).toList();
+        entries = entries.where((e) {
+          final album = e.key.split('|||').first.toLowerCase();
+          final artist = e.key.split('|||').last.toLowerCase();
+          return album.contains(q) || artist.contains(q);
+        }).toList();
       }
-      entries.sort((a, b) => a.key.split('|||').first.toLowerCase().compareTo(b.key.split('|||').first.toLowerCase()));
+      entries.sort(
+        (a, b) => a.key
+            .split('|||')
+            .first
+            .toLowerCase()
+            .compareTo(b.key.split('|||').first.toLowerCase()),
+      );
       if (entries.isEmpty) {
-        return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.only(top: 60), child: AppEmptyState(icon: Icons.search_off, title: 'Tidak ada album', subtitle: 'Coba kata kunci lain')));
+        return const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: 60),
+            child: AppEmptyState(
+              icon: Icons.search_off,
+              title: 'Tidak ada album',
+              subtitle: 'Coba kata kunci lain',
+            ),
+          ),
+        );
       }
       return SliverPadding(
-        padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.md, top: 4),
+        padding: const EdgeInsets.only(
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          top: 4,
+        ),
         sliver: SliverList.builder(
           itemCount: entries.length,
           itemBuilder: (context, idx) {
             final e = entries[idx];
             final album = e.key.split('|||').first;
-            final artist = e.key.split('|||').length > 1 ? e.key.split('|||')[1] : 'Unknown Artist';
+            final artist = e.key.split('|||').length > 1
+                ? e.key.split('|||')[1]
+                : 'Unknown Artist';
             final list = e.value;
-            final thumb = list.firstWhere((t) => t.localThumbnailPath != null, orElse: () => list.first).localThumbnailPath;
-            final isPlayingAlbum = list.any((t) => t.sourceId == playerState.currentTrack?.sourceId);
-            return Padding(padding: const EdgeInsets.only(bottom: AppSpacing.xs), child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)), tileColor: isPlayingAlbum ? AppColors.surfaceHover : null, leading: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.sm), child: thumb != null ? Image.file(File(thumb), width: 56, height: 56, fit: BoxFit.cover, cacheWidth: 120, errorBuilder: (_, __, ___) => Container(width: 56, height: 56, color: AppColors.surfaceOverlay, child: const Icon(Icons.album, color: AppColors.textTertiary))) : Container(width: 56, height: 56, color: AppColors.surfaceOverlay, child: const Icon(Icons.album, color: AppColors.textTertiary))), title: Text(album, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: isPlayingAlbum ? AppColors.accentPrimary : AppColors.textPrimary)), subtitle: Text('$artist • ${list.length} lagu', maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)), trailing: const Icon(Icons.chevron_right, color: AppColors.textTertiary), onTap: () => setState(() => _selectedAlbumKey = e.key)));
+            final thumb = list
+                .firstWhere(
+                  (t) => t.localThumbnailPath != null,
+                  orElse: () => list.first,
+                )
+                .localThumbnailPath;
+            final isPlayingAlbum = list.any(
+              (t) => t.sourceId == playerState.currentTrack?.sourceId,
+            );
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                tileColor: isPlayingAlbum ? t.well : null,
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: thumb != null
+                      ? Image.file(
+                          File(thumb),
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          cacheWidth: 120,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 56,
+                            height: 56,
+                            color: t.raised,
+                            child: Icon(Icons.album, color: t.textMuted),
+                          ),
+                        )
+                      : Container(
+                          width: 56,
+                          height: 56,
+                          color: t.raised,
+                          child: Icon(Icons.album, color: t.textMuted),
+                        ),
+                ),
+                title: Text(
+                  album,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isPlayingAlbum ? t.accent : t.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  '$artist • ${list.length} lagu',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: t.textSecondary),
+                ),
+                trailing: ExcludeSemantics(
+                  child: Icon(Icons.chevron_right, color: t.textInactive),
+                ),
+                onTap: () => setState(() => _selectedAlbumKey = e.key),
+              ),
+            );
           },
         ),
       );
     }
     final filtered = _filterSongs(tracks);
     if (filtered.isEmpty) {
-      return const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.only(top: 60), child: AppEmptyState(icon: Icons.search_off, title: 'Tidak ada hasil', subtitle: 'Coba kata kunci lain')));
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(top: 60),
+          child: AppEmptyState(
+            icon: Icons.search_off,
+            title: 'Tidak ada hasil',
+            subtitle: 'Coba kata kunci lain',
+          ),
+        ),
+      );
     }
     return SliverPadding(
-      padding: const EdgeInsets.only(left: AppSpacing.sm, right: AppSpacing.sm, top: 4),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.sm,
+        right: AppSpacing.sm,
+        top: 4,
+      ),
       sliver: SliverList.builder(
         itemCount: filtered.length,
         itemBuilder: (context, index) {
           final track = filtered[index];
-          final isPlaying = track.sourceId == playerState.currentTrack?.sourceId;
-          final bitrateLabel = _formatBitrate(track.bitrateKbps, track.audioFormat);
-          final subtitleParts = <String>[track.artist, if (track.album != null) track.album!, _formatDuration(track.durationMs), if (bitrateLabel.isNotEmpty) bitrateLabel, _fmtSize(track.fileSizeBytes)];
-          return AppTrackTile(title: track.title, subtitle: subtitleParts.join(' • '), localThumbnailPath: track.localThumbnailPath, isPlaying: isPlaying, isCached: true, trailing: isPlaying ? const Icon(Icons.equalizer, color: AppColors.accentPrimary) : IconButton(icon: const Icon(Icons.more_vert, color: AppColors.textTertiary, size: 20), onPressed: () => _showOptions(context, ref, track, filtered)), onTap: () => ref.read(playerControllerProvider.notifier).playTrack(track, queue: filtered));
+          final isPlaying =
+              track.sourceId == playerState.currentTrack?.sourceId;
+          final bitrateLabel =
+              _formatBitrate(track.bitrateKbps, track.audioFormat);
+          final subtitleParts = <String>[
+            track.artist,
+            if (track.album != null) track.album!,
+            _formatDuration(track.durationMs),
+            if (bitrateLabel.isNotEmpty) bitrateLabel,
+            _fmtSize(track.fileSizeBytes),
+          ];
+          return AppTrackTile(
+            title: track.title,
+            subtitle: subtitleParts.join(' • '),
+            localThumbnailPath: track.localThumbnailPath,
+            isPlaying: isPlaying,
+            isCached: true,
+            trailing: isPlaying
+                ? Icon(
+                    Icons.equalizer,
+                    color: t.accent,
+                    semanticLabel: 'Sedang diputar',
+                  )
+                : AppIconButton(
+                    icon: Icons.more_vert,
+                    semanticLabel: 'Opsi lagu',
+                    iconSize: 20,
+                    filled: false,
+                    onPressed: () =>
+                        _showOptions(context, ref, track, filtered),
+                  ),
+            onTap: () => ref
+                .read(playerControllerProvider.notifier)
+                .playTrack(track, queue: filtered),
+          );
         },
       ),
     );
   }
 
-  void _showOptions(BuildContext context, WidgetRef ref, Track track, List<Track> queue) {
-    showModalBottomSheet(context: context, backgroundColor: AppColors.surfaceElevated, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))), builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [const SizedBox(height: AppSpacing.sm), Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.surfaceOverlay, borderRadius: BorderRadius.circular(2))), const SizedBox(height: AppSpacing.md), ListTile(leading: const Icon(Icons.play_arrow, color: AppColors.textPrimary), title: const Text('Putar', style: TextStyle(color: AppColors.textPrimary)), onTap: () { Navigator.pop(ctx); ref.read(playerControllerProvider.notifier).playTrack(track, queue: queue); }), ListTile(leading: const Icon(Icons.queue_music, color: AppColors.textPrimary), title: const Text('Tambah ke antrean', style: TextStyle(color: AppColors.textPrimary)), onTap: () { Navigator.pop(ctx); ref.read(playerControllerProvider.notifier).addToQueue(track); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ditambahkan ke antrean'))); }), ListTile(leading: const Icon(Icons.skip_next, color: AppColors.textPrimary), title: const Text('Putar berikutnya', style: TextStyle(color: AppColors.textPrimary)), onTap: () { Navigator.pop(ctx); ref.read(playerControllerProvider.notifier).addToQueue(track, playNext: true); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Akan diputar berikutnya'))); }), if (track.bitrateKbps != null || track.audioFormat != null || track.fileSizeBytes != null) Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4), child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), decoration: BoxDecoration(color: AppColors.surfaceOverlay, borderRadius: BorderRadius.circular(AppRadius.sm)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.high_quality, size: 14, color: AppColors.textTertiary), const SizedBox(width: 6), Text([if (track.audioFormat != null) track.audioFormat!.toUpperCase(), if (track.bitrateKbps != null) '${track.bitrateKbps} kbps', if (track.fileSizeBytes != null) _fmtSize(track.fileSizeBytes), _formatDuration(track.durationMs)].join(' • '), style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600))]))), ListTile(leading: const Icon(Icons.folder_open, color: AppColors.textTertiary), title: Text(track.localAudioPath ?? '', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis)), const SizedBox(height: AppSpacing.md)])));
+  void _showOptions(
+    BuildContext context,
+    WidgetRef ref,
+    Track track,
+    List<Track> queue,
+  ) {
+    final t = AppColors.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: t.panel,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (ctx) {
+        final tt = AppColors.of(ctx);
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: AppSpacing.sm),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: tt.raised,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ListTile(
+                  leading: Icon(Icons.play_arrow, color: tt.textPrimary),
+                  title: Text(
+                    'Putar',
+                    style: TextStyle(color: tt.textPrimary),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ref
+                        .read(playerControllerProvider.notifier)
+                        .playTrack(track, queue: queue);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.queue_music, color: tt.textPrimary),
+                  title: Text(
+                    'Tambah ke antrean',
+                    style: TextStyle(color: tt.textPrimary),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ref
+                        .read(playerControllerProvider.notifier)
+                        .addToQueue(track);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ditambahkan ke antrean')),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.skip_next, color: tt.textPrimary),
+                  title: Text(
+                    'Putar berikutnya',
+                    style: TextStyle(color: tt.textPrimary),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ref
+                        .read(playerControllerProvider.notifier)
+                        .addToQueue(track, playNext: true);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Akan diputar berikutnya'),
+                      ),
+                    );
+                  },
+                ),
+                if (track.bitrateKbps != null ||
+                    track.audioFormat != null ||
+                    track.fileSizeBytes != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 4,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tt.raised,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.high_quality,
+                            size: 14,
+                            color: tt.textMuted,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              [
+                                if (track.audioFormat != null)
+                                  track.audioFormat!.toUpperCase(),
+                                if (track.bitrateKbps != null)
+                                  '${track.bitrateKbps} kbps',
+                                if (track.fileSizeBytes != null)
+                                  _fmtSize(track.fileSizeBytes),
+                                _formatDuration(track.durationMs),
+                              ].join(' • '),
+                              style: TextStyle(
+                                color: tt.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ListTile(
+                  leading: Icon(Icons.folder_open, color: tt.textMuted),
+                  title: Text(
+                    track.localAudioPath ?? '',
+                    style: TextStyle(color: tt.textSecondary, fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

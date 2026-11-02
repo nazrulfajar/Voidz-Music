@@ -1,14 +1,16 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../providers/browse_provider.dart';
-import '../../domain/entities/browse_models.dart';
-import '../../../player/presentation/providers/player_controller.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/providers/palette_provider.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../player/presentation/providers/player_controller.dart';
+import '../../domain/entities/browse_models.dart';
+import '../providers/browse_provider.dart';
 
 class ArtistScreen extends ConsumerWidget {
   final String artistId;
@@ -19,25 +21,36 @@ class ArtistScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final artistAsync = ref.watch(artistDetailsProvider(artistId));
     final theme = Theme.of(context);
+    final t = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceBase,
+      backgroundColor: t.background,
       body: artistAsync.when(
         data: (artist) => _buildBody(context, ref, artist, theme),
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.accentPrimary)),
-        error: (err, stack) => Center(
-            child: Text('Error: $err',
-                style: const TextStyle(color: AppColors.statusError))),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: t.accent),
+        ),
+        error: (err, stack) => AppEmptyState(
+          icon: Icons.error_outline,
+          title: 'Gagal memuat artis',
+          subtitle: '$err',
+          actionLabel: 'Coba lagi',
+          onAction: () => ref.invalidate(artistDetailsProvider(artistId)),
+        ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, ArtistDetails artist,
-      ThemeData theme) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    ArtistDetails artist,
+    ThemeData theme,
+  ) {
+    final t = AppColors.of(context);
+    final cardRowHeight = 140 + MediaQuery.textScalerOf(context).scale(56);
     final palette = ref.watch(paletteProvider(artist.thumbnailUrl ?? ''));
-    final dominantColor =
-        palette.value?.dominantColor?.color ?? AppColors.surfaceBase;
+    final dominantColor = palette.value?.dominantColor?.color ?? t.background;
 
     return CustomScrollView(
       slivers: [
@@ -55,10 +68,14 @@ class ArtistScreen extends ConsumerWidget {
                     fit: BoxFit.cover,
                   )
                 else
-                  const ColoredBox(
-                      color: AppColors.surfaceElevated,
-                      child: Icon(Icons.person,
-                          size: 80, color: AppColors.textSecondary)),
+                  ColoredBox(
+                    color: t.surface,
+                    child: Icon(
+                      Icons.person,
+                      size: 80,
+                      color: t.textSecondary,
+                    ),
+                  ),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -66,8 +83,8 @@ class ArtistScreen extends ConsumerWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         dominantColor.withValues(alpha: 0.4),
-                        AppColors.surfaceBase.withValues(alpha: 0.8),
-                        AppColors.surfaceBase,
+                        t.background.withValues(alpha: 0.8),
+                        t.background,
                       ],
                     ),
                   ),
@@ -82,7 +99,9 @@ class ArtistScreen extends ConsumerWidget {
                       Text(
                         artist.name,
                         style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold, color: Colors.white),
+                          fontWeight: FontWeight.bold,
+                          color: t.textPrimary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       if (artist.subscribers != null) ...[
@@ -90,9 +109,11 @@ class ArtistScreen extends ConsumerWidget {
                         Text(
                           '${artist.subscribers}',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                              color: dominantColor != AppColors.surfaceBase
-                                  ? dominantColor
-                                  : AppColors.accentPrimary),
+                            color: dominantColor != t.background
+                                ? dominantColor
+                                : t.accent,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ],
@@ -105,23 +126,90 @@ class ArtistScreen extends ConsumerWidget {
         if (artist.topSongs.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-              child: Row(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Top Songs', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  ElevatedButton.icon(
-                    onPressed: () => ref.read(playerControllerProvider.notifier).playTrack(artist.topSongs.first, queue: artist.topSongs),
-                    icon: const Icon(Icons.play_arrow, size: 18, color: Colors.black),
-                    label: const Text('Play All', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentPrimary, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)), minimumSize: const Size(0, 32)),
+                  Text(
+                    'Top Songs',
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () { final s = List.of(artist.topSongs)..shuffle(); ref.read(playerControllerProvider.notifier).playTrack(s.first, queue: s); },
-                    icon: const Icon(Icons.shuffle, size: 14, color: AppColors.textPrimary),
-                    label: const Text('Acak', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 12)),
-                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.textPrimary, side: const BorderSide(color: AppColors.surfaceOverlay), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)), minimumSize: const Size(0, 32)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => ref
+                            .read(playerControllerProvider.notifier)
+                            .playTrack(
+                              artist.topSongs.first,
+                              queue: artist.topSongs,
+                            ),
+                        icon: Icon(
+                          Icons.play_arrow,
+                          size: 18,
+                          color: t.onAccent,
+                        ),
+                        label: Text(
+                          'Play All',
+                          style: TextStyle(
+                            color: t.onAccent,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: t.accent,
+                          foregroundColor: t.onAccent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.full),
+                          ),
+                          minimumSize: const Size(0, 48),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          final s = List.of(artist.topSongs)..shuffle();
+                          ref
+                              .read(playerControllerProvider.notifier)
+                              .playTrack(s.first, queue: s);
+                        },
+                        icon: Icon(
+                          Icons.shuffle,
+                          size: 14,
+                          color: t.textPrimary,
+                        ),
+                        label: Text(
+                          'Acak',
+                          style: TextStyle(
+                            color: t.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: t.textPrimary,
+                          side: BorderSide(color: t.border),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.full),
+                          ),
+                          minimumSize: const Size(0, 48),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -132,22 +220,71 @@ class ArtistScreen extends ConsumerWidget {
               (context, index) {
                 final track = artist.topSongs[index];
                 final playerState = ref.watch(playerControllerProvider);
-                final isPlaying = playerState.currentTrack?.sourceId == track.sourceId;
+                final isPlaying =
+                    playerState.currentTrack?.sourceId == track.sourceId;
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: track.thumbnailUrl != null ? CachedNetworkImage(imageUrl: track.thumbnailUrl!, width: 48, height: 48, fit: BoxFit.cover, errorWidget: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.surfaceOverlay, child: const Icon(Icons.music_note))) : Container(width: 48, height: 48, color: AppColors.surfaceOverlay, child: const Icon(Icons.music_note)),
+                    child: track.thumbnailUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: track.thumbnailUrl!,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(
+                              width: 48,
+                              height: 48,
+                              color: t.surface,
+                              child: const Icon(Icons.music_note),
+                            ),
+                          )
+                        : Container(
+                            width: 48,
+                            height: 48,
+                            color: t.surface,
+                            child: const Icon(Icons.music_note),
+                          ),
                   ),
-                  title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isPlaying ? AppColors.accentPrimary : AppColors.textPrimary, fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal)),
-                  subtitle: Text(track.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textSecondary)),
-                  trailing: isPlaying ? const Icon(Icons.equalizer, color: AppColors.accentPrimary) : const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                  title: Text(
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isPlaying ? t.accent : t.textPrimary,
+                      fontWeight:
+                          isPlaying ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  subtitle: Text(
+                    track.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: t.textSecondary),
+                  ),
+                  trailing: isPlaying
+                      ? Icon(
+                          Icons.equalizer,
+                          color: t.accent,
+                          semanticLabel: 'Sedang diputar',
+                        )
+                      : ExcludeSemantics(
+                          child: Icon(
+                            Icons.more_vert,
+                            color: t.textSecondary,
+                          ),
+                        ),
                   onTap: () {
-                    ref.read(playerControllerProvider.notifier).playTrack(track, queue: artist.topSongs);
+                    ref
+                        .read(playerControllerProvider.notifier)
+                        .playTrack(track, queue: artist.topSongs);
                   },
                 );
               },
-              childCount: artist.topSongs.length > 5 ? 5 : artist.topSongs.length,
+              childCount:
+                  artist.topSongs.length > 5 ? 5 : artist.topSongs.length,
             ),
           ),
         ],
@@ -155,21 +292,31 @@ class ArtistScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.xl, AppSpacing.md, AppSpacing.sm),
-              child: Text('Albums',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                AppSpacing.md,
+                AppSpacing.xl,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                'Albums',
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 200,
+              height: cardRowHeight,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 itemCount: artist.albums.length,
                 itemBuilder: (context, index) {
-                  return _buildAlbumCard(context, artist.albums[index], theme);
+                  return _buildAlbumCard(
+                    context,
+                    artist.albums[index],
+                    theme,
+                  );
                 },
               ),
             ),
@@ -179,21 +326,31 @@ class ArtistScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.xl, AppSpacing.md, AppSpacing.sm),
-              child: Text('Singles & EPs',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                AppSpacing.md,
+                AppSpacing.xl,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                'Singles & EPs',
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 200,
+              height: cardRowHeight,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 itemCount: artist.singles.length,
                 itemBuilder: (context, index) {
-                  return _buildAlbumCard(context, artist.singles[index], theme);
+                  return _buildAlbumCard(
+                    context,
+                    artist.singles[index],
+                    theme,
+                  );
                 },
               ),
             ),
@@ -203,22 +360,31 @@ class ArtistScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.xl, AppSpacing.md, AppSpacing.sm),
-              child: Text('Playlists',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+                AppSpacing.md,
+                AppSpacing.xl,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                'Playlists',
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 200,
+              height: cardRowHeight,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 itemCount: artist.playlists.length,
                 itemBuilder: (context, index) {
                   return _buildPlaylistCard(
-                      context, artist.playlists[index], theme);
+                    context,
+                    artist.playlists[index],
+                    theme,
+                  );
                 },
               ),
             ),
@@ -230,10 +396,15 @@ class ArtistScreen extends ConsumerWidget {
   }
 
   Widget _buildAlbumCard(
-      BuildContext context, AlbumItem album, ThemeData theme) {
+    BuildContext context,
+    AlbumItem album,
+    ThemeData theme,
+  ) {
+    final t = AppColors.of(context);
     return GestureDetector(
       onTap: () {
-        // Premium: canonical push — works from any branch (Home/Search/Library) without tab switch
+        // Premium: canonical push — works from any branch (Home/Search/Library)
+        // without tab switch
         context.push('/album/${album.browseId}');
       },
       child: Container(
@@ -246,12 +417,13 @@ class ArtistScreen extends ConsumerWidget {
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                color: AppColors.surfaceOverlay,
+                color: t.raised,
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 image: album.thumbnailUrl != null
                     ? DecorationImage(
                         image: CachedNetworkImageProvider(album.thumbnailUrl!),
-                        fit: BoxFit.cover)
+                        fit: BoxFit.cover,
+                      )
                     : null,
               ),
               child: album.thumbnailUrl == null
@@ -269,8 +441,10 @@ class ArtistScreen extends ConsumerWidget {
             if (album.year != null)
               Text(
                 album.year!,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: t.textSecondary),
               ),
           ],
         ),
@@ -279,7 +453,11 @@ class ArtistScreen extends ConsumerWidget {
   }
 
   Widget _buildPlaylistCard(
-      BuildContext context, PlaylistItem playlist, ThemeData theme) {
+    BuildContext context,
+    PlaylistItem playlist,
+    ThemeData theme,
+  ) {
+    final t = AppColors.of(context);
     return GestureDetector(
       onTap: () {
         context.push('/playlist/${playlist.browseId}');
@@ -294,13 +472,15 @@ class ArtistScreen extends ConsumerWidget {
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                color: AppColors.surfaceOverlay,
+                color: t.raised,
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 image: playlist.thumbnailUrl != null
                     ? DecorationImage(
-                        image:
-                            CachedNetworkImageProvider(playlist.thumbnailUrl!),
-                        fit: BoxFit.cover)
+                        image: CachedNetworkImageProvider(
+                          playlist.thumbnailUrl!,
+                        ),
+                        fit: BoxFit.cover,
+                      )
                     : null,
               ),
               child: playlist.thumbnailUrl == null
@@ -320,8 +500,8 @@ class ArtistScreen extends ConsumerWidget {
                 playlist.author!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: t.textSecondary),
               ),
           ],
         ),

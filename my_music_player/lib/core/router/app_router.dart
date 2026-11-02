@@ -7,6 +7,7 @@ import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/library/presentation/screens/library_screen.dart';
 import '../../features/library/presentation/screens/downloaded_screen.dart';
 import '../../features/library/presentation/screens/device_songs_screen.dart';
+import '../../features/library/presentation/screens/recently_played_screen.dart';
 import '../../features/recap/presentation/screens/recap_screen.dart';
 import '../../features/library/domain/entities/playlist.dart';
 import '../../features/library/presentation/screens/playlist_detail_screen.dart';
@@ -176,6 +177,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       context: context,
                       state: state,
                       child: const RecapScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'recently-played',
+                    pageBuilder: (context, state) => _smoothTransition(
+                      context: context,
+                      state: state,
+                      child: const RecentlyPlayedScreen(),
                     ),
                   ),
                   buildArtistRoute(),

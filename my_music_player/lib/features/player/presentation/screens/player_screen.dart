@@ -228,6 +228,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
     final screenWidth = MediaQuery.of(context).size.width;
     final artworkSize = (screenWidth - 48) < 312 ? (screenWidth - 48) : 312.0;
+    final canShuffle = playerState.currentQueue.length > 1;
 
     return Scaffold(
       backgroundColor: t.background,
@@ -283,48 +284,49 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               ],
                             ),
                           ),
-                          PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'add_playlist') {
-                                showAddToPlaylistSheet(context,
-                                    track: currentTrack);
-                              } else if (value == 'sleep_timer') {
-                                showSleepTimerSheet(context);
-                              }
-                            },
-                            color: t.panel,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                          MenuAnchor(
+                            style: MenuStyle(
+                              backgroundColor: WidgetStatePropertyAll(t.panel),
+                              shape: WidgetStatePropertyAll(
+                                RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.lg),
+                                ),
+                              ),
                             ),
-                            itemBuilder: (context) => [
-                              PopupMenuItem(
-                                value: 'sleep_timer',
+                            menuChildren: [
+                              MenuItemButton(
+                                onPressed: () => showSleepTimerSheet(context),
                                 child: Text(
                                   'Sleep Timer',
                                   style: TextStyle(color: t.textPrimary),
                                 ),
                               ),
-                              PopupMenuItem(
-                                value: 'add_playlist',
+                              MenuItemButton(
+                                onPressed: () => showAddToPlaylistSheet(
+                                  context,
+                                  track: currentTrack,
+                                ),
                                 child: Text(
                                   'Add to Playlist',
                                   style: TextStyle(color: t.textPrimary),
                                 ),
                               ),
                             ],
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: t.raised,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.more_horiz,
-                                size: 20,
-                                color: t.textPrimary,
-                              ),
-                            ),
+                            builder: (context, controller, child) {
+                              return AppIconButton(
+                                icon: Icons.more_horiz,
+                                semanticLabel: 'More options',
+                                iconSize: 20,
+                                onPressed: () {
+                                  if (controller.isOpen) {
+                                    controller.close();
+                                  } else {
+                                    controller.open();
+                                  }
+                                },
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -348,7 +350,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         Center(
                           child: Container(
                             width: 170,
-                            height: 27,
+                            constraints: const BoxConstraints(minHeight: 27),
                             decoration: BoxDecoration(
                               color: t.background,
                               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -382,7 +384,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               children: [
                                 Text(
                                   currentTrack.title,
-                                  maxLines: 2,
+                                  maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 28,
@@ -436,29 +438,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
                           const SizedBox(width: AppSpacing.md),
-                          GestureDetector(
-                            onTap: () {
+                          AppIconButton(
+                            icon: currentTrack.isLiked
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            semanticLabel:
+                                currentTrack.isLiked ? 'Unlike' : 'Like',
+                            iconSize: 21,
+                            onPressed: () {
                               ref
                                   .read(playerControllerProvider.notifier)
                                   .toggleLike();
                             },
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: t.raised,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                currentTrack.isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                size: 21,
-                                color: currentTrack.isLiked
-                                    ? t.textPrimary
-                                    : t.textSecondary,
-                              ),
-                            ),
                           ),
                         ],
                       ),
@@ -538,57 +529,62 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               icon: Icon(
                                 Icons.shuffle,
                                 size: 21,
+                                semanticLabel: 'Shuffle',
                                 color: playerState.isShuffleEnabled
                                     ? t.textPrimary
                                     : t.textInactive,
                               ),
-                              onPressed: () {
-                                ref
-                                    .read(playerControllerProvider.notifier)
-                                    .toggleShuffle();
-                              },
+                              onPressed: canShuffle
+                                  ? () {
+                                      ref
+                                          .read(
+                                              playerControllerProvider.notifier)
+                                          .toggleShuffle();
+                                    }
+                                  : null,
                             ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.skip_previous_rounded,
-                                size: 21,
-                                color: t.textPrimary,
-                              ),
+                            AppIconButton(
+                              icon: Icons.skip_previous_rounded,
+                              semanticLabel: 'Previous',
+                              iconSize: 21,
+                              filled: false,
                               onPressed: () {
                                 ref
                                     .read(playerControllerProvider.notifier)
                                     .playPrevious();
                               },
                             ),
-                            GestureDetector(
-                              onTap: () {
+                            IconButton(
+                              icon: Icon(
+                                playerState.isPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                size: 28,
+                                semanticLabel:
+                                    playerState.isPlaying ? 'Pause' : 'Play',
+                                color: t.onAccent,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: t.accent,
+                                foregroundColor: t.onAccent,
+                                fixedSize: const Size(76, 76),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.playButton,
+                                  ),
+                                ),
+                              ),
+                              onPressed: () {
                                 ref
                                     .read(playerControllerProvider.notifier)
                                     .togglePlayPause();
                               },
-                              child: Container(
-                                width: 76,
-                                height: 76,
-                                decoration: BoxDecoration(
-                                  color: t.accent,
-                                  borderRadius: BorderRadius.circular(
-                                      AppRadius.playButton),
-                                ),
-                                child: Icon(
-                                  playerState.isPlaying
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                  size: 28,
-                                  color: t.onAccent,
-                                ),
-                              ),
                             ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.skip_next_rounded,
-                                size: 21,
-                                color: t.textPrimary,
-                              ),
+                            AppIconButton(
+                              icon: Icons.skip_next_rounded,
+                              semanticLabel: 'Next',
+                              iconSize: 21,
+                              filled: false,
                               onPressed: () {
                                 ref
                                     .read(playerControllerProvider.notifier)
@@ -601,6 +597,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                                     ? Icons.repeat_one
                                     : Icons.repeat,
                                 size: 21,
+                                semanticLabel:
+                                    playerState.loopMode == LoopMode.one
+                                        ? 'Repeat one'
+                                        : 'Repeat',
                                 color: playerState.loopMode != LoopMode.off
                                     ? t.textPrimary
                                     : t.textInactive,
@@ -617,40 +617,43 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       const SizedBox(height: AppSpacing.xl),
                       // Dock
                       Container(
-                        height: 56,
+                        constraints: const BoxConstraints(minHeight: 56),
                         decoration: BoxDecoration(
                           color: t.row,
                           borderRadius: BorderRadius.circular(AppRadius.x4xl),
                           border: Border.all(color: t.border),
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _DockItem(
-                                icon: Icons.lyrics_outlined,
-                                label: 'Lyrics',
-                                color: t.textSecondary,
-                                onTap: () => _showLyricsSheet(context),
+                        child: IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: _DockItem(
+                                  icon: Icons.lyrics_outlined,
+                                  label: 'Lyrics',
+                                  color: t.textSecondary,
+                                  onTap: () => _showLyricsSheet(context),
+                                ),
                               ),
-                            ),
-                            Expanded(
-                              child: _DockItem(
-                                icon: Icons.queue_music_rounded,
-                                label:
-                                    'Queue (${playerState.currentQueue.length})',
-                                color: t.textSecondary,
-                                onTap: () => _showQueueSheet(context),
+                              Expanded(
+                                child: _DockItem(
+                                  icon: Icons.queue_music_rounded,
+                                  label:
+                                      'Queue (${playerState.currentQueue.length})',
+                                  color: t.textSecondary,
+                                  onTap: () => _showQueueSheet(context),
+                                ),
                               ),
-                            ),
-                            Expanded(
-                              child: _DockItem(
-                                icon: Icons.timer_outlined,
-                                label: 'Timer',
-                                color: t.textSecondary,
-                                onTap: () => showSleepTimerSheet(context),
+                              Expanded(
+                                child: _DockItem(
+                                  icon: Icons.timer_outlined,
+                                  label: 'Timer',
+                                  color: t.textSecondary,
+                                  onTap: () => showSleepTimerSheet(context),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
@@ -681,23 +684,34 @@ class _DockItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: label,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.x4xl),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: color,
-            ),
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.x4xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -780,37 +794,43 @@ class _DoubleTapArtworkState extends State<DoubleTapArtwork>
   @override
   Widget build(BuildContext context) {
     final t = AppColors.of(context);
-    return GestureDetector(
-      onDoubleTap: _handleDoubleTap,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          AppArtwork(
-            localPath: widget.track.localThumbnailPath,
-            imageUrl: widget.track.thumbnailUrl,
-            size: widget.size,
-            radius: AppRadius.x4xl,
-            border: true,
+    return Semantics(
+      image: true,
+      label: 'Artwork for ${widget.track.title}',
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onDoubleTap: _handleDoubleTap,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AppArtwork(
+                localPath: widget.track.localThumbnailPath,
+                imageUrl: widget.track.thumbnailUrl,
+                size: widget.size,
+                radius: AppRadius.x4xl,
+                border: true,
+              ),
+              // Heart Animation Overlay
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  if (_controller.isDismissed) return const SizedBox.shrink();
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: Opacity(
+                      opacity: _opacityAnimation.value,
+                      child: Icon(
+                        Icons.favorite,
+                        color: t.textPrimary,
+                        size: 120,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-          // Heart Animation Overlay
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              if (_controller.isDismissed) return const SizedBox.shrink();
-              return Transform.scale(
-                scale: _scaleAnimation.value,
-                child: Opacity(
-                  opacity: _opacityAnimation.value,
-                  child: Icon(
-                    Icons.favorite,
-                    color: t.textPrimary,
-                    size: 120,
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
