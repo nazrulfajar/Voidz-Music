@@ -36,9 +36,11 @@ class FakeAudioPlayer extends Mock implements AudioPlayer {
   Duration? _durationValue;
   LoopMode _loopModeValue = LoopMode.off;
   double _volumeValue = 1.0;
+  ProcessingState _processingState = ProcessingState.idle;
   int seekToNextCalls = 0;
   int seekToPreviousCalls = 0;
   int seekCalls = 0;
+  int pauseCalls = 0;
 
   @override
   Stream<bool> get playingStream => _playing.stream;
@@ -77,8 +79,12 @@ class FakeAudioPlayer extends Mock implements AudioPlayer {
   bool get playing => _playingValue;
 
   @override
-  PlayerState get playerState =>
-      PlayerState(_playingValue, ProcessingState.idle);
+  PlayerState get playerState => PlayerState(_playingValue, _processingState);
+
+  void setProcessingState(ProcessingState state) {
+    _processingState = state;
+    _playerState.add(PlayerState(_playingValue, state));
+  }
 
   @override
   Duration get position => _positionValue;
@@ -199,6 +205,13 @@ class FakeAudioPlayer extends Mock implements AudioPlayer {
 
   @override
   Future<void> setVolume(double volume) async => _volumeValue = volume;
+
+  @override
+  Future<void> pause() async {
+    pauseCalls++;
+    _playingValue = false;
+    _playing.add(false);
+  }
 
   Future<void> disposeFake() async {
     await _playing.close();
