@@ -223,7 +223,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (recent != null) {
       widgets.add(const AppSectionHeader(title: 'RECENTLY PLAYED'));
       widgets.add(
-        _recentRow(context, t, recent),
+        _recentRow(context, t),
       );
       widgets.add(const SizedBox(height: AppSpacing.space6));
     }
@@ -479,12 +479,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _recentRow(BuildContext context, AppColorTokens t, Playlist recent) {
+  Widget _recentRow(BuildContext context, AppColorTokens t) {
     return InkWell(
-      onTap: () => context.push(
-        '/library/playlist-detail/${recent.id}',
-        extra: recent,
-      ),
+      onTap: () => context.push('/library/recently-played'),
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: Container(
         height: 64,
