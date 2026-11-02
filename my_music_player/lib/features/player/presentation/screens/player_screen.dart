@@ -67,10 +67,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           AppSnackbar.showError(context, 'Artist page not found');
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (context.mounted) {
         Navigator.pop(context);
-        AppSnackbar.showError(context, 'Failed to load artist: $e');
+        AppSnackbar.showError(
+          context,
+          'Couldn\'t load artist. Check your connection and try again.',
+        );
       }
     }
   }
@@ -107,10 +110,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           AppSnackbar.showError(context, 'Album page not found');
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (context.mounted) {
         Navigator.pop(context);
-        AppSnackbar.showError(context, 'Failed to load album: $e');
+        AppSnackbar.showError(
+          context,
+          'Couldn\'t load album. Check your connection and try again.',
+        );
       }
     }
   }
@@ -190,13 +196,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final playerState = ref.watch(playerControllerProvider);
     final currentTrack = playerState.currentTrack;
     final t = AppColors.of(context);
-
-    ref.listen(playerControllerProvider, (previous, next) {
-      if (next.errorMessage != null &&
-          next.errorMessage != previous?.errorMessage) {
-        AppSnackbar.showError(context, next.errorMessage!);
-      }
-    });
 
     if (currentTrack == null) {
       return Scaffold(
@@ -498,6 +497,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
+                      if (playerState.errorMessage != null) ...[
+                        _PlaybackErrorCard(
+                          onRetry: () {
+                            ref
+                                .read(playerControllerProvider.notifier)
+                                .playTrack(
+                                  currentTrack,
+                                  queue: playerState.currentQueue,
+                                );
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
                       // Controls
                       Padding(
                         padding: const EdgeInsets.symmetric(
@@ -645,6 +657,84 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _PlaybackErrorCard extends StatelessWidget {
+  const _PlaybackErrorCard({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppColors.of(context);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 88),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.space4,
+        vertical: AppSpacing.space3,
+      ),
+      decoration: BoxDecoration(
+        color: t.raised,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: t.focusedBorder),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: 20,
+            color: t.textPrimary,
+          ),
+          const SizedBox(width: AppSpacing.space3),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Playback failed',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: t.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'Couldn\'t resolve the stream.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: t.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.space2),
+          FilledButton(
+            onPressed: onRetry,
+            style: FilledButton.styleFrom(
+              backgroundColor: t.accent,
+              foregroundColor: t.onAccent,
+              minimumSize: const Size(100, 48),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.space4,
+                vertical: AppSpacing.space2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: const Text(
+              'Retry',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_filter_chip.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_list_tile.dart';
+import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/device_songs_provider.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -256,7 +257,30 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
               ),
           ],
         ),
-        body: RefreshIndicator(
+        body: scanState.permissionDenied
+            ? AppStatePanel(
+                variant: AppStateVariant.permission,
+                title: 'Allow access to audio',
+                message: 'MyMusicPlayer needs permission to scan audio files '
+                    'on this device.',
+                actionLabel: scanState.permanentlyDenied
+                    ? 'Open settings'
+                    : 'Allow access',
+                actionIcon: scanState.permanentlyDenied
+                    ? Icons.settings_rounded
+                    : Icons.check_rounded,
+                onAction: () async {
+                  if (scanState.permanentlyDenied) {
+                    await openAppSettings();
+                  } else {
+                    await ref
+                        .read(deviceScanControllerProvider.notifier)
+                        .scan();
+                  }
+                },
+                footnote: 'You can change this in system settings.',
+              )
+            : RefreshIndicator(
           color: t.accent,
           backgroundColor: t.surface,
           onRefresh: () async =>
@@ -295,90 +319,6 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
                   ),
                 ),
               ),
-              // Permission banner
-              if (scanState.permissionDenied)
-                SliverToBoxAdapter(
-                  child: Container(
-                    color: t.background,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.xs,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: t.surface,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: t.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.folder_off, color: t.textPrimary),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  'Izin akses musik diperlukan',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    color: t.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'Agar dapat menampilkan lagu di penyimpanan, '
-                            'izinkan akses media audio.',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: t.textSecondary),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: () async {
-                                    if (scanState.permanentlyDenied) {
-                                      await openAppSettings();
-                                    } else {
-                                      await ref
-                                          .read(deviceScanControllerProvider
-                                              .notifier)
-                                          .scan();
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: t.accent,
-                                    foregroundColor: t.onAccent,
-                                  ),
-                                  child: Text(
-                                    scanState.permanentlyDenied
-                                        ? 'Buka Pengaturan'
-                                        : 'Izinkan',
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              TextButton(
-                                onPressed: () => ref
-                                    .read(deviceScanControllerProvider.notifier)
-                                    .checkPermissionStatus(),
-                                child: Text(
-                                  'Cek lagi',
-                                  style: TextStyle(color: t.textSecondary),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               if (scanState.error != null)
                 SliverToBoxAdapter(
                   child: Container(
@@ -400,25 +340,27 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
                             Icons.error_outline,
                             color: t.textPrimary,
                             size: 20,
+                            semanticLabel: 'Error',
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Text(
-                              scanState.error!,
+                              'Pemindaian gagal. Coba lagi.',
                               style: TextStyle(
                                 color: t.textPrimary,
                                 fontSize: 13,
                               ),
                             ),
                           ),
-                          AppIconButton(
-                            icon: Icons.close,
-                            iconSize: 18,
-                            semanticLabel: 'Tutup pesan error',
-                            filled: false,
+                          TextButton(
                             onPressed: () => ref
                                 .read(deviceScanControllerProvider.notifier)
                                 .scan(),
+                            style: TextButton.styleFrom(
+                              foregroundColor: t.textPrimary,
+                              minimumSize: const Size(48, 48),
+                            ),
+                            child: const Text('Coba lagi'),
                           ),
                         ],
                       ),
@@ -642,24 +584,14 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
                   theme,
                   t,
                 ),
-                loading: () => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(40),
-                    child: Center(
-                      child: CircularProgressIndicator(color: t.accent),
-                    ),
-                  ),
+                loading: () => const SliverToBoxAdapter(
+                  child: ShimmerSection(itemCount: 6),
                 ),
                 error: (e, st) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: AppEmptyState(
-                      icon: Icons.error_outline,
-                      title: 'Gagal memuat lagu',
-                      subtitle: '$e',
-                      actionLabel: 'Coba lagi',
-                      onAction: () => ref.invalidate(deviceSongsProvider),
-                    ),
+                  child: AppErrorState(
+                    error: 'Check storage permission and try again.',
+                    cause: e,
+                    onRetry: () => ref.invalidate(deviceSongsProvider),
                   ),
                 ),
               ),

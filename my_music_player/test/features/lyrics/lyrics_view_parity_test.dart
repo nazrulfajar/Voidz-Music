@@ -107,12 +107,12 @@ void main() {
     expect(find.text('Lyrics · LRCLIB'), findsOneWidget);
   });
 
-  testWidgets('missing lyrics use the shared empty state panel',
-      (tester) async {
+  testWidgets('missing lyrics use the shared state panel', (tester) async {
     await _pumpLyrics(tester, lyrics: _notFound);
 
-    expect(find.byType(AppEmptyState), findsOneWidget);
-    expect(find.text('Lirik tidak ditemukan'), findsOneWidget);
+    expect(find.byType(AppStatePanel), findsOneWidget);
+    expect(find.text('No lyrics found'), findsOneWidget);
+    expect(find.text('Playback continues without lyrics.'), findsOneWidget);
   });
 
   testWidgets('lyrics handle text scale 2.0 without overflow', (tester) async {
