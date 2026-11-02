@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_radius.dart';
 
 class AppEmptyState extends StatelessWidget {
   final IconData icon;
@@ -29,7 +28,14 @@ class AppEmptyState extends StatelessWidget {
     this.onAction,
     this.secondaryLabel,
     this.onSecondaryAction,
-  });
+  })  : assert(
+          actionLabel == null || onAction != null,
+          'onAction is required when actionLabel is set',
+        ),
+        assert(
+          secondaryLabel == null || onSecondaryAction != null,
+          'onSecondaryAction is required when secondaryLabel is set',
+        );
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +78,7 @@ class AppEmptyState extends StatelessWidget {
             Text(
               subtitle!,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: tokens.textInactive,
+                color: tokens.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -103,25 +109,34 @@ class AppEmptyState extends StatelessWidget {
 class AppErrorState extends StatelessWidget {
   final String error;
   final VoidCallback onRetry;
-  const AppErrorState({super.key, required this.error, required this.onRetry});
+
+  const AppErrorState({
+    super.key,
+    required this.error,
+    required this.onRetry,
+  });
+
   @override
   Widget build(BuildContext context) {
+    final tokens = AppColors.of(context);
     return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.error_outline, size: 48, color: AppColors.statusError),
-        const SizedBox(height: AppSpacing.md),
-        Text(error,
-            style: const TextStyle(color: AppColors.statusError),
-            textAlign: TextAlign.center),
-        const SizedBox(height: AppSpacing.md),
-        ElevatedButton(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: tokens.textPrimary),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            error,
+            style: TextStyle(color: tokens.textPrimary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton(
             onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accentPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.full))),
-            child: const Text('Retry', style: TextStyle(color: Colors.black))),
-      ]),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
     );
   }
 }
