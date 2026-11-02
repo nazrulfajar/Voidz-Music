@@ -1,4 +1,4 @@
-import 'package:my_music_player/features/player/domain/entities/track.dart';
+import '../../../player/domain/entities/track.dart';
 
 /// The five product moods for Daily Mix (`docs/PRD.md` F1.5).
 enum DailyMixMood {
