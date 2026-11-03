@@ -1,78 +1,132 @@
 # Voidz Music
 
-[![CI](https://github.com/nazrulfajar/Voidz-Music/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulfajar/Voidz-Music/actions/workflows/ci.yml)
+[![CI](https://github.com/nazrulfajar/Voidz-Music/actions/workflows/ci.yml/badge.svg?style=flat-square)](https://github.com/nazrulfajar/Voidz-Music/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/nazrulfajar/Voidz-Music?label=release&sort=semver&style=flat-square)](https://github.com/nazrulfajar/Voidz-Music/releases/latest)
+[![License](https://img.shields.io/github/license/nazrulfajar/Voidz-Music?style=flat-square)](LICENSE)
+[![Android 8+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white&style=flat-square)](#download)
 
-Voidz Music is a personal, premium-feeling music player built with Flutter. The
-YouTube resolver runs entirely on-device (serverless), so the app works without
-a FastAPI/yt-dlp backend. It provides background playback, offline caching,
-synchronized lyrics, and library management without ads.
+**A private, ad-free music player for Android.** Search and stream YouTube Music
+on-device, cache tracks for offline listening, keep playback running in the
+background, and follow synced lyrics — without an account, ads, or a developer
+backend.
 
-## 📥 Download
+> Voidz Music is an unofficial client and is not affiliated with, endorsed by,
+> or sponsored by YouTube or Google. Please read the [disclaimer](#disclaimer).
 
-The Android APK is distributed through [GitHub Releases](https://github.com/nazrulfajar/Voidz-Music/releases/latest).
-There is no Play Store version.
+## Contents
 
-- **Requirements:** Android 8.0 (API 26) or newer.
-- **Recommended asset:** `VoidzMusic-<version>-arm64-v8a.apk` for phones and
-  tablets. Use `VoidzMusic-<version>-armeabi-v7a.apk` only for older 32-bit
-  devices, and `VoidzMusic-<version>-x86_64.apk` only for x86_64 emulators.
-- **Install:** open the downloaded APK and allow "Install unknown apps" for
-  your browser or file manager when prompted. Play Protect may warn because
-  the app is not distributed through the Play Store; that is expected.
-- **Data:** the app stores its library locally. Uninstalling the app removes
-  that data. App-data backup is disabled, so data is not migrated automatically
-  to a new device.
+[Download](#download) · [Screenshots](#screenshots) · [Features](#features) ·
+[How it works](#how-it-works) · [Privacy](#privacy) ·
+[Known limitations](#known-limitations) · [Build from source](#build-from-source) ·
+[License](#license)
 
-## ✨ Features
+## Download
 
-- **On-device YouTube search & playback:** streams audio using InnerTube
-  metadata and an in-app Dart resolver.
-- **Premium UI/UX:** dynamic blurred backgrounds, fluid mini-player, and smooth
-  page transitions.
-- **Background playback:** background audio and lockscreen media controls.
-- **Smart offline caching:**
-  - Automatically caches songs during playback (up to 4 upcoming tracks).
-  - Validates cache integrity and skips corrupt files.
-  - "Wi-Fi only" download controls.
-- **Synchronized lyrics:** real-time synced lyrics with click-to-seek,
-  fetched directly from LRCLIB.
-- **Custom library & playlists:**
-  - User-created playlists with drag-and-drop reordering.
-  - System playlists (`Liked Songs`, `Recently Played`, `Downloaded`).
-  - Immersive mosaic cover art for playlists.
-- **Robust queue management:** autoplay suggestions, looping, and shuffling.
+**[Download the latest APK →](https://github.com/nazrulfajar/Voidz-Music/releases/latest)**
 
-## 🔐 Privacy
+The app is distributed directly through GitHub Releases. There is no Play Store
+version.
 
-- No account, no login, and no analytics/ads/crash SDK.
-- Library, playlists, playback history, and cache stay on the device.
-- Network requests go directly to public YouTube/LRCLIB endpoints. No developer
-  backend receives your data.
-- Android app-data backup is disabled in the manifest, so the local database and
-  audio cache are not uploaded to Google Drive.
-- The app is single-user. There are no separate profiles or PIN protection; any
-  person who can unlock the device can open the library.
+| Device | Asset |
+|---|---|
+| Most Android phones and tablets | `VoidzMusic-<version>-arm64-v8a.apk` |
+| Older 32-bit devices | `VoidzMusic-<version>-armeabi-v7a.apk` |
+| x86_64 emulators | `VoidzMusic-<version>-x86_64.apk` |
 
-## ⚠️ Disclaimer
+**Requirements:** Android 8.0 (API 26) or newer.
+
+**Install:**
+
+1. Download the arm64 APK (recommended for almost all phones).
+2. Open it and allow "Install unknown apps" for your browser or file manager
+   when prompted.
+3. Play Protect may warn because the app is not distributed through the Play
+   Store. That is expected; continue only if you trust the source.
+
+Every release includes `SHA256SUMS.txt` so you can verify the APK.
+
+## Screenshots
+
+| Home | Player | Search |
+|:---:|:---:|:---:|
+| <img src="screenshots/home.png" width="240" alt="Voidz Music home screen with continue listening and daily mixes"> | <img src="screenshots/player.png" width="240" alt="Voidz Music player with artwork, quality badge, seek bar, and controls"> | <img src="screenshots/search.png" width="240" alt="Voidz Music search results in the dark theme"> |
+
+## Features
+
+- **On-device YouTube Music search and playback** — metadata comes from
+  InnerTube and audio is resolved inside the app. No yt-dlp or Python backend.
+- **Offline cache** — automatically caches tracks while you listen, validates
+  file integrity, supports Wi-Fi-only downloads, and enforces a configurable
+  cache limit (1 GB by default).
+- **Background playback** — keeps playing with lockscreen and notification
+  controls through `just_audio` + `audio_service`.
+- **Synced lyrics** — time-synced lyrics from LRCLIB with tap-to-seek and
+  auto-scroll.
+- **Library and playlists** — liked songs, recently played, downloaded tracks,
+  custom playlists, drag-and-drop ordering, and mosaic covers.
+- **Queue and discovery** — autoplay suggestions, shuffle, repeat, sleep timer,
+  and resume-on-startup.
+- **Polished glass UI** — dark/light themes, dynamic artwork backgrounds, and
+  responsive phone/tablet layouts.
+
+## How it works
+
+Voidz Music is a Flutter app with **no backend**. It talks directly to public
+YouTube Music/YouTube and LRCLIB endpoints. The YouTube stream is resolved
+on-device and routed through a loopback HTTP proxy (`127.0.0.1`) so playback can
+send the required range/header requests. The proxy is bound to loopback only and
+is not exposed to your local network.
+
+State is managed with Riverpod, data is stored locally with Isar, and playback
+uses `just_audio` with background media controls.
+
+## Privacy
+
+- **No account, no ads, no analytics, and no crash-reporting SDK.**
+- Library, playlists, playback history, search history, and cache stay on the
+  device.
+- Network requests go directly to YouTube/LRCLIB. No developer backend receives
+  your data.
+- Android app-data backup and device-to-device transfer are disabled, so the
+  local database and cache are not uploaded to Google Drive.
+- The app is single-user. There are no profiles or PIN protection; anyone who
+  can unlock the device can open the library.
+
+## Known limitations
+
+- **Android only for now.** The iOS scaffold exists, but it has not been
+  built or tested on macOS and there is no iOS release.
+- **Unofficial YouTube resolver.** It can stop working when YouTube changes its
+  endpoints. There is no guarantee of availability.
+- **Local data only.** There is no account sync, import/export, or multi-device
+  library.
+- **No automatic updates.** Download new APKs from GitHub Releases manually.
+- **Device song scanning is Android-only.** On iOS, only streaming and cache
+  would be available.
+- **No Play Store listing.** Installation requires allowing unknown apps.
+
+## Disclaimer
 
 Voidz Music is an unofficial client and is not affiliated with, endorsed by, or
-sponsored by YouTube or Google. It accesses public endpoints and does not host
-or distribute copyrighted content. Availability can break at any time when
-those services change. Users are responsible for complying with applicable
-terms of service and local law. The software is provided "as is", without
-warranty.
+sponsored by YouTube or Google. It accesses public endpoints, does not host or
+distribute copyrighted content, and does not provide a public streaming service.
+Availability can break at any time when those services change. Users are
+responsible for complying with applicable terms of service and local law. The
+software is provided "as is", without warranty of any kind.
 
-## 🛠️ Technology Stack
+## Build from source
 
-- **Client:** Flutter, Riverpod (state management), Isar (local database),
-  just_audio, go_router.
-- **YouTube resolver:** `youtube_explode_dart` + YouTube Music InnerTube,
-  running in-app.
-- **Backend:** none. Requests go directly to public services.
+### Requirements
 
-## 🧑‍💻 Build from Source
+| Tool | Version |
+|---|---|
+| Flutter | 3.47.0 (baseline) |
+| Dart | 3.13.0 |
+| Java | 17 or newer |
+| Android SDK | compileSdk 36, minSdk 26 |
+| iOS (experimental) | macOS + Xcode 15+ + CocoaPods 1.13+ |
 
-### Flutter client
+### Run on Android
 
 ```bash
 cd my_music_player
@@ -80,45 +134,21 @@ flutter pub get
 flutter run
 ```
 
-### Platform requirements
+### Run on iOS
 
-- **Android:** Android 8.0+ (API 26+).
-- **iOS:** iOS 15+, built on macOS with Xcode and CocoaPods:
+iOS builds require macOS and Xcode. The iOS scaffold is present but has not
+been verified for release.
 
 ```bash
 cd my_music_player
 flutter pub get
 cd ios && pod install && cd ..
-flutter run -d ios
+flutter run
 ```
 
 No backend URL configuration is needed. The resolver runs on the device.
 
 ### Release APK
-
-Release builds use a local keystore and a `key.properties` file. Both are
-ignored by git and must never be committed. The keystore can live outside the
-repo; point Gradle at its properties file in one of these ways:
-
-1. Add this to your user-level `~/.gradle/gradle.properties`:
-   ```properties
-   voidz.keystore.properties=D:/secure/Voidz-Music/key.properties
-   ```
-2. Set the `VOIDZ_KEYSTORE_PROPERTIES` environment variable to the same path.
-3. Place `key.properties` at `my_music_player/android/key.properties`.
-
-Inside `key.properties`, `storeFile` may be absolute or relative to the
-properties file:
-
-```properties
-keyAlias=upload
-storeFile=upload-keystore.jks
-storePassword=...
-keyPassword=...
-```
-
-The release task fails if no valid keystore is configured, so an accidental
-debug-signed release cannot be published.
 
 ```bash
 cd my_music_player
@@ -127,26 +157,78 @@ flutter pub get
 flutter build apk --release --split-per-abi
 ```
 
-Verify the signer before publishing:
+Release builds are signed with a local keystore. The keystore and
+`key.properties` are ignored by git and must never be committed. The build
+fails if no valid signing configuration is found, so an accidental debug-signed
+release cannot be published.
 
-```bash
-apksigner verify --print-certs build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+<details>
+<summary>Release signing and CI details (maintainers)</summary>
+
+<br>
+
+Point Gradle at the signing properties file in one of these ways:
+
+1. Add this to your user-level `~/.gradle/gradle.properties`:
+   ```properties
+   voidz.keystore.properties=D:/secure/Voidz-Music/key.properties
+   ```
+2. Set the `VOIDZ_KEYSTORE_PROPERTIES` environment variable to the same path.
+3. Place `key.properties` at `my_music_player/android/key.properties`.
+
+Example `key.properties`:
+
+```properties
+keyAlias=upload
+storeFile=upload-keystore.jks
+storePassword=...
+keyPassword=...
 ```
 
-Do not distribute an APK signed with the Android debug key.
+`storeFile` may be absolute or relative to the properties file.
 
-### Automated releases
+CI runs `.github/workflows/ci.yml` for pull requests and pushes to `main`
+(analyze, tests, debug APK). Pushing a tag such as `v0.1.1` runs
+`.github/workflows/release.yml`, which rebuilds, tests, signs the split APKs
+with the repository secrets `ANDROID_KEYSTORE_BASE64` and
+`ANDROID_KEYSTORE_PROPERTIES`, verifies the signer, and creates the GitHub
+Release with `SHA256SUMS.txt`.
 
-Pull requests and pushes to `main` run `.github/workflows/ci.yml`
-(`flutter analyze`, `flutter test`, and a debug APK build).
+</details>
 
-Pushing a tag such as `v0.1.1` runs `.github/workflows/release.yml`. The
-workflow rebuilds and tests the app, signs the split APKs with the repository
-secrets `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PROPERTIES`, verifies the
-signer, and creates the GitHub Release with the APKs and `SHA256SUMS.txt`.
+## Project structure
 
-## 📝 License
+```text
+my_music_player/
+├── lib/
+│   ├── core/        # network, audio, theme, router, errors
+│   ├── features/    # player, library, search, browse, lyrics, cache, recap, settings
+│   └── shared/      # reusable widgets and providers
+├── android/
+├── ios/             # experimental scaffold, not released
+├── test/            # unit and widget tests
+└── pubspec.yaml
+```
+
+## Contributing
+
+Issues and pull requests are welcome. When reporting a bug, include the app
+version, Android version, device model, steps to reproduce, and relevant logs.
+Please do not paste cookies, tokens, keystore files, or personal data into a
+public issue.
+
+This is a personal project, so response times may vary.
+
+## License
 
 Source code is licensed under the [MIT License](LICENSE). Third-party
 dependencies keep their own licenses; their notices are available in
 **Settings → About → Licenses** inside the app.
+
+## Acknowledgements
+
+Built with [Flutter](https://flutter.dev), [Riverpod](https://riverpod.dev),
+[Isar](https://isar.dev), [`just_audio`](https://pub.dev/packages/just_audio),
+[`audio_service`](https://pub.dev/packages/audio_service), and
+[`youtube_explode_dart`](https://pub.dev/packages/youtube_explode_dart).
+Lyrics are provided by [LRCLIB](https://lrclib.net).
