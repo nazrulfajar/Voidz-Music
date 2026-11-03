@@ -7,6 +7,7 @@ import 'package:my_music_player/core/network/api_service.dart';
 import 'package:my_music_player/core/providers/connectivity_provider.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
 import 'package:my_music_player/core/theme/app_glass.dart';
+import 'package:my_music_player/core/theme/app_sizes.dart';
 import 'package:my_music_player/features/cache/data/datasources/cache_download_service.dart';
 import 'package:my_music_player/features/player/data/datasources/audio_player_service.dart';
 import 'package:my_music_player/features/player/data/repositories/track_repository_impl.dart';
@@ -29,6 +30,14 @@ const _track = Track(
   title: 'One More Time',
   artist: 'Daft Punk',
   durationMs: 200000,
+  source: TrackSource.youtube,
+);
+
+const _getLucky = Track(
+  sourceId: 'yt-get-lucky',
+  title: 'Get Lucky',
+  artist: 'Daft Punk',
+  durationMs: 369000,
   source: TrackSource.youtube,
 );
 
@@ -208,6 +217,27 @@ void main() {
     expect(find.text('3:20'), findsOneWidget);
     // Only the fixed search field is allowed to blur.
     expect(find.byType(BackdropFilter), findsOneWidget);
+  });
+
+  testWidgets('result rows use the shared 72dp track row height',
+      (tester) async {
+    await _pumpSearch(
+      tester,
+      query: 'daft punk',
+      filter: 'songs',
+      results: [_track, _getLucky],
+    );
+
+    final first = find.byKey(
+      const ValueKey('search-track-glass-yt-one-more-time'),
+    );
+    final second = find.byKey(
+      const ValueKey('search-track-glass-yt-get-lucky'),
+    );
+    expect(first, findsOneWidget);
+    expect(second, findsOneWidget);
+    expect(tester.getSize(first).height, AppSizes.trackRowHeight);
+    expect(tester.getSize(second).height, AppSizes.trackRowHeight);
   });
 
   testWidgets('disableAnimations removes every search backdrop filter',
