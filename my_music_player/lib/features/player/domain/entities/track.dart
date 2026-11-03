@@ -1,3 +1,4 @@
+// ignore_for_file: invalid_annotation_target
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/features/player/data/models/track_model.dart';
