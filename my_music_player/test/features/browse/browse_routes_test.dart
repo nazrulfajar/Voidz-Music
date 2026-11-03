@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_music_player/core/router/browse_routes.dart';
 import 'package:my_music_player/features/browse/presentation/providers/browse_provider.dart';
+import 'package:my_music_player/l10n/app_localizations.dart';
 
 import '../../helpers/pump_app.dart';
 
@@ -46,7 +47,11 @@ void main() {
         overrides: [
           browseRecentlyPlayedProvider.overrideWith((ref) async => const []),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
       ),
     );
     await tester.pumpAndSettle();

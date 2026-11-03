@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/errors/failures.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_glass.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../l10n/app_localizations.dart';
+import 'glass_surface.dart';
 import 'shimmer_loading.dart';
 
 /// Visual variant of [AppStatePanel].
@@ -29,6 +32,8 @@ class AppStatePanel extends StatelessWidget {
     this.footnote,
     this.secondaryLabel,
     this.onSecondaryAction,
+    this.compact = false,
+    this.glassQuality,
   });
 
   final AppStateVariant variant;
@@ -47,6 +52,20 @@ class AppStatePanel extends StatelessWidget {
   final String? footnote;
   final String? secondaryLabel;
   final VoidCallback? onSecondaryAction;
+
+  /// Shrinks the panel to its content for inline section states.
+  ///
+  /// Defaults to the full 440dp panel from `docs/DESIGN_SYSTEM.md` §6.7.
+  /// The panel also shrinks automatically on viewports shorter than
+  /// [compactHeightBreakpoint].
+  final bool compact;
+
+  /// When set, the panel renders on a [GlassSurface.card] instead of the
+  /// opaque v2 surface. Null keeps the v2 panel used by sheets and states.
+  final GlassQuality? glassQuality;
+
+  /// Height below which the panel always uses its compact geometry.
+  static const double compactHeightBreakpoint = 600.0;
 
   bool get _isLoading => variant == AppStateVariant.loading;
 
@@ -69,160 +88,194 @@ class AppStatePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
+    final isCompact = compact ||
+        MediaQuery.sizeOf(context).height <
+            AppStatePanel.compactHeightBreakpoint;
     final circleBorder =
         variant == AppStateVariant.error ? tokens.focusedBorder : tokens.border;
+    final circleSize = isCompact ? 56.0 : 72.0;
+    final iconSize = isCompact ? 26.0 : 33.0;
+    final contentGap = isCompact ? AppSpacing.space4 : AppSpacing.space6;
+    final panelPadding = isCompact
+        ? const EdgeInsets.symmetric(
+            horizontal: AppSpacing.space5,
+            vertical: AppSpacing.space5,
+          )
+        : const EdgeInsets.symmetric(
+            horizontal: AppSpacing.space6,
+            vertical: AppSpacing.space8,
+          );
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          key: const Key('app-state-panel-circle'),
+          width: circleSize,
+          height: circleSize,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: tokens.textPrimary.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+            border: Border.all(color: circleBorder),
+          ),
+          child: Icon(
+            _resolvedIcon,
+            size: iconSize,
+            color: tokens.textPrimary.withValues(alpha: 0.6),
+          ),
+        ),
+        if (_isLoading) ...[
+          const SizedBox(height: AppSpacing.space6),
+          const ShimmerBox(
+            width: 180,
+            height: 16,
+            radius: 8,
+            opacity: 0.10,
+          ),
+          const SizedBox(height: AppSpacing.space3),
+          const ShimmerBox(
+            width: 140,
+            height: 10,
+            radius: 5,
+            opacity: 0.05,
+          ),
+        ] else ...[
+          if (title.isNotEmpty) ...[
+            SizedBox(height: contentGap),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+                color: tokens.textPrimary,
+              ),
+            ),
+          ],
+          if (message != null) ...[
+            const SizedBox(height: AppSpacing.space1),
+            Text(
+              message!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: tokens.textSecondary,
+              ),
+            ),
+          ],
+          if (variant == AppStateVariant.error && code != null) ...[
+            const SizedBox(height: AppSpacing.space3),
+            Text(
+              code!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.6,
+                color: tokens.textInactive,
+              ),
+            ),
+          ],
+          if (actionWidget != null) ...[
+            SizedBox(height: contentGap),
+            actionWidget!,
+          ] else if (actionLabel != null) ...[
+            SizedBox(height: contentGap),
+            FilledButton.icon(
+              onPressed: onAction,
+              icon: Icon(
+                actionIcon ?? Icons.arrow_forward_rounded,
+                size: 15,
+              ),
+              label: Text(
+                actionLabel!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.onAccent,
+                minimumSize: const Size(148, 48),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.space5,
+                  vertical: AppSpacing.space3,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
+          ],
+          if (secondaryLabel != null) ...[
+            const SizedBox(height: AppSpacing.space2),
+            TextButton(
+              onPressed: onSecondaryAction,
+              style: TextButton.styleFrom(
+                foregroundColor: tokens.textPrimary,
+                minimumSize: const Size(48, 48),
+              ),
+              child: Text(secondaryLabel!),
+            ),
+          ],
+          if (footnote != null) ...[
+            const SizedBox(height: AppSpacing.space3),
+            Text(
+              footnote!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+                color: tokens.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ],
+    );
+
+    final quality = glassQuality;
+    final Widget panel;
+    if (quality == null) {
+      panel = Container(
+        key: const Key('app-state-panel'),
+        width: double.infinity,
+        padding: panelPadding,
+        decoration: BoxDecoration(
+          color: tokens.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: tokens.border),
+        ),
+        child: content,
+      );
+    } else {
+      panel = SizedBox(
+        width: double.infinity,
+        child: GlassSurface.card(
+          key: const Key('app-state-panel'),
+          quality: quality,
+          borderRadius: BorderRadius.circular(24),
+          padding: panelPadding,
+          child: content,
+        ),
+      );
+    }
 
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.space4),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 412, minHeight: 440),
-          child: Container(
-            key: const Key('app-state-panel'),
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.space6,
-              vertical: AppSpacing.space8,
-            ),
-            decoration: BoxDecoration(
-              color: tokens.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: tokens.border),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  key: const Key('app-state-panel-circle'),
-                  width: 72,
-                  height: 72,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: tokens.textPrimary.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: circleBorder),
-                  ),
-                  child: Icon(
-                    _resolvedIcon,
-                    size: 33,
-                    color: tokens.textPrimary.withValues(alpha: 0.6),
-                  ),
-                ),
-                if (_isLoading) ...[
-                  const SizedBox(height: AppSpacing.space6),
-                  const ShimmerBox(
-                    width: 180,
-                    height: 16,
-                    radius: 8,
-                    opacity: 0.10,
-                  ),
-                  const SizedBox(height: AppSpacing.space3),
-                  const ShimmerBox(
-                    width: 140,
-                    height: 10,
-                    radius: 5,
-                    opacity: 0.05,
-                  ),
-                ] else ...[
-                  if (title.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.space6),
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                        color: tokens.textPrimary,
-                      ),
-                    ),
-                  ],
-                  if (message != null) ...[
-                    const SizedBox(height: AppSpacing.space1),
-                    Text(
-                      message!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.45,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                  ],
-                  if (variant == AppStateVariant.error && code != null) ...[
-                    const SizedBox(height: AppSpacing.space3),
-                    Text(
-                      code!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.6,
-                        color: tokens.textInactive,
-                      ),
-                    ),
-                  ],
-                  if (actionWidget != null) ...[
-                    const SizedBox(height: AppSpacing.space6),
-                    actionWidget!,
-                  ] else if (actionLabel != null) ...[
-                    const SizedBox(height: AppSpacing.space6),
-                    FilledButton.icon(
-                      onPressed: onAction,
-                      icon: Icon(
-                        actionIcon ?? Icons.arrow_forward_rounded,
-                        size: 15,
-                      ),
-                      label: Text(
-                        actionLabel!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: tokens.accent,
-                        foregroundColor: tokens.onAccent,
-                        minimumSize: const Size(148, 48),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.space5,
-                          vertical: AppSpacing.space3,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (secondaryLabel != null) ...[
-                    const SizedBox(height: AppSpacing.space2),
-                    TextButton(
-                      onPressed: onSecondaryAction,
-                      style: TextButton.styleFrom(
-                        foregroundColor: tokens.textPrimary,
-                        minimumSize: const Size(48, 48),
-                      ),
-                      child: Text(secondaryLabel!),
-                    ),
-                  ],
-                  if (footnote != null) ...[
-                    const SizedBox(height: AppSpacing.space3),
-                    Text(
-                      footnote!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        height: 1.4,
-                        color: tokens.textMuted,
-                      ),
-                    ),
-                  ],
-                ],
-              ],
-            ),
+          constraints: BoxConstraints(
+            maxWidth: 412,
+            minHeight: isCompact ? 0 : 440,
           ),
+          child: panel,
         ),
       ),
     );
@@ -245,6 +298,12 @@ class AppEmptyState extends StatelessWidget {
   final String? secondaryLabel;
   final VoidCallback? onSecondaryAction;
 
+  /// Shrinks the panel to its content for inline section states.
+  final bool compact;
+
+  /// Optional glass material. Null keeps the opaque v2 panel.
+  final GlassQuality? glassQuality;
+
   const AppEmptyState({
     super.key,
     required this.icon,
@@ -255,6 +314,8 @@ class AppEmptyState extends StatelessWidget {
     this.onAction,
     this.secondaryLabel,
     this.onSecondaryAction,
+    this.compact = false,
+    this.glassQuality,
   })  : assert(
           actionLabel == null || onAction != null,
           'onAction is required when actionLabel is set',
@@ -276,6 +337,8 @@ class AppEmptyState extends StatelessWidget {
       onAction: onAction,
       secondaryLabel: secondaryLabel,
       onSecondaryAction: onSecondaryAction,
+      compact: compact,
+      glassQuality: glassQuality,
     );
   }
 }
@@ -290,8 +353,12 @@ class AppErrorState extends StatelessWidget {
   /// Optional failure/exception used only to derive the code. It is never
   /// rendered; callers must pass a human-readable [error] message.
   final Object? cause;
-  final String title;
-  final String retryLabel;
+
+  /// Optional explicit title. Defaults to the localized load-error title.
+  final String? title;
+
+  /// Optional explicit retry label. Defaults to the localized retry action.
+  final String? retryLabel;
 
   const AppErrorState({
     super.key,
@@ -299,8 +366,8 @@ class AppErrorState extends StatelessWidget {
     required this.onRetry,
     this.code,
     this.cause,
-    this.title = "Couldn't load results",
-    this.retryLabel = 'Retry',
+    this.title,
+    this.retryLabel,
   });
 
   /// Maps a failure to the design error code (`docs/DESIGN_SYSTEM.md` §6.7).
@@ -312,12 +379,13 @@ class AppErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AppStatePanel(
       variant: AppStateVariant.error,
-      title: title,
+      title: title ?? l10n.commonLoadErrorTitle,
       message: error,
       code: code ?? codeFor(cause),
-      actionLabel: retryLabel,
+      actionLabel: retryLabel ?? l10n.commonRetryAction,
       onAction: onRetry,
       actionIcon: Icons.refresh_rounded,
     );
@@ -326,20 +394,26 @@ class AppErrorState extends StatelessWidget {
 
 /// Offline banner from `docs/DESIGN_SYSTEM.md` §6.7: 380x72, r20, `raised`.
 class AppOfflineBanner extends StatelessWidget {
-  final String title;
-  final String message;
+  /// Optional explicit title. Defaults to the localized offline title.
+  final String? title;
+
+  /// Optional explicit message. Defaults to the localized offline message.
+  final String? message;
   final VoidCallback? onTap;
 
   const AppOfflineBanner({
     super.key,
-    this.title = "You're offline",
-    this.message = 'Playing downloaded songs',
+    this.title,
+    this.message,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    final resolvedTitle = title ?? l10n.commonOfflineTitle;
+    final resolvedMessage = message ?? l10n.commonOfflinePlayingDownloaded;
     final banner = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 380),
       child: Container(
@@ -369,7 +443,7 @@ class AppOfflineBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    resolvedTitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -379,7 +453,7 @@ class AppOfflineBanner extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    message,
+                    resolvedMessage,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -399,7 +473,7 @@ class AppOfflineBanner extends StatelessWidget {
     if (onTap == null) return banner;
     return Semantics(
       button: true,
-      label: '$title. $message',
+      label: '$resolvedTitle. $resolvedMessage',
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),

@@ -18,4 +18,10 @@ enum AudioQuality { low, medium, high }
 /// unknown ordinals, so [system] must stay at index 0.
 enum AppThemeMode { system, light, dark }
 
+/// Persisted as an Isar ordinal; do not reorder after release.
+///
+/// Isar's generated enum map falls back to the first declared value for
+/// unknown ordinals, so [system] must stay at index 0.
+enum AppLanguageMode { system, english, indonesian }
+
 enum LyricsType { synced, plain, notFound }

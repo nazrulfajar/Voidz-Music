@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/palette_provider.dart';
 import '../../../../shared/widgets/add_to_playlist_sheet.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
@@ -23,6 +24,7 @@ class PlaylistScreen extends ConsumerWidget {
     final playlistAsync = ref.watch(playlistDetailsProvider(playlistId));
     final theme = Theme.of(context);
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: t.background,
@@ -33,9 +35,9 @@ class PlaylistScreen extends ConsumerWidget {
         ),
         error: (err, stack) => AppEmptyState(
           icon: Icons.error_outline,
-          title: 'Gagal memuat playlist',
+          title: l10n.browsePlaylistLoadError,
           subtitle: '$err',
-          actionLabel: 'Coba lagi',
+          actionLabel: l10n.commonTryAgain,
           onAction: () => ref.invalidate(playlistDetailsProvider(playlistId)),
         ),
       ),
@@ -49,8 +51,13 @@ class PlaylistScreen extends ConsumerWidget {
     ThemeData theme,
   ) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final palette = ref.watch(paletteProvider(playlist.thumbnailUrl ?? ''));
     final dominantColor = palette.value?.dominantColor?.color ?? t.background;
+    final metaLabel = [
+      l10n.commonPlaylist,
+      l10n.commonSongCount(playlist.trackCount ?? 0),
+    ].join(' • ');
 
     return CustomScrollView(
       slivers: [
@@ -106,7 +113,7 @@ class PlaylistScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        playlist.author ?? 'Unknown Author',
+                        playlist.author ?? l10n.browseUnknownAuthor,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: dominantColor != t.background
                               ? dominantColor
@@ -117,7 +124,7 @@ class PlaylistScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Playlist • ${playlist.trackCount ?? 0} songs',
+                        metaLabel,
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: t.textSecondary),
                         textAlign: TextAlign.center,
@@ -141,7 +148,7 @@ class PlaylistScreen extends ConsumerWidget {
                             },
                             icon: Icon(Icons.play_arrow, color: t.onAccent),
                             label: Text(
-                              'Play All',
+                              l10n.commonPlayAll,
                               style: TextStyle(
                                 color: t.onAccent,
                                 fontWeight: FontWeight.bold,
@@ -176,7 +183,7 @@ class PlaylistScreen extends ConsumerWidget {
                             },
                             icon: Icon(Icons.shuffle, color: t.textPrimary),
                             label: Text(
-                              'Acak',
+                              l10n.commonShuffle,
                               style: TextStyle(
                                 color: t.textPrimary,
                                 fontWeight: FontWeight.bold,
@@ -250,7 +257,7 @@ class PlaylistScreen extends ConsumerWidget {
                 ),
                 trailing: AppIconButton(
                   icon: Icons.more_vert,
-                  semanticLabel: 'Opsi lagu',
+                  semanticLabel: l10n.browseTrackOptions,
                   iconSize: 20,
                   filled: false,
                   onPressed: () {

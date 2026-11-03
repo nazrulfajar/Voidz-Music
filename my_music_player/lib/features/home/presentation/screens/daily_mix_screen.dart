@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../player/domain/entities/track.dart';
@@ -30,6 +31,7 @@ class DailyMixScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = AppColors.of(context);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final mixAsync = ref.watch(moodMixProvider(mood));
     final playerState = ref.watch(playerControllerProvider);
 
@@ -41,7 +43,7 @@ class DailyMixScreen extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: tokens.textPrimary),
-          tooltip: 'Back',
+          tooltip: l10n.commonBack,
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -61,11 +63,11 @@ class DailyMixScreen extends ConsumerWidget {
               ),
               child: AppEmptyState(
                 icon: Icons.queue_music_rounded,
-                title: 'No tracks for ${mood.label}',
-                subtitle: 'Search for music or scan your device library.',
-                actionLabel: 'Search',
+                title: l10n.dailyMixEmptyTitle(mood.label),
+                subtitle: l10n.dailyMixEmptySubtitle,
+                actionLabel: l10n.dailyMixSearch,
                 onAction: () => context.go('/search'),
-                secondaryLabel: 'Scan device songs',
+                secondaryLabel: l10n.dailyMixScanDevice,
                 onSecondaryAction: () => context.push('/library/device-songs'),
               ),
             );
@@ -101,7 +103,7 @@ class DailyMixScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.space1),
               Center(
                 child: Text(
-                  '${mix.tracks.length} tracks · Daily Mix',
+                  l10n.dailyMixTrackCount(mix.tracks.length),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: tokens.textSecondary,
@@ -126,7 +128,7 @@ class DailyMixScreen extends ConsumerWidget {
                     ),
                   ),
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Play all'),
+                  label: Text(l10n.dailyMixPlayAll),
                 ),
               ),
               const SizedBox(height: AppSpacing.space6),
@@ -150,8 +152,7 @@ class DailyMixScreen extends ConsumerWidget {
           child: CircularProgressIndicator(color: tokens.accent),
         ),
         error: (error, stackTrace) => AppErrorState(
-          error:
-              'Couldn\'t load this mix. Check your connection and try again.',
+          error: l10n.dailyMixLoadError,
           cause: error,
           onRetry: () => ref.invalidate(moodMixProvider(mood)),
         ),

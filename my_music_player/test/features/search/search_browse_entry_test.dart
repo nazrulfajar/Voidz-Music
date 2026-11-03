@@ -13,6 +13,7 @@ import 'package:my_music_player/features/search/presentation/providers/search_pr
 import 'package:my_music_player/features/search/presentation/screens/search_screen.dart';
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
+import 'package:my_music_player/l10n/app_localizations.dart';
 
 import '../../helpers/pump_app.dart';
 import '../player/presentation/providers/fakes.dart';
@@ -84,7 +85,11 @@ void main() {
       tester,
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp.router(routerConfig: router),
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
       ),
     );
     await tester.pumpAndSettle();

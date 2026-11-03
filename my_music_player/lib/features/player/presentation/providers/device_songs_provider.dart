@@ -4,6 +4,28 @@ import '../../domain/entities/track.dart';
 import '../../data/repositories/track_repository_impl.dart';
 import '../../data/datasources/local_audio_datasource.dart';
 
+/// Read-only permission state used by entry points that must not prompt.
+///
+/// Never requests permission; only [DeviceScanController.scan] does that,
+/// after a user action.
+enum DevicePermissionStatus { granted, denied, permanentlyDenied, unknown }
+
+final devicePermissionStatusProvider =
+    FutureProvider<DevicePermissionStatus>((ref) async {
+  try {
+    final audio = await Permission.audio.status;
+    if (audio.isGranted) return DevicePermissionStatus.granted;
+    final storage = await Permission.storage.status;
+    if (storage.isGranted) return DevicePermissionStatus.granted;
+    if (audio.isPermanentlyDenied || storage.isPermanentlyDenied) {
+      return DevicePermissionStatus.permanentlyDenied;
+    }
+    return DevicePermissionStatus.denied;
+  } catch (_) {
+    return DevicePermissionStatus.unknown;
+  }
+});
+
 final deviceSongsProvider = FutureProvider<List<Track>>((ref) async {
   final repo = ref.read(trackRepositoryProvider);
   final tracks = await repo.getDeviceTracks();
@@ -19,11 +41,15 @@ class DeviceScanState {
   final bool permissionDenied;
   final bool permanentlyDenied;
 
+  /// True after a completed scan, including a scan that found no tracks.
+  final bool scanCompleted;
+
   const DeviceScanState({
     this.isScanning = false,
     this.error,
     this.permissionDenied = false,
     this.permanentlyDenied = false,
+    this.scanCompleted = false,
   });
 
   DeviceScanState copyWith({
@@ -31,12 +57,14 @@ class DeviceScanState {
     String? error,
     bool? permissionDenied,
     bool? permanentlyDenied,
+    bool? scanCompleted,
   }) {
     return DeviceScanState(
       isScanning: isScanning ?? this.isScanning,
       error: error,
       permissionDenied: permissionDenied ?? this.permissionDenied,
       permanentlyDenied: permanentlyDenied ?? this.permanentlyDenied,
+      scanCompleted: scanCompleted ?? this.scanCompleted,
     );
   }
 
@@ -44,12 +72,16 @@ class DeviceScanState {
         isScanning: isScanning,
         permissionDenied: permissionDenied,
         permanentlyDenied: permanentlyDenied,
+        scanCompleted: scanCompleted,
       );
 }
 
 class DeviceScanController extends StateNotifier<DeviceScanState> {
   final Ref _ref;
-  DeviceScanController(this._ref) : super(const DeviceScanState());
+
+  DeviceScanController(Ref ref)
+      : _ref = ref,
+        super(const DeviceScanState());
 
   Future<bool> _ensurePermission() async {
     // Use OnAudioQuery internal check first, fallback to permission_handler
@@ -84,7 +116,8 @@ class DeviceScanController extends StateNotifier<DeviceScanState> {
       if (s2.isPermanentlyDenied) {
         state = state.copyWith(permissionDenied: true, permanentlyDenied: true);
       } else {
-        state = state.copyWith(permissionDenied: true, permanentlyDenied: false);
+        state =
+            state.copyWith(permissionDenied: true, permanentlyDenied: false);
       }
       return false;
     } catch (e) {
@@ -109,7 +142,7 @@ class DeviceScanController extends StateNotifier<DeviceScanState> {
         (l) => state = DeviceScanState(error: l.message),
         (_) {
           _ref.invalidate(deviceSongsProvider);
-          state = const DeviceScanState();
+          state = const DeviceScanState(scanCompleted: true);
         },
       );
     } catch (e) {
@@ -122,14 +155,17 @@ class DeviceScanController extends StateNotifier<DeviceScanState> {
       final audio = await Permission.audio.status;
       final storage = await Permission.storage.status;
       final denied = !audio.isGranted && !storage.isGranted;
-      final permDenied = audio.isPermanentlyDenied || storage.isPermanentlyDenied;
+      final permDenied =
+          audio.isPermanentlyDenied || storage.isPermanentlyDenied;
       // Also check via datasource
       final ds = _ref.read(localAudioDataSourceProvider);
       final has = await ds.hasPermission();
       if (!has && denied) {
-        state = state.copyWith(permissionDenied: true, permanentlyDenied: permDenied);
+        state = state.copyWith(
+            permissionDenied: true, permanentlyDenied: permDenied);
       } else if (has) {
-        state = state.copyWith(permissionDenied: false, permanentlyDenied: false);
+        state =
+            state.copyWith(permissionDenied: false, permanentlyDenied: false);
       }
     } catch (_) {}
   }

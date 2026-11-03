@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/glass_surface.dart';
 import '../../../../shared/widgets/playlist_mosaic_cover.dart';
 import '../../domain/entities/daily_mix.dart';
 
@@ -123,7 +126,9 @@ class _MixPlaceholder extends StatelessWidget {
                 border: Border.all(color: tokens.border),
               ),
               child: Text(
-                'MIX ${(mood.index + 1).toString().padLeft(2, '0')}',
+                AppLocalizations.of(context).dailyMixBadge(
+                  (mood.index + 1).toString().padLeft(2, '0'),
+                ),
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w500,
@@ -155,22 +160,22 @@ class MixCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final radius = BorderRadius.circular(AppRadius.xl);
 
     return Semantics(
       button: true,
       excludeSemantics: true,
-      label: 'Daily Mix ${mood.label}',
+      label: l10n.dailyMixSemantics(mood.label),
       child: SizedBox(
         width: 184,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 181),
-          child: Container(
-            decoration: BoxDecoration(
-              color: tokens.surface,
-              borderRadius: radius,
-              border: Border.all(color: tokens.border),
-            ),
+          child: GlassSurface.card(
+            // Horizontal rail: glass fill + border without another blur
+            // layer, per the performance ladder.
+            quality: GlassQuality.frosted,
+            borderRadius: radius,
             child: Material(
               type: MaterialType.transparency,
               borderRadius: radius,
@@ -196,7 +201,7 @@ class MixCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.space1),
                       Text(
-                        'Daily Mix',
+                        l10n.dailyMixLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelSmall?.copyWith(

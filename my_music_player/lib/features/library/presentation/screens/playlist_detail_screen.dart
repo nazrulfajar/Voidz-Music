@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/add_to_playlist_sheet.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
+import '../../../../shared/widgets/glass_surface.dart';
 import '../../../../shared/widgets/playlist_mosaic_cover.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -42,6 +45,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     // Resolve effective playlist hint
     final hint = playlist ?? initialPlaylist;
     final id = playlistId ?? hint?.id ?? int.tryParse(playlistIdStr ?? '');
@@ -58,7 +62,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
     if (id == null) {
       return _messageScaffold(
         context,
-        title: 'Playlist not found',
+        title: l10n.playlistDetailNotFound,
       );
     }
 
@@ -74,20 +78,26 @@ class PlaylistDetailScreen extends ConsumerWidget {
         if (fetched == null) {
           // fallback to hint if fetch misses (e.g. deleted)
           if (hint != null) return _PlaylistDetailBody(playlist: hint);
-          return _messageScaffold(context, title: 'Playlist not found');
+          return _messageScaffold(
+            context,
+            title: l10n.playlistDetailNotFound,
+          );
         }
         return _PlaylistDetailBody(playlist: fetched);
       },
       loading: () {
         final t = AppColors.of(context);
         return Scaffold(
-          backgroundColor: t.background,
+          backgroundColor: Colors.transparent,
           body: Center(
             child: CircularProgressIndicator(color: t.accent),
           ),
         );
       },
-      error: (e, st) => _messageScaffold(context, title: 'Error: $e'),
+      error: (e, st) => _messageScaffold(
+        context,
+        title: AppLocalizations.of(context).commonErrorWithMessage('$e'),
+      ),
     );
   }
 
@@ -96,18 +106,21 @@ class PlaylistDetailScreen extends ConsumerWidget {
     required String title,
   }) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: t.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: t.background,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          tooltip: 'Back',
+          tooltip: l10n.commonBack,
           icon: Icon(Icons.arrow_back, color: t.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Playlist',
+          l10n.commonPlaylist,
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
@@ -132,6 +145,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final tracksAsync = ref.watch(playlistTracksProvider(playlist));
     final playingId = ref.watch(
       playerControllerProvider.select((state) => state.currentTrack?.sourceId),
@@ -154,7 +168,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: t.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -173,11 +187,11 @@ class _PlaylistDetailBody extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.space10),
                         AppEmptyState(
                           icon: Icons.queue_music_rounded,
-                          title: 'Playlist is empty',
+                          title: l10n.playlistDetailEmptyTitle,
                           subtitle: playlist.isSystem
-                              ? 'Tracks will appear here automatically'
-                              : 'Add songs to start listening',
-                          actionLabel: 'Search music',
+                              ? l10n.playlistDetailEmptySystemSubtitle
+                              : l10n.playlistDetailEmptySubtitle,
+                          actionLabel: l10n.librarySearchMusic,
                           onAction: () => context.push('/search'),
                         ),
                       ],
@@ -271,7 +285,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.space8),
                     Center(
                       child: Text(
-                        'Error: $e',
+                        l10n.commonErrorWithMessage('$e'),
                         style: TextStyle(color: t.textSecondary),
                       ),
                     ),
@@ -304,9 +318,11 @@ class _PlaylistDetailBody extends ConsumerWidget {
     required int count,
     required int? totalMs,
   }) {
+    final l10n = AppLocalizations.of(context);
     final subtitle = playlist.isSystem
-        ? '$count songs · ${_formatTotalDuration(totalMs)}'
-        : 'Your collection, your soundtrack';
+        ? '${l10n.commonSongCount(count)} · '
+            '${_formatTotalDuration(totalMs, l10n)}'
+        : l10n.playlistDetailTagline;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -322,13 +338,13 @@ class _PlaylistDetailBody extends ConsumerWidget {
             children: [
               _CircleAction(
                 icon: Icons.arrow_back,
-                tooltip: 'Back',
+                tooltip: l10n.commonBack,
                 onPressed: () => context.pop(),
               ),
               const SizedBox(width: AppSpacing.space3),
               Expanded(
                 child: Text(
-                  'Playlist',
+                  l10n.commonPlaylist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -340,7 +356,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
               ),
               _PlaylistOptionsButton(
                 key: const Key('playlist-options'),
-                tooltip: 'Playlist options',
+                tooltip: l10n.playlistDetailOptions,
                 isSystem: playlist.isSystem,
                 onDelete: () => _confirmDelete(context, ref),
               ),
@@ -366,13 +382,20 @@ class _PlaylistDetailBody extends ConsumerWidget {
     required int count,
     required int? totalMs,
   }) {
+    final l10n = AppLocalizations.of(context);
     final canPlay = tracks.isNotEmpty;
-    final overline = playlist.isSystem ? 'AUTO-PLAYLIST' : 'PLAYLIST';
-    final owner = playlist.isSystem ? '$count songs' : 'You · $count songs';
+    final overline = playlist.isSystem
+        ? l10n.libraryAutoPlaylistLabel
+        : l10n.playlistDetailOverline;
+    final owner = playlist.isSystem
+        ? l10n.commonSongCount(count)
+        : l10n.playlistDetailOwner(count);
     final updated = playlist.isSystem
         ? ''
-        : ' · updated ${_relativeTime(playlist.updatedAt)}';
-    final duration = _formatTotalDuration(totalMs);
+        : ' · ${l10n.playlistDetailUpdated(
+            _relativeTime(playlist.updatedAt, l10n),
+          )}';
+    final duration = _formatTotalDuration(totalMs, l10n);
     final meta =
         (totalMs == null || totalMs <= 0) ? duration : '$duration$updated';
 
@@ -383,14 +406,11 @@ class _PlaylistDetailBody extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.screenInset,
           ),
-          child: Container(
+          child: GlassSurface.card(
             key: const Key('playlist-summary'),
+            quality: GlassQuality.frosted,
+            borderRadius: BorderRadius.circular(AppRadius.xxxl),
             padding: const EdgeInsets.all(AppSpacing.space4),
-            decoration: BoxDecoration(
-              color: t.row,
-              borderRadius: BorderRadius.circular(AppRadius.xxxl),
-              border: Border.all(color: t.border),
-            ),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final stacked =
@@ -480,7 +500,10 @@ class _PlaylistDetailBody extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.screenInset,
           ),
-          child: Text('TRACKS', style: AppTypography.overline(t)),
+          child: Text(
+            l10n.playlistDetailTracks,
+            style: AppTypography.overline(t),
+          ),
         ),
         const SizedBox(height: AppSpacing.space2),
       ],
@@ -494,6 +517,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
     List<Track> tracks,
     bool canPlay,
   ) {
+    final l10n = AppLocalizations.of(context);
     final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.4;
 
     Widget playAll({bool expanded = false}) {
@@ -505,7 +529,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
                 .playTrack(tracks.first, queue: tracks)
             : null,
         icon: const Icon(Icons.play_arrow_rounded, size: 20),
-        label: const Text('Play all'),
+        label: Text(l10n.playlistDetailPlayAll),
         style: FilledButton.styleFrom(
           backgroundColor: t.accent,
           foregroundColor: t.onAccent,
@@ -513,7 +537,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
           disabledForegroundColor: t.textMuted,
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.space5,
+            horizontal: AppSpacing.space4,
           ),
           shape: const StadiumBorder(),
           textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -527,7 +551,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
 
     final shuffle = _CircleAction(
       icon: Icons.shuffle_rounded,
-      tooltip: 'Shuffle',
+      tooltip: l10n.commonShuffle,
       onPressed: canPlay
           ? () {
               final shuffled = List<Track>.of(tracks)..shuffle();
@@ -539,7 +563,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
     );
     final more = _PlaylistOptionsButton(
       key: const Key('playlist-actions-more'),
-      tooltip: 'More options',
+      tooltip: l10n.commonMoreOptions,
       isSystem: playlist.isSystem,
       onDelete: () => _confirmDelete(context, ref),
     );
@@ -597,6 +621,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -608,25 +633,25 @@ class _PlaylistDetailBody extends ConsumerWidget {
             borderRadius: BorderRadius.circular(AppRadius.xxl),
           ),
           title: Text(
-            'Delete Playlist?',
+            l10n.playlistDetailDeleteTitle,
             style: TextStyle(color: dt.textPrimary),
           ),
           content: Text(
-            'This playlist will be permanently deleted.',
+            l10n.playlistDetailDeleteBody,
             style: TextStyle(color: dt.textSecondary),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
               child: Text(
-                'Cancel',
+                l10n.commonCancelAction,
                 style: TextStyle(color: dt.textSecondary),
               ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               child: Text(
-                'Delete',
+                l10n.commonDelete,
                 style: TextStyle(color: dt.textPrimary),
               ),
             ),
@@ -665,66 +690,69 @@ class _PlaylistTrackRow extends StatelessWidget {
     final t = AppColors.of(context);
     final meta = '${track.artist} · ${_formatTrackDuration(track.durationMs)}';
 
-    return Material(
-      key: ValueKey('playlist-track-${track.sourceId}'),
-      color: isPlaying ? t.raised : t.row,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        side: BorderSide(color: t.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 72),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.space3,
-            vertical: AppSpacing.space3,
-          ),
-          child: Row(
-            children: [
-              AppArtwork(
-                localPath: track.localThumbnailPath,
-                imageUrl: track.thumbnailUrl,
-                size: 44,
-                radius: AppRadius.md,
-              ),
-              const SizedBox(width: AppSpacing.space4),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: t.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      meta,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: t.textSecondary,
-                      ),
-                    ),
-                  ],
+    return GlassSurface.card(
+      quality: GlassQuality.frosted,
+      borderRadius: BorderRadius.circular(AppRadius.xl),
+      child: Material(
+        key: ValueKey('playlist-track-${track.sourceId}'),
+        color: isPlaying ? t.raised : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 72),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.space3,
+              vertical: AppSpacing.space3,
+            ),
+            child: Row(
+              children: [
+                AppArtwork(
+                  localPath: track.localThumbnailPath,
+                  imageUrl: track.thumbnailUrl,
+                  size: 44,
+                  radius: AppRadius.md,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.space2),
-              _TrackOptionsButton(
-                track: track,
-                isSystem: isSystem,
-                onRemove: onRemove,
-              ),
-            ],
+                const SizedBox(width: AppSpacing.space4),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: t.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        meta,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: t.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.space2),
+                _TrackOptionsButton(
+                  track: track,
+                  isSystem: isSystem,
+                  onRemove: onRemove,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -746,12 +774,13 @@ class _TrackOptionsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       width: 48,
       height: 48,
       child: PopupMenuButton<String>(
         key: ValueKey('track-options-${track.sourceId}'),
-        tooltip: 'Track options',
+        tooltip: l10n.commonTrackOptions,
         padding: EdgeInsets.zero,
         icon: Icon(
           Icons.more_horiz,
@@ -774,7 +803,7 @@ class _TrackOptionsButton extends StatelessWidget {
           PopupMenuItem<String>(
             value: 'add',
             child: Text(
-              'Add to playlist',
+              l10n.browseAddToPlaylist,
               style: TextStyle(color: t.textPrimary),
             ),
           ),
@@ -782,7 +811,7 @@ class _TrackOptionsButton extends StatelessWidget {
             PopupMenuItem<String>(
               value: 'remove',
               child: Text(
-                'Remove from playlist',
+                l10n.playlistDetailRemoveTrack,
                 style: TextStyle(color: t.textPrimary),
               ),
             ),
@@ -807,47 +836,50 @@ class _PlaylistOptionsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return MergeSemantics(
       child: Semantics(
         label: tooltip,
         button: true,
-        child: Container(
+        child: SizedBox(
           width: 48,
           height: 48,
-          decoration: BoxDecoration(
-            color: t.row,
-            shape: BoxShape.circle,
-            border: Border.all(color: t.border),
-          ),
-          child: PopupMenuButton<String>(
-            padding: EdgeInsets.zero,
-            icon: Icon(Icons.more_horiz, size: 20, color: t.textSecondary),
-            color: t.raised,
-            position: PopupMenuPosition.under,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            onSelected: (value) {
-              if (value == 'delete') onDelete();
-            },
-            itemBuilder: (context) => [
-              if (isSystem)
-                PopupMenuItem<String>(
-                  enabled: false,
-                  child: Text(
-                    'Read-only auto-playlist',
-                    style: TextStyle(color: t.textSecondary),
-                  ),
-                )
-              else
-                PopupMenuItem<String>(
-                  value: 'delete',
-                  child: Text(
-                    'Delete playlist',
-                    style: TextStyle(color: t.textPrimary),
-                  ),
+          child: GlassSurface.chrome(
+            quality: GlassQuality.frosted,
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            child: Material(
+              type: MaterialType.transparency,
+              child: PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.more_horiz, size: 20, color: t.textSecondary),
+                color: t.raised,
+                position: PopupMenuPosition.under,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
-            ],
+                onSelected: (value) {
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => [
+                  if (isSystem)
+                    PopupMenuItem<String>(
+                      enabled: false,
+                      child: Text(
+                        l10n.playlistDetailReadOnly,
+                        style: TextStyle(color: t.textSecondary),
+                      ),
+                    )
+                  else
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Text(
+                        l10n.playlistDetailDelete,
+                        style: TextStyle(color: t.textPrimary),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -868,11 +900,16 @@ class _CircleAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppIconButton(
-      icon: icon,
-      semanticLabel: tooltip,
-      tooltip: tooltip,
-      onPressed: onPressed,
+    return GlassSurface.chrome(
+      quality: GlassQuality.frosted,
+      borderRadius: BorderRadius.circular(AppRadius.full),
+      child: AppIconButton(
+        icon: icon,
+        semanticLabel: tooltip,
+        tooltip: tooltip,
+        onPressed: onPressed,
+        filled: false,
+      ),
     );
   }
 }
@@ -884,24 +921,24 @@ String _formatTrackDuration(int ms) {
   return '$minutes:${seconds.toString().padLeft(2, '0')}';
 }
 
-String _formatTotalDuration(int? ms) {
+String _formatTotalDuration(int? ms, AppLocalizations l10n) {
   if (ms == null) return '—';
-  if (ms <= 0) return '0 min';
+  if (ms <= 0) return l10n.playlistsDurationMinutes(0);
   final duration = Duration(milliseconds: ms);
   final hours = duration.inHours;
   final minutes = duration.inMinutes % 60;
-  if (hours == 0) return '$minutes min';
-  if (minutes == 0) return '$hours hr';
-  return '$hours hr $minutes min';
+  if (hours == 0) return l10n.playlistsDurationMinutes(minutes);
+  if (minutes == 0) return l10n.commonDurationHours(hours);
+  return l10n.playlistsDurationHoursMinutes(hours, minutes);
 }
 
-String _relativeTime(DateTime time) {
+String _relativeTime(DateTime time, AppLocalizations l10n) {
   final diff = DateTime.now().difference(time);
-  if (diff.inMinutes < 1) return 'just now';
-  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-  if (diff.inDays < 1) return '${diff.inHours}h ago';
-  if (diff.inDays < 7) return '${diff.inDays}d ago';
-  if (diff.inDays < 30) return '${diff.inDays ~/ 7}w ago';
-  if (diff.inDays < 365) return '${diff.inDays ~/ 30}mo ago';
-  return '${diff.inDays ~/ 365}y ago';
+  if (diff.inMinutes < 1) return l10n.timeJustNow;
+  if (diff.inHours < 1) return l10n.timeMinutesAgo(diff.inMinutes);
+  if (diff.inDays < 1) return l10n.timeHoursAgo(diff.inHours);
+  if (diff.inDays < 7) return l10n.timeDaysAgo(diff.inDays);
+  if (diff.inDays < 30) return l10n.timeWeeksAgo(diff.inDays ~/ 7);
+  if (diff.inDays < 365) return l10n.timeMonthsAgo(diff.inDays ~/ 30);
+  return l10n.timeYearsAgo(diff.inDays ~/ 365);
 }

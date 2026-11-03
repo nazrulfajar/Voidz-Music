@@ -17,60 +17,66 @@ const AppSettingsModelSchema = CollectionSchema(
   name: r'AppSettingsModel',
   id: -638838212012723081,
   properties: {
-    r'appThemeMode': PropertySchema(
+    r'appLanguageMode': PropertySchema(
       id: 0,
+      name: r'appLanguageMode',
+      type: IsarType.byte,
+      enumMap: _AppSettingsModelappLanguageModeEnumValueMap,
+    ),
+    r'appThemeMode': PropertySchema(
+      id: 1,
       name: r'appThemeMode',
       type: IsarType.byte,
       enumMap: _AppSettingsModelappThemeModeEnumValueMap,
     ),
     r'audioFocusPause': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'audioFocusPause',
       type: IsarType.bool,
     ),
     r'autoCacheEnabled': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'autoCacheEnabled',
       type: IsarType.bool,
     ),
     r'backendBaseUrl': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'backendBaseUrl',
       type: IsarType.string,
     ),
     r'cacheMigratedToSupportDir': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'cacheMigratedToSupportDir',
       type: IsarType.bool,
     ),
     r'crossfadeSeconds': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'crossfadeSeconds',
       type: IsarType.long,
     ),
     r'enableYoutubeSource': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'enableYoutubeSource',
       type: IsarType.bool,
     ),
     r'maxCacheSizeBytes': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'maxCacheSizeBytes',
       type: IsarType.long,
     ),
     r'preferredAudioQuality': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'preferredAudioQuality',
       type: IsarType.byte,
       enumMap: _AppSettingsModelpreferredAudioQualityEnumValueMap,
     ),
     r'resumeOnStartup': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'resumeOnStartup',
       type: IsarType.bool,
     ),
     r'wifiOnlyDownload': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'wifiOnlyDownload',
       type: IsarType.bool,
     )
@@ -105,17 +111,18 @@ void _appSettingsModelSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeByte(offsets[0], object.appThemeMode.index);
-  writer.writeBool(offsets[1], object.audioFocusPause);
-  writer.writeBool(offsets[2], object.autoCacheEnabled);
-  writer.writeString(offsets[3], object.backendBaseUrl);
-  writer.writeBool(offsets[4], object.cacheMigratedToSupportDir);
-  writer.writeLong(offsets[5], object.crossfadeSeconds);
-  writer.writeBool(offsets[6], object.enableYoutubeSource);
-  writer.writeLong(offsets[7], object.maxCacheSizeBytes);
-  writer.writeByte(offsets[8], object.preferredAudioQuality.index);
-  writer.writeBool(offsets[9], object.resumeOnStartup);
-  writer.writeBool(offsets[10], object.wifiOnlyDownload);
+  writer.writeByte(offsets[0], object.appLanguageMode.index);
+  writer.writeByte(offsets[1], object.appThemeMode.index);
+  writer.writeBool(offsets[2], object.audioFocusPause);
+  writer.writeBool(offsets[3], object.autoCacheEnabled);
+  writer.writeString(offsets[4], object.backendBaseUrl);
+  writer.writeBool(offsets[5], object.cacheMigratedToSupportDir);
+  writer.writeLong(offsets[6], object.crossfadeSeconds);
+  writer.writeBool(offsets[7], object.enableYoutubeSource);
+  writer.writeLong(offsets[8], object.maxCacheSizeBytes);
+  writer.writeByte(offsets[9], object.preferredAudioQuality.index);
+  writer.writeBool(offsets[10], object.resumeOnStartup);
+  writer.writeBool(offsets[11], object.wifiOnlyDownload);
 }
 
 AppSettingsModel _appSettingsModelDeserialize(
@@ -125,23 +132,26 @@ AppSettingsModel _appSettingsModelDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = AppSettingsModel();
-  object.appThemeMode = _AppSettingsModelappThemeModeValueEnumMap[
+  object.appLanguageMode = _AppSettingsModelappLanguageModeValueEnumMap[
           reader.readByteOrNull(offsets[0])] ??
+      AppLanguageMode.system;
+  object.appThemeMode = _AppSettingsModelappThemeModeValueEnumMap[
+          reader.readByteOrNull(offsets[1])] ??
       AppThemeMode.system;
-  object.audioFocusPause = reader.readBool(offsets[1]);
-  object.autoCacheEnabled = reader.readBool(offsets[2]);
-  object.backendBaseUrl = reader.readString(offsets[3]);
-  object.cacheMigratedToSupportDir = reader.readBool(offsets[4]);
-  object.crossfadeSeconds = reader.readLong(offsets[5]);
-  object.enableYoutubeSource = reader.readBool(offsets[6]);
+  object.audioFocusPause = reader.readBool(offsets[2]);
+  object.autoCacheEnabled = reader.readBool(offsets[3]);
+  object.backendBaseUrl = reader.readString(offsets[4]);
+  object.cacheMigratedToSupportDir = reader.readBool(offsets[5]);
+  object.crossfadeSeconds = reader.readLong(offsets[6]);
+  object.enableYoutubeSource = reader.readBool(offsets[7]);
   object.id = id;
-  object.maxCacheSizeBytes = reader.readLong(offsets[7]);
+  object.maxCacheSizeBytes = reader.readLong(offsets[8]);
   object.preferredAudioQuality =
       _AppSettingsModelpreferredAudioQualityValueEnumMap[
-              reader.readByteOrNull(offsets[8])] ??
+              reader.readByteOrNull(offsets[9])] ??
           AudioQuality.low;
-  object.resumeOnStartup = reader.readBool(offsets[9]);
-  object.wifiOnlyDownload = reader.readBool(offsets[10]);
+  object.resumeOnStartup = reader.readBool(offsets[10]);
+  object.wifiOnlyDownload = reader.readBool(offsets[11]);
   return object;
 }
 
@@ -153,36 +163,50 @@ P _appSettingsModelDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
+      return (_AppSettingsModelappLanguageModeValueEnumMap[
+              reader.readByteOrNull(offset)] ??
+          AppLanguageMode.system) as P;
+    case 1:
       return (_AppSettingsModelappThemeModeValueEnumMap[
               reader.readByteOrNull(offset)] ??
           AppThemeMode.system) as P;
-    case 1:
-      return (reader.readBool(offset)) as P;
     case 2:
       return (reader.readBool(offset)) as P;
     case 3:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 4:
-      return (reader.readBool(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
-    case 6:
       return (reader.readBool(offset)) as P;
-    case 7:
+    case 6:
       return (reader.readLong(offset)) as P;
+    case 7:
+      return (reader.readBool(offset)) as P;
     case 8:
+      return (reader.readLong(offset)) as P;
+    case 9:
       return (_AppSettingsModelpreferredAudioQualityValueEnumMap[
               reader.readByteOrNull(offset)] ??
           AudioQuality.low) as P;
-    case 9:
-      return (reader.readBool(offset)) as P;
     case 10:
+      return (reader.readBool(offset)) as P;
+    case 11:
       return (reader.readBool(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
 
+const _AppSettingsModelappLanguageModeEnumValueMap = {
+  'system': 0,
+  'english': 1,
+  'indonesian': 2,
+};
+const _AppSettingsModelappLanguageModeValueEnumMap = {
+  0: AppLanguageMode.system,
+  1: AppLanguageMode.english,
+  2: AppLanguageMode.indonesian,
+};
 const _AppSettingsModelappThemeModeEnumValueMap = {
   'system': 0,
   'light': 1,
@@ -298,6 +322,62 @@ extension AppSettingsModelQueryWhere
 
 extension AppSettingsModelQueryFilter
     on QueryBuilder<AppSettingsModel, AppSettingsModel, QFilterCondition> {
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      appLanguageModeEqualTo(AppLanguageMode value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'appLanguageMode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      appLanguageModeGreaterThan(
+    AppLanguageMode value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'appLanguageMode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      appLanguageModeLessThan(
+    AppLanguageMode value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'appLanguageMode',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
+      appLanguageModeBetween(
+    AppLanguageMode lower,
+    AppLanguageMode upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'appLanguageMode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterFilterCondition>
       appThemeModeEqualTo(AppThemeMode value) {
     return QueryBuilder.apply(this, (query) {
@@ -784,6 +864,20 @@ extension AppSettingsModelQueryLinks
 extension AppSettingsModelQuerySortBy
     on QueryBuilder<AppSettingsModel, AppSettingsModel, QSortBy> {
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByAppLanguageMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appLanguageMode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      sortByAppLanguageModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appLanguageMode', Sort.desc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
       sortByAppThemeMode() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'appThemeMode', Sort.asc);
@@ -940,6 +1034,20 @@ extension AppSettingsModelQuerySortBy
 
 extension AppSettingsModelQuerySortThenBy
     on QueryBuilder<AppSettingsModel, AppSettingsModel, QSortThenBy> {
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByAppLanguageMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appLanguageMode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
+      thenByAppLanguageModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'appLanguageMode', Sort.desc);
+    });
+  }
+
   QueryBuilder<AppSettingsModel, AppSettingsModel, QAfterSortBy>
       thenByAppThemeMode() {
     return QueryBuilder.apply(this, (query) {
@@ -1111,6 +1219,13 @@ extension AppSettingsModelQuerySortThenBy
 extension AppSettingsModelQueryWhereDistinct
     on QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct> {
   QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
+      distinctByAppLanguageMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'appLanguageMode');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppSettingsModel, QDistinct>
       distinctByAppThemeMode() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'appThemeMode');
@@ -1194,6 +1309,13 @@ extension AppSettingsModelQueryProperty
   QueryBuilder<AppSettingsModel, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<AppSettingsModel, AppLanguageMode, QQueryOperations>
+      appLanguageModeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'appLanguageMode');
     });
   }
 

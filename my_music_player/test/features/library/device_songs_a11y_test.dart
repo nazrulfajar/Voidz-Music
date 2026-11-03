@@ -115,12 +115,14 @@ void main() {
     Widget screen, {
     ThemeMode themeMode = ThemeMode.dark,
     double textScale = 1.0,
+    Locale locale = const Locale('id'),
   }) async {
     await pumpApp(
       tester,
       ProviderScope(overrides: overrides(), child: screen),
       themeMode: themeMode,
       textScale: textScale,
+      locale: locale,
     );
     await tester.pumpAndSettle();
   }
@@ -129,12 +131,14 @@ void main() {
     WidgetTester tester, {
     ThemeMode themeMode = ThemeMode.dark,
     double textScale = 1.0,
+    Locale locale = const Locale('id'),
   }) {
     return pumpScreen(
       tester,
       const DeviceSongsScreen(),
       themeMode: themeMode,
       textScale: textScale,
+      locale: locale,
     );
   }
 
@@ -166,6 +170,23 @@ void main() {
     }
   });
 
+  testWidgets('English locale localizes header, filters and scan actions',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpDevice(tester, locale: const Locale('en'));
+
+      expect(find.text('Device songs'), findsOneWidget);
+      expect(find.text('Songs • 2'), findsOneWidget);
+      expect(find.text('Artists • 1'), findsOneWidget);
+      expect(find.text('Albums • 1'), findsOneWidget);
+      expect(find.bySemanticsLabel('Rescan'), findsOneWidget);
+      expect(find.bySemanticsLabel('Track options'), findsNWidgets(2));
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets('drill-down back control is labeled and >= 48dp', (tester) async {
     final semantics = tester.ensureSemantics();
     try {
@@ -185,13 +206,14 @@ void main() {
     }
   });
 
-  testWidgets('light theme uses background and text tokens', (tester) async {
+  testWidgets('light theme uses the glass scaffold and text tokens',
+      (tester) async {
     await pumpDevice(tester, themeMode: ThemeMode.light);
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    expect(scaffold.backgroundColor, AppColors.light.background);
+    expect(scaffold.backgroundColor, Colors.transparent);
 
-    final heading = tester.widget<Text>(find.text('Di Perangkat'));
+    final heading = tester.widget<Text>(find.text('Lagu perangkat'));
     expect(heading.style?.color, AppColors.light.textPrimary);
 
     final trackTitle = tester.widget<Text>(find.text('Sunset Drive'));

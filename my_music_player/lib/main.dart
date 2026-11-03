@@ -9,6 +9,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'core/constants/enums.dart';
 import 'core/utils/cache_dir_helper.dart';
 import 'features/player/data/datasources/audio_player_service.dart';
 import 'features/player/data/models/track_model.dart';
@@ -25,6 +26,36 @@ import 'features/search/data/models/search_history_model.dart';
 import 'features/player/data/repositories/track_repository_impl.dart';
 import 'core/providers/isar_provider.dart';
 import 'core/network/local_proxy_server.dart';
+import 'l10n/app_localizations.dart';
+
+/// Resolves the locale passed to `MaterialApp`.
+///
+/// [AppLanguageMode.system] follows the platform when at least one platform
+/// locale is supported. Unsupported platform locales fall back to English.
+/// Explicit choices always return their locale.
+Locale? resolveAppLocale(
+  AppLanguageMode mode, {
+  List<Locale>? platformLocales,
+}) {
+  switch (mode) {
+    case AppLanguageMode.system:
+      final locales = platformLocales;
+      if (locales == null || locales.isEmpty) {
+        return null;
+      }
+      final hasSupportedLocale = locales.any(
+        (platformLocale) => AppLocalizations.supportedLocales.any(
+          (supportedLocale) =>
+              supportedLocale.languageCode == platformLocale.languageCode,
+        ),
+      );
+      return hasSupportedLocale ? null : const Locale('en');
+    case AppLanguageMode.english:
+      return const Locale('en');
+    case AppLanguageMode.indonesian:
+      return const Locale('id');
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -220,6 +251,12 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeLocales(List<Locale>? locales) {
+    // Re-resolve the system locale fallback while the app is running.
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final goRouter = ref.watch(appRouterProvider);
 
@@ -227,7 +264,8 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   }
 }
 
-/// Root `MaterialApp` whose theme follows [themeModeProvider].
+/// Root `MaterialApp` whose theme follows [themeModeProvider] and whose
+/// locale follows the persisted [AppLanguageMode].
 class VoidzApp extends ConsumerWidget {
   const VoidzApp({super.key, required this.routerConfig});
 
@@ -235,11 +273,20 @@ class VoidzApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(appSettingsProvider).valueOrNull;
+    final languageMode = settings?.appLanguageMode ?? AppLanguageMode.system;
+
     return MaterialApp.router(
-      title: 'Voidz Music',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ref.watch(themeModeProvider),
+      locale: resolveAppLocale(
+        languageMode,
+        platformLocales: WidgetsBinding.instance.platformDispatcher.locales,
+      ),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: routerConfig,
       debugShowCheckedModeBanner: false,
     );

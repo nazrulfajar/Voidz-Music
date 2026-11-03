@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../player/domain/entities/track.dart';
@@ -61,6 +62,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
     final playerState = ref.watch(playerControllerProvider);
     final theme = Theme.of(context);
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final lyrics = lyricsAsync.valueOrNull;
     final isSynced = lyrics?.type == LyricsType.synced && parsedLyrics != null;
 
@@ -68,7 +70,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
       children: [
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'LYRICS',
+          l10n.lyricsHeader,
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
@@ -94,13 +96,12 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                 return AppStatePanel(
                   variant: AppStateVariant.empty,
                   icon: Icons.lyrics_outlined,
-                  title: 'No lyrics found',
-                  message: 'LRCLIB has no lyrics for this track. Instrumental '
-                      'tracks never show lyrics.',
-                  actionLabel: 'Retry',
+                  title: l10n.lyricsNotFoundTitle,
+                  message: l10n.lyricsNotFoundMessage,
+                  actionLabel: l10n.lyricsRetry,
                   actionIcon: Icons.refresh_rounded,
                   onAction: () => ref.invalidate(currentLyricsProvider),
-                  footnote: 'Playback continues without lyrics.',
+                  footnote: l10n.lyricsNotFoundFootnote,
                 );
               }
 
@@ -108,7 +109,9 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Text(
-                    lyrics.plainLyrics ?? lyrics.syncedLyrics ?? 'Lirik kosong',
+                    lyrics.plainLyrics ??
+                        lyrics.syncedLyrics ??
+                        l10n.lyricsEmpty,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       color: t.textPrimary,
                       fontWeight: FontWeight.w700,
@@ -196,7 +199,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
               child: CircularProgressIndicator(color: t.accent),
             ),
             error: (err, stack) => AppErrorState(
-              error: 'Lyrics are unavailable right now.',
+              error: l10n.lyricsLoadError,
               cause: err,
               onRetry: () => ref.invalidate(currentLyricsProvider),
             ),
@@ -209,7 +212,7 @@ class _LyricsViewState extends ConsumerState<LyricsView> {
               bottom: AppSpacing.md,
             ),
             child: Text(
-              isSynced ? 'Synced lyrics · LRCLIB' : 'Lyrics · LRCLIB',
+              isSynced ? l10n.lyricsFooterSynced : l10n.lyricsFooterPlain,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
@@ -288,7 +291,7 @@ class _TrackHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xxs),
                 Text(
-                  'Synced',
+                  AppLocalizations.of(context).lyricsSyncedBadge,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,

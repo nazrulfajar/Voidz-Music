@@ -21,6 +21,7 @@ import 'package:my_music_player/features/player/presentation/providers/device_so
 import 'package:my_music_player/features/player/presentation/providers/player_controller.dart';
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
+import 'package:my_music_player/l10n/app_localizations.dart';
 
 import '../player/presentation/providers/fakes.dart';
 
@@ -119,6 +120,8 @@ void main() {
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.dark,
           routerConfig: screenRouter,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
         ),
       ),
     );
@@ -173,6 +176,8 @@ void main() {
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.dark,
           routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
         ),
       ),
     );

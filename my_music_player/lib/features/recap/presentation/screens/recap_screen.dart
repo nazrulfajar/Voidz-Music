@@ -2,10 +2,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/glass_surface.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -19,11 +23,12 @@ class RecapScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final period = ref.watch(selectedRecapPeriodProvider);
     final year = ref.watch(selectedRecapYearProvider);
     final month = ref.watch(selectedRecapMonthProvider).clamp(1, 12);
-    final label = _recapPeriodLabel(period, year, month);
-    final periodPhrase = _recapPeriodPhrase(period, year, month);
+    final label = _recapPeriodLabel(context, period, year, month);
+    final periodPhrase = _recapPeriodPhrase(context, period, year, month);
     final query = (
       year: year,
       month: period == RecapPeriod.month ? month : null,
@@ -37,11 +42,14 @@ class RecapScreen extends ConsumerWidget {
       ..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
-      backgroundColor: tokens.background,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: tokens.background,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
-          'Rekap',
+          l10n.recapTitle,
           style: TextStyle(
             color: tokens.textPrimary,
             fontWeight: FontWeight.bold,
@@ -69,9 +77,8 @@ class RecapScreen extends ConsumerWidget {
                   return Center(
                     child: AppEmptyState(
                       icon: Icons.auto_awesome_outlined,
-                      title: 'Belum ada rekap $label',
-                      subtitle:
-                          'Putar lagu dulu, rekap akan muncul di sini.\nHistory max 10000 play.',
+                      title: l10n.recapEmptyTitle(label),
+                      subtitle: l10n.recapEmptySubtitle,
                     ),
                   );
                 }
@@ -93,8 +100,8 @@ class RecapScreen extends ConsumerWidget {
                       ),
                       SliverToBoxAdapter(
                         child: _SectionHeader(
-                          title: 'Top 5 Lagu',
-                          subtitle: 'Paling sering diputar $periodPhrase',
+                          title: l10n.recapTopSongsTitle,
+                          subtitle: l10n.recapTopSongsSubtitle(periodPhrase),
                         ),
                       ),
                       SliverList.builder(
@@ -107,10 +114,10 @@ class RecapScreen extends ConsumerWidget {
                           queue: recap.topSongs,
                         ),
                       ),
-                      const SliverToBoxAdapter(
+                      SliverToBoxAdapter(
                         child: _SectionHeader(
-                          title: 'Top 5 Artis',
-                          subtitle: 'Artis teratasmu',
+                          title: l10n.recapTopArtistsTitle,
+                          subtitle: l10n.recapTopArtistsSubtitle,
                         ),
                       ),
                       SliverList.builder(
@@ -120,10 +127,10 @@ class RecapScreen extends ConsumerWidget {
                           data: recap.topArtists[i],
                         ),
                       ),
-                      const SliverToBoxAdapter(
+                      SliverToBoxAdapter(
                         child: _SectionHeader(
-                          title: 'Top 5 Album',
-                          subtitle: 'Album paling diputar',
+                          title: l10n.recapTopAlbumsTitle,
+                          subtitle: l10n.recapTopAlbumsSubtitle,
                         ),
                       ),
                       SliverList.builder(
@@ -142,7 +149,7 @@ class RecapScreen extends ConsumerWidget {
               },
               loading: () => const ShimmerSection(isGrid: false, itemCount: 6),
               error: (e, st) => AppErrorState(
-                error: 'Gagal memuat rekap. Periksa koneksi lalu coba lagi.',
+                error: l10n.recapLoadError,
                 onRetry: () => ref.invalidate(recapProvider(query)),
               ),
             ),
@@ -153,30 +160,33 @@ class RecapScreen extends ConsumerWidget {
   }
 }
 
-const _monthNames = [
-  'Januari',
-  'Februari',
-  'Maret',
-  'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
-];
-
-String _recapPeriodLabel(RecapPeriod period, int year, int month) {
+String _recapPeriodLabel(
+  BuildContext context,
+  RecapPeriod period,
+  int year,
+  int month,
+) {
   if (period == RecapPeriod.year) return '$year';
   final safeMonth = month.clamp(1, 12);
-  return '${_monthNames[safeMonth - 1]} $year';
+  final locale = Localizations.localeOf(context).toLanguageTag();
+  return DateFormat.yMMMM(locale).format(DateTime(year, safeMonth));
 }
 
-String _recapPeriodPhrase(RecapPeriod period, int year, int month) {
-  if (period == RecapPeriod.year) return 'tahun $year';
-  return _recapPeriodLabel(period, year, month);
+String _recapPeriodPhrase(
+  BuildContext context,
+  RecapPeriod period,
+  int year,
+  int month,
+) {
+  if (period == RecapPeriod.year) {
+    return AppLocalizations.of(context).recapYearPhrase(year);
+  }
+  return _recapPeriodLabel(context, period, year, month);
+}
+
+String _recapMonthName(BuildContext context, int month) {
+  final locale = Localizations.localeOf(context).toLanguageTag();
+  return DateFormat.MMMM(locale).format(DateTime(2026, month));
 }
 
 class _PeriodControls extends StatelessWidget {
@@ -202,6 +212,7 @@ class _PeriodControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -218,31 +229,31 @@ class _PeriodControls extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               ChoiceChip(
-                label: const Text('Bulan'),
+                label: Text(l10n.recapPeriodMonth),
                 selected: period == RecapPeriod.month,
                 onSelected: (_) => onPeriodChanged(RecapPeriod.month),
               ),
               ChoiceChip(
-                label: const Text('Tahun'),
+                label: Text(l10n.recapPeriodYear),
                 selected: period == RecapPeriod.year,
                 onSelected: (_) => onPeriodChanged(RecapPeriod.year),
               ),
               if (period == RecapPeriod.month)
                 _PeriodDropdown<int>(
                   value: month,
-                  semanticLabel: 'Pilih bulan',
+                  semanticLabel: l10n.recapSelectMonth,
                   items: [
                     for (var month = 1; month <= 12; month++)
                       DropdownMenuItem(
                         value: month,
-                        child: Text(_monthNames[month - 1]),
+                        child: Text(_recapMonthName(context, month)),
                       ),
                   ],
                   onChanged: onMonthChanged,
                 ),
               _PeriodDropdown<int>(
                 value: year,
-                semanticLabel: 'Pilih tahun',
+                semanticLabel: l10n.recapSelectYear,
                 items: [
                   for (final year in years)
                     DropdownMenuItem(value: year, child: Text('$year')),
@@ -253,7 +264,7 @@ class _PeriodControls extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            _recapPeriodLabel(period, year, month),
+            _recapPeriodLabel(context, period, year, month),
             style: theme.textTheme.titleMedium?.copyWith(
               color: tokens.textPrimary,
               fontWeight: FontWeight.bold,
@@ -309,29 +320,38 @@ class _HeaderStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
-    return Container(
-      margin: const EdgeInsets.all(AppSpacing.md),
+    final l10n = AppLocalizations.of(context);
+    return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: tokens.surface,
+      child: GlassSurface.card(
+        key: const Key('recap-summary-glass'),
+        quality: GlassQuality.blurred,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: tokens.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child:
-                _StatItem(label: 'Total Putar', value: '${recap.totalPlays}'),
-          ),
-          Container(width: 1, height: 40, color: tokens.border),
-          Expanded(
-            child: _StatItem(label: 'Lagu Unik', value: '${recap.totalTracks}'),
-          ),
-          Container(width: 1, height: 40, color: tokens.border),
-          Expanded(
-            child: _StatItem(label: 'Tahun', value: '${recap.year}'),
-          ),
-        ],
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Expanded(
+              child: _StatItem(
+                label: l10n.recapStatTotalPlays,
+                value: '${recap.totalPlays}',
+              ),
+            ),
+            Container(width: 1, height: 40, color: tokens.border),
+            Expanded(
+              child: _StatItem(
+                label: l10n.recapStatUniqueSongs,
+                value: '${recap.totalTracks}',
+              ),
+            ),
+            Container(width: 1, height: 40, color: tokens.border),
+            Expanded(
+              child: _StatItem(
+                label: l10n.recapStatYear,
+                value: '${recap.year}',
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -385,6 +405,7 @@ class _MostPlayedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final onGradient = tokens.onAccent;
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -424,7 +445,7 @@ class _MostPlayedCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(AppRadius.full),
                         ),
                         child: Text(
-                          '#1 MOST PLAYED $periodLabel',
+                          l10n.recapMostPlayedBadge(periodLabel),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.labelSmall?.copyWith(
@@ -508,7 +529,7 @@ class _MostPlayedCard extends StatelessWidget {
                                   BorderRadius.circular(AppRadius.full),
                             ),
                             child: Text(
-                              '$count× diputar',
+                              l10n.recapTimesPlayed(count),
                               style: theme.textTheme.labelMedium?.copyWith(
                                 color: onGradient,
                                 fontWeight: FontWeight.bold,
@@ -604,85 +625,97 @@ class _SongTile extends StatelessWidget {
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: 2,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        tileColor: isPlaying ? tokens.row : tokens.surface,
-        leading: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: track.localThumbnailPath != null &&
-                      File(track.localThumbnailPath!).existsSync()
-                  ? Image.file(
-                      File(track.localThumbnailPath!),
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                    )
-                  : track.thumbnailUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: track.thumbnailUrl!,
+      child: GlassSurface.card(
+        key: Key('recap-song-glass-$rank'),
+        quality: GlassQuality.frosted,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Material(
+          color: Colors.transparent,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 2,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            tileColor: isPlaying
+                ? tokens.row.withValues(alpha: 0.6)
+                : Colors.transparent,
+            leading: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: track.localThumbnailPath != null &&
+                          File(track.localThumbnailPath!).existsSync()
+                      ? Image.file(
+                          File(track.localThumbnailPath!),
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _thumbFallback(tokens),
                         )
-                      : _thumbFallback(tokens),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: rank == 1 ? tokens.accent : tokens.background,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: tokens.border),
-              ),
-              child: Text(
-                '#$rank',
-                style: TextStyle(
-                  color: rank == 1 ? tokens.onAccent : tokens.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
+                      : track.thumbnailUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: track.thumbnailUrl!,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) =>
+                                  _thumbFallback(tokens),
+                            )
+                          : _thumbFallback(tokens),
                 ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: rank == 1 ? tokens.accent : tokens.background,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: Text(
+                    '#$rank',
+                    style: TextStyle(
+                      color: rank == 1 ? tokens.onAccent : tokens.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            title: Text(
+              track.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isPlaying ? tokens.accent : tokens.textPrimary,
               ),
             ),
-          ],
-        ),
-        title: Text(
-          track.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: isPlaying ? tokens.accent : tokens.textPrimary,
+            subtitle: Text(
+              '${track.artist} • ${_fmt(track.durationMs)} • $count×',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: tokens.textSecondary,
+              ),
+            ),
+            trailing: isPlaying
+                ? Icon(Icons.equalizer, color: tokens.accent)
+                : Text(
+                    '$count',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: tokens.textSecondary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+            onTap: () => ref
+                .read(playerControllerProvider.notifier)
+                .playTrack(track, queue: queue),
           ),
         ),
-        subtitle: Text(
-          '${track.artist} • ${_fmt(track.durationMs)} • $count×',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: tokens.textSecondary,
-          ),
-        ),
-        trailing: isPlaying
-            ? Icon(Icons.equalizer, color: tokens.accent)
-            : Text(
-                '$count',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: tokens.textInactive,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-        onTap: () => ref
-            .read(playerControllerProvider.notifier)
-            .playTrack(track, queue: queue),
       ),
     );
   }
@@ -704,92 +737,100 @@ class _ArtistTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        tileColor: tokens.surface,
-        leading: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: tokens.raised,
-                shape: BoxShape.circle,
-                image: data.thumbLocal != null &&
-                        File(data.thumbLocal!).existsSync()
-                    ? DecorationImage(
-                        image: FileImage(File(data.thumbLocal!)),
-                        fit: BoxFit.cover,
-                      )
-                    : data.thumb != null
+      child: GlassSurface.card(
+        key: Key('recap-artist-glass-$rank'),
+        quality: GlassQuality.frosted,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Material(
+          color: Colors.transparent,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            leading: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: tokens.raised,
+                    shape: BoxShape.circle,
+                    image: data.thumbLocal != null &&
+                            File(data.thumbLocal!).existsSync()
                         ? DecorationImage(
-                            image: CachedNetworkImageProvider(data.thumb!),
+                            image: FileImage(File(data.thumbLocal!)),
                             fit: BoxFit.cover,
                           )
-                        : null,
-              ),
-              child: (data.thumbLocal == null ||
-                          !File(data.thumbLocal!).existsSync()) &&
-                      data.thumb == null
-                  ? Icon(Icons.person, color: tokens.textInactive)
-                  : null,
+                        : data.thumb != null
+                            ? DecorationImage(
+                                image: CachedNetworkImageProvider(data.thumb!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                  ),
+                  child: (data.thumbLocal == null ||
+                              !File(data.thumbLocal!).existsSync()) &&
+                          data.thumb == null
+                      ? Icon(Icons.person, color: tokens.textInactive)
+                      : null,
+                ),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: tokens.background,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: Text(
+                    '$rank',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xs),
+            title: Text(
+              data.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: tokens.textPrimary,
+              ),
+            ),
+            subtitle: Text(
+              l10n.recapTimesPlayed(data.count),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: tokens.textSecondary,
+              ),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: tokens.background,
-                shape: BoxShape.circle,
-                border: Border.all(color: tokens.border),
+                color: tokens.raised,
+                borderRadius: BorderRadius.circular(AppRadius.full),
               ),
               child: Text(
-                '$rank',
+                '#$rank',
                 style: TextStyle(
                   color: tokens.textPrimary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 10,
                 ),
               ),
-            ),
-          ],
-        ),
-        title: Text(
-          data.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: tokens.textPrimary,
-          ),
-        ),
-        subtitle: Text(
-          '${data.count}× diputar',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: tokens.textSecondary,
-          ),
-        ),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: tokens.raised,
-            borderRadius: BorderRadius.circular(AppRadius.full),
-          ),
-          child: Text(
-            '#$rank',
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontWeight: FontWeight.bold,
             ),
           ),
         ),
@@ -812,74 +853,83 @@ class _AlbumTile extends StatelessWidget {
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        tileColor: tokens.surface,
-        leading: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: data.thumbLocal != null &&
-                      File(data.thumbLocal!).existsSync()
-                  ? Image.file(
-                      File(data.thumbLocal!),
-                      width: 56,
-                      height: 56,
-                      fit: BoxFit.cover,
-                    )
-                  : data.thumb != null
-                      ? CachedNetworkImage(
-                          imageUrl: data.thumb!,
+      child: GlassSurface.card(
+        key: Key('recap-album-glass-$rank'),
+        quality: GlassQuality.frosted,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Material(
+          color: Colors.transparent,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            leading: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: data.thumbLocal != null &&
+                          File(data.thumbLocal!).existsSync()
+                      ? Image.file(
+                          File(data.thumbLocal!),
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _thumbFallback(tokens),
                         )
-                      : _thumbFallback(tokens),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: tokens.background,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: tokens.border),
-              ),
-              child: Text(
-                '#$rank',
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
+                      : data.thumb != null
+                          ? CachedNetworkImage(
+                              imageUrl: data.thumb!,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) =>
+                                  _thumbFallback(tokens),
+                            )
+                          : _thumbFallback(tokens),
                 ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: tokens.background,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: Text(
+                    '#$rank',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            title: Text(
+              data.album,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: tokens.textPrimary,
               ),
             ),
-          ],
-        ),
-        title: Text(
-          data.album,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: tokens.textPrimary,
+            subtitle: Text(
+              '${data.artist} • ${data.count}×',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: tokens.textSecondary,
+              ),
+            ),
+            trailing: Icon(Icons.album, color: tokens.textInactive, size: 20),
           ),
         ),
-        subtitle: Text(
-          '${data.artist} • ${data.count}×',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: tokens.textSecondary,
-          ),
-        ),
-        trailing: Icon(Icons.album, color: tokens.textInactive, size: 20),
       ),
     );
   }

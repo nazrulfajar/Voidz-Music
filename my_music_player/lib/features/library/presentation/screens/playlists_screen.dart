@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../shared/widgets/create_playlist_dialog.dart';
+import '../../../../shared/widgets/glass_surface.dart';
 import '../../../../shared/widgets/playlist_mosaic_cover.dart';
 import '../../domain/entities/playlist.dart';
 import '../providers/playlist_provider.dart';
@@ -22,10 +25,11 @@ class PlaylistsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final playlistsAsync = ref.watch(allPlaylistsProvider);
 
     return Scaffold(
-      backgroundColor: tokens.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -59,7 +63,7 @@ class PlaylistsScreen extends ConsumerWidget {
                         child: CircularProgressIndicator(color: tokens.accent),
                       ),
                       error: (error, stackTrace) => AppErrorState(
-                        error: 'Failed to load playlists',
+                        error: l10n.playlistsLoadError,
                         onRetry: () => ref.invalidate(allPlaylistsProvider),
                       ),
                     ),
@@ -85,6 +89,7 @@ class PlaylistsScreen extends ConsumerWidget {
       ),
       builder: (sheetContext) {
         final sheetTokens = AppColors.of(sheetContext);
+        final l10n = AppLocalizations.of(sheetContext);
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -95,7 +100,7 @@ class PlaylistsScreen extends ConsumerWidget {
                   color: sheetTokens.textPrimary,
                 ),
                 title: Text(
-                  'New playlist',
+                  l10n.playlistsNew,
                   style: TextStyle(color: sheetTokens.textPrimary),
                 ),
                 onTap: () => Navigator.pop(
@@ -124,18 +129,19 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         AppIconButton(
           icon: Icons.arrow_back_ios_new_rounded,
-          semanticLabel: 'Back',
+          semanticLabel: l10n.commonBack,
           onPressed: onBack,
           iconSize: 18,
         ),
         const SizedBox(width: AppSpacing.space3),
         Expanded(
           child: Text(
-            'Your playlists',
+            l10n.playlistsTitle,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -148,7 +154,7 @@ class _Header extends StatelessWidget {
         const SizedBox(width: AppSpacing.space2),
         AppIconButton(
           icon: Icons.more_horiz_rounded,
-          semanticLabel: 'More options',
+          semanticLabel: l10n.commonMoreOptions,
           onPressed: onMore,
           iconSize: 24,
         ),
@@ -169,6 +175,7 @@ class _PlaylistsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -178,15 +185,14 @@ class _PlaylistsBody extends StatelessWidget {
             bottom: AppSpacing.space3,
           ),
           child: Text(
-            '${playlists.length} '
-            '${playlists.length == 1 ? 'playlist' : 'playlists'}',
+            l10n.commonPlaylistCount(playlists.length),
             style: TextStyle(fontSize: 11, color: tokens.textSecondary),
           ),
         ),
         _NewPlaylistRow(onTap: onCreate),
-        const AppSectionHeader(
-          title: 'Your playlists',
-          padding: EdgeInsets.fromLTRB(
+        AppSectionHeader(
+          title: l10n.playlistsTitle,
+          padding: const EdgeInsets.fromLTRB(
             0,
             AppSpacing.space5,
             0,
@@ -223,54 +229,61 @@ class _NewPlaylistRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
-    return InkWell(
-      onTap: onTap,
+    final l10n = AppLocalizations.of(context);
+    return GlassSurface.card(
+      key: const Key('playlists-new-glass'),
+      quality: GlassQuality.frosted,
       borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 56),
-        decoration: BoxDecoration(
-          color: tokens.row,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: tokens.border),
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.space3,
-          vertical: AppSpacing.space2,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: tokens.raised,
-                borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.space3,
+                vertical: AppSpacing.space2,
               ),
-              child: Icon(
-                Icons.add_rounded,
-                size: 20,
-                color: tokens.textPrimary,
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: tokens.raised,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 20,
+                      color: tokens.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.space3),
+                  Expanded(
+                    child: Text(
+                      l10n.playlistsNew,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: tokens.textSecondary,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: AppSpacing.space3),
-            Expanded(
-              child: Text(
-                'New playlist',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: tokens.textPrimary,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: tokens.textSecondary,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -285,78 +298,80 @@ class _PlaylistCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
-    return InkWell(
-      onTap: () => context.push(
-        '/library/playlist-detail/${playlist.id}',
-        extra: playlist,
-      ),
+    final l10n = AppLocalizations.of(context);
+    return GlassSurface.card(
+      key: ValueKey('playlists-card-glass-${playlist.id}'),
+      quality: GlassQuality.frosted,
       borderRadius: BorderRadius.circular(AppRadius.xxl),
-      child: Container(
-        decoration: BoxDecoration(
-          color: tokens.row,
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: tokens.border),
-        ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final coverSize = constraints.maxWidth - AppSpacing.space4;
-                  return Padding(
-                    padding: const EdgeInsets.all(AppSpacing.space2),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.artworkSmall,
+        child: InkWell(
+          onTap: () => context.push(
+            '/library/playlist-detail/${playlist.id}',
+            extra: playlist,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final coverSize = constraints.maxWidth - AppSpacing.space4;
+                    return Padding(
+                      padding: const EdgeInsets.all(AppSpacing.space2),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.artworkSmall,
+                        ),
+                        child: PlaylistMosaicCover(
+                          imageUrls: playlist.thumbnailUrls,
+                          defaultIcon: Icons.queue_music_rounded,
+                          iconColor: tokens.textSecondary,
+                          size: coverSize,
+                        ),
                       ),
-                      child: PlaylistMosaicCover(
-                        imageUrls: playlist.thumbnailUrls,
-                        defaultIcon: Icons.queue_music_rounded,
-                        iconColor: tokens.textSecondary,
-                        size: coverSize,
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.space3,
+                  0,
+                  AppSpacing.space3,
+                  AppSpacing.space3,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      playlist.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: tokens.textPrimary,
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.space3,
-                0,
-                AppSpacing.space3,
-                AppSpacing.space3,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    playlist.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: tokens.textPrimary,
+                    const SizedBox(height: 2),
+                    Text(
+                      playlistMeta(playlist, l10n),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: tokens.textSecondary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    playlistMeta(playlist),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: tokens.textSecondary,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -364,19 +379,22 @@ class _PlaylistCard extends StatelessWidget {
 }
 
 /// "N songs · X hr Y min" for a playlist card.
-String playlistMeta(Playlist playlist) {
+String playlistMeta(Playlist playlist, AppLocalizations l10n) {
   final count = playlist.trackCount;
-  final songs = count == 1 ? '1 song' : '$count songs';
-  final duration =
-      count == 0 ? '0 min' : formatPlaylistDuration(playlist.totalDurationMs);
+  final songs = l10n.commonSongCount(count);
+  final duration = count == 0
+      ? l10n.playlistsDurationMinutes(0)
+      : formatPlaylistDuration(playlist.totalDurationMs, l10n);
   return '$songs · $duration';
 }
 
 /// Formats a summed duration without padding (e.g. `1 hr 32 min`, `9 min`).
-String formatPlaylistDuration(int milliseconds) {
+String formatPlaylistDuration(int milliseconds, AppLocalizations l10n) {
   final totalMinutes = milliseconds ~/ Duration.millisecondsPerMinute;
-  if (totalMinutes < Duration.minutesPerHour) return '$totalMinutes min';
+  if (totalMinutes < Duration.minutesPerHour) {
+    return l10n.playlistsDurationMinutes(totalMinutes);
+  }
   final hours = totalMinutes ~/ Duration.minutesPerHour;
   final minutes = totalMinutes % Duration.minutesPerHour;
-  return '$hours hr $minutes min';
+  return l10n.playlistsDurationHoursMinutes(hours, minutes);
 }

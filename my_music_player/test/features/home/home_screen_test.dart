@@ -19,6 +19,7 @@ import 'package:my_music_player/features/player/domain/entities/track.dart';
 import 'package:my_music_player/features/player/domain/repositories/track_repository.dart';
 import 'package:my_music_player/features/player/presentation/providers/player_controller.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
+import 'package:my_music_player/l10n/app_localizations.dart';
 
 import '../../helpers/pump_app.dart';
 import '../player/presentation/providers/fakes.dart';
@@ -76,6 +77,7 @@ void main() {
     List<Track> recentlyPlayed = const <Track>[],
     List<Track> quickPicks = const <Track>[],
     double textScale = 1.0,
+    Locale? locale,
   }) async {
     final router = GoRouter(
       initialLocation: '/',
@@ -132,6 +134,9 @@ void main() {
         child: MaterialApp.router(
           theme: AppTheme.darkTheme,
           routerConfig: router,
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           builder: (context, child) {
             final media = MediaQuery.of(context);
             return MediaQuery(
@@ -197,12 +202,20 @@ void main() {
     expect(find.text('daily-mix-energize-route'), findsOneWidget);
   });
 
-  testWidgets('hides the recently played header when nothing was played',
+  testWidgets('empty home uses a compact panel with a single CTA',
       (tester) async {
     await pumpHome(tester);
 
     expect(find.text('RECENTLY PLAYED'), findsNothing);
+    expect(find.text('CONTINUE LISTENING'), findsNothing);
     expect(find.text('No recently played tracks'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Search music'), findsOneWidget);
+    expect(find.byType(FilledButton), findsOneWidget);
+
+    final panel = tester.getSize(
+      find.byKey(const Key('app-state-panel')),
+    );
+    expect(panel.height, lessThan(400));
   });
 
   testWidgets('shows recently played duration in textSecondary',
@@ -248,12 +261,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('home copy follows the app locale', (tester) async {
+    for (final (
+          locale,
+          emptyTitle,
+          searchCta,
+          downloaded,
+          deviceSongs,
+          onThisDevice,
+        ) in [
+      (
+        const Locale('en'),
+        'No recently played tracks',
+        'Search music',
+        'Downloaded',
+        'Device songs',
+        'On this device',
+      ),
+      (
+        const Locale('id'),
+        'Belum ada yang terakhir diputar',
+        'Cari musik',
+        'Terunduh',
+        'Lagu lokal',
+        'Di perangkat ini',
+      ),
+    ]) {
+      await pumpHome(tester, locale: locale);
+
+      expect(find.text(emptyTitle), findsOneWidget, reason: '$locale title');
+      expect(find.text(searchCta), findsOneWidget, reason: '$locale CTA');
+      expect(find.text(downloaded), findsOneWidget, reason: '$locale cache');
+      expect(find.text(deviceSongs), findsOneWidget, reason: '$locale device');
+      expect(find.text(onThisDevice), findsOneWidget, reason: '$locale meta');
+      expect(find.text('DAILY MIX'), findsOneWidget, reason: '$locale mix');
+    }
+  });
+
   Future<_RecordingPlayerController> pumpDailyMix(
     WidgetTester tester, {
     required List<Track> tracks,
     double textScale = 1.0,
+    Locale? locale,
   }) async {
     late _RecordingPlayerController controller;
+    await tester.pumpWidget(const SizedBox.shrink());
     final router = GoRouter(
       initialLocation: '/daily-mix/energize',
       routes: [
@@ -292,6 +344,9 @@ void main() {
         child: MaterialApp.router(
           theme: AppTheme.darkTheme,
           routerConfig: router,
+          locale: locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           builder: (context, child) {
             final media = MediaQuery.of(context);
             return MediaQuery(
@@ -343,6 +398,20 @@ void main() {
     await pumpDailyMix(tester, tracks: const [], textScale: 2.0);
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('daily mix meta follows the app locale', (tester) async {
+    final tracks = [_track(), _track(sourceId: 't2', title: 'Beta')];
+
+    for (final (locale, meta, playAll) in [
+      (const Locale('en'), '2 tracks · Daily Mix', 'Play all'),
+      (const Locale('id'), '2 lagu · Daily Mix', 'Putar semua'),
+    ]) {
+      await pumpDailyMix(tester, tracks: tracks, locale: locale);
+
+      expect(find.text(meta), findsOneWidget, reason: '$locale meta');
+      expect(find.text(playAll), findsOneWidget, reason: '$locale action');
+    }
   });
 
   test('quick picks come from the local repository', () async {

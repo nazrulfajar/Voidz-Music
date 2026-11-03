@@ -11,6 +11,7 @@ import 'package:my_music_player/features/library/presentation/providers/playlist
 import 'package:my_music_player/features/library/presentation/screens/playlist_detail_screen.dart';
 import 'package:my_music_player/features/player/domain/entities/track.dart';
 import 'package:my_music_player/features/player/presentation/providers/player_controller.dart';
+import 'package:my_music_player/l10n/app_localizations.dart';
 
 import '../../helpers/pump_app.dart';
 import '../player/presentation/providers/fakes.dart';
@@ -119,6 +120,7 @@ Future<_Harness> _pumpDetail(
   ThemeMode themeMode = ThemeMode.dark,
   double textScale = 1.0,
   PlayerState? playerState,
+  Locale locale = const Locale('en'),
 }) async {
   final repository = _RecordingPlaylistRepository();
   final container = ProviderContainer(
@@ -169,6 +171,9 @@ Future<_Harness> _pumpDetail(
         darkTheme: AppTheme.darkTheme,
         themeMode: themeMode,
         routerConfig: router,
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) {
           final media = MediaQuery.of(context);
           return MediaQuery(
@@ -202,6 +207,20 @@ void main() {
     expect(find.text('You · 24 songs'), findsOneWidget);
     expect(find.text('1 hr 32 min · updated 2d ago'), findsOneWidget);
     expect(find.byType(BackdropFilter), findsNothing);
+  });
+
+  testWidgets('summary card is localized in Indonesian', (tester) async {
+    await _pumpDetail(
+      tester,
+      playlist: _userPlaylist(),
+      tracks: _tracks(),
+      locale: const Locale('id'),
+    );
+
+    expect(find.text('PLAYLIST'), findsOneWidget);
+    expect(find.text('Kamu · 24 lagu'), findsOneWidget);
+    expect(find.text('1 jam 32 mnt · diperbarui 2h lalu'), findsOneWidget);
+    expect(find.text('Putar semua'), findsOneWidget);
   });
 
   testWidgets('header exposes back and playlist options with 48dp targets',

@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
+import '../../../../shared/widgets/glass_surface.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -26,11 +28,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String _greeting() {
+  String _greeting(AppLocalizations l10n) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return l10n.homeGreetingMorning;
+    if (hour < 17) return l10n.homeGreetingAfternoon;
+    return l10n.homeGreetingEvening;
   }
 
   String _formatDuration(int ms) {
@@ -48,6 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final t = AppColors.of(context);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final recentlyPlayedAsync = ref.watch(recentlyPlayedProvider);
     final playerState = ref.watch(playerControllerProvider);
     final isOnline = ref.watch(connectivityProvider).value ?? true;
@@ -61,7 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: t.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: onRefresh,
@@ -91,7 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             const SizedBox(width: 48),
                             Expanded(
                               child: Text(
-                                _greeting(),
+                                _greeting(l10n),
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.headlineLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -100,9 +103,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               ),
                             ),
-                            AppIconButton(
-                              icon: Icons.settings_outlined,
-                              semanticLabel: 'Settings',
+                            _HomeSettingsButton(
                               onPressed: () => context.push('/settings'),
                             ),
                           ],
@@ -122,7 +123,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
 
                       // Continue listening section
-                      const AppSectionHeader(title: 'Continue Listening'),
+                      if (recentlyPlayedAsync.valueOrNull?.isNotEmpty ?? false)
+                        AppSectionHeader(title: l10n.homeContinueListening),
                       recentlyPlayedAsync.when(
                         data: (tracks) {
                           if (tracks.isEmpty) {
@@ -131,9 +133,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 horizontal: AppSpacing.screenInset,
                               ),
                               child: AppEmptyState(
+                                compact: true,
                                 icon: Icons.history_rounded,
-                                title: 'No recently played tracks',
-                                actionLabel: 'Search music',
+                                title: l10n.homeNoRecentTitle,
+                                actionLabel: l10n.homeSearchMusic,
                                 onAction: () => context.go('/search'),
                               ),
                             );
@@ -152,134 +155,141 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.screenInset,
                             ),
-                            child: Container(
+                            child: ConstrainedBox(
                               constraints: const BoxConstraints(minHeight: 98),
-                              decoration: BoxDecoration(
-                                color: t.field,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.xxl),
-                                border: Border.all(color: t.border),
-                              ),
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.xxl,
-                                      ),
-                                      child: InkWell(
+                              child: GlassSurface.card(
+                                key: const Key('home-continue-glass'),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.xxl,
+                                ),
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: Material(
+                                        color: Colors.transparent,
                                         borderRadius: BorderRadius.circular(
                                           AppRadius.xxl,
                                         ),
-                                        onTap: () => _playTrack(first, tracks),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            AppRadius.xxl,
+                                          ),
+                                          onTap: () =>
+                                              _playTrack(first, tracks),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(
-                                      AppSpacing.space3,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        AppArtwork(
-                                          localPath: first.localThumbnailPath,
-                                          imageUrl: first.thumbnailUrl,
-                                          size: 68,
-                                          radius: AppRadius.artworkSmall,
-                                        ),
-                                        const SizedBox(
-                                            width: AppSpacing.space3),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                first.title,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: theme
-                                                    .textTheme.titleMedium
-                                                    ?.copyWith(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: t.textPrimary,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              const SizedBox(
-                                                  height: AppSpacing.xs),
-                                              Text(
-                                                '${first.artist} · '
-                                                '${first.source.name}',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: theme.textTheme.bodySmall
-                                                    ?.copyWith(
-                                                  color: t.textSecondary,
-                                                ),
-                                              ),
-                                              const SizedBox(
-                                                  height: AppSpacing.space2),
-                                              ConstrainedBox(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                  maxWidth: 198,
-                                                ),
-                                                child: Container(
-                                                  height: 3,
-                                                  width: double.infinity,
-                                                  decoration: BoxDecoration(
-                                                    color: t.track,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            AppRadius.sm),
-                                                  ),
-                                                  alignment:
-                                                      Alignment.centerLeft,
-                                                  child: isCurrent
-                                                      ? FractionallySizedBox(
-                                                          widthFactor: progress,
-                                                          child: Container(
-                                                            color: t.accent,
-                                                          ),
-                                                        )
-                                                      : null,
-                                                ),
-                                              ),
-                                            ],
+                                    Padding(
+                                      padding: const EdgeInsets.all(
+                                        AppSpacing.space3,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          AppArtwork(
+                                            localPath: first.localThumbnailPath,
+                                            imageUrl: first.thumbnailUrl,
+                                            size: 68,
+                                            radius: AppRadius.artworkSmall,
                                           ),
-                                        ),
-                                        const SizedBox(
-                                            width: AppSpacing.space2),
-                                        Semantics(
-                                          button: true,
-                                          label: 'Play ${first.title}',
-                                          child: GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onTap: () =>
-                                                _playTrack(first, tracks),
-                                            child: Container(
-                                              width: 48,
-                                              height: 48,
-                                              decoration: BoxDecoration(
-                                                color: t.accent,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Icon(
-                                                Icons.play_arrow_rounded,
-                                                color: t.onAccent,
-                                                size: 24,
+                                          const SizedBox(
+                                              width: AppSpacing.space3),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  first.title,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: theme
+                                                      .textTheme.titleMedium
+                                                      ?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: t.textPrimary,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                                const SizedBox(
+                                                    height: AppSpacing.xs),
+                                                Text(
+                                                  '${first.artist} · '
+                                                  '${first.source.name}',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: theme
+                                                      .textTheme.bodySmall
+                                                      ?.copyWith(
+                                                    color: t.textSecondary,
+                                                  ),
+                                                ),
+                                                const SizedBox(
+                                                    height: AppSpacing.space2),
+                                                ConstrainedBox(
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                    maxWidth: 198,
+                                                  ),
+                                                  child: Container(
+                                                    height: 3,
+                                                    width: double.infinity,
+                                                    decoration: BoxDecoration(
+                                                      color: t.track,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              AppRadius.sm),
+                                                    ),
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: isCurrent
+                                                        ? FractionallySizedBox(
+                                                            widthFactor:
+                                                                progress,
+                                                            child: Container(
+                                                              color: t.accent,
+                                                            ),
+                                                          )
+                                                        : null,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(
+                                              width: AppSpacing.space2),
+                                          Semantics(
+                                            button: true,
+                                            label: l10n.homePlayTrack(
+                                              first.title,
+                                            ),
+                                            child: GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTap: () =>
+                                                  _playTrack(first, tracks),
+                                              child: Container(
+                                                width: 48,
+                                                height: 48,
+                                                decoration: BoxDecoration(
+                                                  color: t.accent,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  Icons.play_arrow_rounded,
+                                                  color: t.onAccent,
+                                                  size: 24,
+                                                ),
                                               ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -295,7 +305,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             horizontal: AppSpacing.screenInset,
                           ),
                           child: Text(
-                            'Unable to load',
+                            l10n.homeLoadError,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: t.textSecondary,
                             ),
@@ -315,8 +325,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Expanded(
                               child: _QuickCard(
                                 icon: Icons.download_rounded,
-                                title: 'Downloaded',
-                                meta: 'Offline cache',
+                                title: l10n.homeQuickDownloaded,
+                                meta: l10n.homeOfflineCache,
                                 onTap: () =>
                                     context.push('/library/downloaded'),
                               ),
@@ -325,8 +335,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Expanded(
                               child: _QuickCard(
                                 icon: Icons.folder_outlined,
-                                title: 'Device songs',
-                                meta: 'On this device',
+                                title: l10n.homeDeviceSongs,
+                                meta: l10n.homeOnThisDevice,
                                 onTap: () =>
                                     context.push('/library/device-songs'),
                               ),
@@ -338,7 +348,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: AppSpacing.sectionGap),
 
                       // Daily mix section: five fixed mood cards.
-                      const AppSectionHeader(title: 'Daily Mix'),
+                      AppSectionHeader(title: l10n.dailyMixLabel),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(
@@ -377,8 +387,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       // Recently played section
                       if (recentlyPlayedAsync.valueOrNull?.isNotEmpty ?? true)
-                        const AppSectionHeader(
-                          title: 'Recently Played',
+                        AppSectionHeader(
+                          title: l10n.homeRecentlyPlayed,
                         ),
                       recentlyPlayedAsync.when(
                         data: (tracks) {
@@ -395,88 +405,93 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   AppSpacing.screenInset,
                                   AppSpacing.space2,
                                 ),
-                                child: Container(
+                                child: ConstrainedBox(
                                   constraints:
                                       const BoxConstraints(minHeight: 54),
-                                  decoration: BoxDecoration(
-                                    color: t.surface,
-                                    borderRadius:
-                                        BorderRadius.circular(AppRadius.lg),
-                                    border: Border.all(color: t.border),
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
+                                  child: GlassSurface.card(
+                                    key: ValueKey(
+                                      'home-recent-${track.sourceId}',
+                                    ),
+                                    quality: GlassQuality.frosted,
                                     borderRadius: BorderRadius.circular(
                                       AppRadius.lg,
                                     ),
-                                    child: InkWell(
+                                    child: Material(
+                                      color: Colors.transparent,
                                       borderRadius: BorderRadius.circular(
                                         AppRadius.lg,
                                       ),
-                                      onTap: () => _playTrack(
-                                        track,
-                                        recentlyPlayedAsync.value ?? list,
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: AppSpacing.space3,
-                                          vertical: AppSpacing.space2,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadius.lg,
                                         ),
-                                        child: Row(
-                                          children: [
-                                            AppArtwork(
-                                              localPath:
-                                                  track.localThumbnailPath,
-                                              imageUrl: track.thumbnailUrl,
-                                              size: 34,
-                                              radius: AppRadius.md,
-                                            ),
-                                            const SizedBox(
-                                                width: AppSpacing.space3),
-                                            Expanded(
-                                              child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    track.title,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: theme
-                                                        .textTheme.bodyMedium
-                                                        ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      color: t.textPrimary,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    track.artist,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: theme
-                                                        .textTheme.bodySmall
-                                                        ?.copyWith(
-                                                      color: t.textSecondary,
-                                                    ),
-                                                  ),
-                                                ],
+                                        onTap: () => _playTrack(
+                                          track,
+                                          recentlyPlayedAsync.value ?? list,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.space3,
+                                            vertical: AppSpacing.space2,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              AppArtwork(
+                                                localPath:
+                                                    track.localThumbnailPath,
+                                                imageUrl: track.thumbnailUrl,
+                                                size: 34,
+                                                radius: AppRadius.md,
                                               ),
-                                            ),
-                                            Text(
-                                              _formatDuration(track.durationMs),
-                                              style: theme.textTheme.labelSmall
-                                                  ?.copyWith(
-                                                color: t.textSecondary,
-                                                fontSize: 11,
-                                                letterSpacing: 0,
+                                              const SizedBox(
+                                                  width: AppSpacing.space3),
+                                              Expanded(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      track.title,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: theme
+                                                          .textTheme.bodyMedium
+                                                          ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: t.textPrimary,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      track.artist,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: theme
+                                                          .textTheme.bodySmall
+                                                          ?.copyWith(
+                                                        color: t.textSecondary,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                              Text(
+                                                _formatDuration(
+                                                    track.durationMs),
+                                                style: theme
+                                                    .textTheme.labelSmall
+                                                    ?.copyWith(
+                                                  color: t.textSecondary,
+                                                  fontSize: 11,
+                                                  letterSpacing: 0,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -492,7 +507,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             horizontal: AppSpacing.screenInset,
                           ),
                           child: Text(
-                            'Unable to load',
+                            l10n.homeLoadError,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: t.textSecondary,
                             ),
@@ -506,6 +521,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 48dp Home settings control on the glass chrome recipe.
+///
+/// Frosted instead of blurred: the shell already spends its blur budget on the
+/// navigation/mini-player and the Continue card.
+class _HomeSettingsButton extends StatelessWidget {
+  const _HomeSettingsButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppColors.of(context);
+
+    return Semantics(
+      button: true,
+      label: AppLocalizations.of(context).settingsTitle,
+      enabled: true,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: GlassSurface.chrome(
+          key: const Key('home-settings-glass'),
+          quality: GlassQuality.frosted,
+          borderRadius: BorderRadius.circular(24),
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onPressed,
+              child: Icon(
+                Icons.settings_outlined,
+                size: 20,
+                color: tokens.textPrimary,
+              ),
+            ),
           ),
         ),
       ),
@@ -530,62 +588,61 @@ class _QuickCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppColors.of(context);
     final theme = Theme.of(context);
-    return Container(
+    return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 72),
-      decoration: BoxDecoration(
-        color: t.field,
+      child: GlassSurface.card(
+        quality: GlassQuality.frosted,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: t.border),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        child: InkWell(
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.xl),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.space3),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: t.raised,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.space3),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: t.raised,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Icon(icon, color: t.textPrimary, size: 20),
                   ),
-                  child: Icon(icon, color: t.textPrimary, size: 20),
-                ),
-                const SizedBox(width: AppSpacing.space3),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: t.textPrimary,
-                          fontSize: 13,
+                  const SizedBox(width: AppSpacing.space3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: t.textPrimary,
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                      Text(
-                        meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: t.textSecondary,
-                          fontSize: 11,
-                          letterSpacing: 0,
+                        Text(
+                          meta,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: t.textSecondary,
+                            fontSize: 11,
+                            letterSpacing: 0,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

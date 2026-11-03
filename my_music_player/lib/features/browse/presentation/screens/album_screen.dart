@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/palette_provider.dart';
 import '../../../../shared/widgets/add_to_playlist_sheet.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
@@ -23,6 +24,7 @@ class AlbumScreen extends ConsumerWidget {
     final albumAsync = ref.watch(albumDetailsProvider(albumId));
     final theme = Theme.of(context);
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: t.background,
@@ -33,9 +35,9 @@ class AlbumScreen extends ConsumerWidget {
         ),
         error: (err, stack) => AppEmptyState(
           icon: Icons.error_outline,
-          title: 'Gagal memuat album',
+          title: l10n.browseAlbumLoadError,
           subtitle: '$err',
-          actionLabel: 'Coba lagi',
+          actionLabel: l10n.commonTryAgain,
           onAction: () => ref.invalidate(albumDetailsProvider(albumId)),
         ),
       ),
@@ -49,8 +51,14 @@ class AlbumScreen extends ConsumerWidget {
     ThemeData theme,
   ) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final palette = ref.watch(paletteProvider(album.thumbnailUrl ?? ''));
     final dominantColor = palette.value?.dominantColor?.color ?? t.background;
+    final metaLabel = [
+      l10n.commonAlbum,
+      if (album.year != null && album.year!.isNotEmpty) album.year!,
+      l10n.commonSongCount(album.trackCount ?? 0),
+    ].join(' • ');
 
     return CustomScrollView(
       slivers: [
@@ -106,7 +114,7 @@ class AlbumScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        album.artist ?? 'Unknown Artist',
+                        album.artist ?? l10n.browseUnknownArtist,
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: dominantColor != t.background
                               ? dominantColor
@@ -117,8 +125,7 @@ class AlbumScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Album • ${album.year ?? ""} • '
-                        '${album.trackCount ?? 0} songs',
+                        metaLabel,
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: t.textSecondary),
                         textAlign: TextAlign.center,
@@ -142,7 +149,7 @@ class AlbumScreen extends ConsumerWidget {
                             },
                             icon: Icon(Icons.play_arrow, color: t.onAccent),
                             label: Text(
-                              'Play',
+                              l10n.commonPlay,
                               style: TextStyle(
                                 color: t.onAccent,
                                 fontWeight: FontWeight.bold,
@@ -177,7 +184,7 @@ class AlbumScreen extends ConsumerWidget {
                             },
                             icon: Icon(Icons.shuffle, color: t.textPrimary),
                             label: Text(
-                              'Acak',
+                              l10n.commonShuffle,
                               style: TextStyle(
                                 color: t.textPrimary,
                                 fontWeight: FontWeight.bold,
@@ -199,7 +206,7 @@ class AlbumScreen extends ConsumerWidget {
                           ),
                           AppIconButton(
                             icon: Icons.playlist_add,
-                            semanticLabel: 'Tambah ke playlist',
+                            semanticLabel: l10n.browseAddToPlaylist,
                             onPressed: () {
                               if (album.tracks.isNotEmpty) {
                                 showAddToPlaylistSheet(
@@ -234,7 +241,7 @@ class AlbumScreen extends ConsumerWidget {
                     ? Icon(
                         Icons.equalizer,
                         color: t.accent,
-                        semanticLabel: 'Sedang diputar',
+                        semanticLabel: l10n.browseNowPlaying,
                       )
                     : Text(
                         '${index + 1}',
@@ -259,7 +266,7 @@ class AlbumScreen extends ConsumerWidget {
                 trailing: PopupMenuButton<String>(
                   icon: Icon(Icons.more_vert, color: t.textSecondary),
                   color: t.raised,
-                  tooltip: 'Opsi lagu',
+                  tooltip: l10n.browseTrackOptions,
                   onSelected: (value) {
                     if (value == 'add_playlist') {
                       showAddToPlaylistSheet(context, track: track);
@@ -269,7 +276,7 @@ class AlbumScreen extends ConsumerWidget {
                     PopupMenuItem(
                       value: 'add_playlist',
                       child: Text(
-                        'Add to Playlist',
+                        l10n.browseAddToPlaylist,
                         style: TextStyle(color: t.textPrimary),
                       ),
                     ),

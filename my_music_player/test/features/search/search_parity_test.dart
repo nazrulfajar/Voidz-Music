@@ -100,7 +100,7 @@ void main() {
       results: [_track],
     );
 
-    final count = tester.widget<Text>(find.text('1 tracks'));
+    final count = tester.widget<Text>(find.text('1 song'));
     expect(count.style?.color, AppColors.dark.textSecondary);
     expect(count.style?.color, isNot(AppColors.dark.textMuted));
 
@@ -120,7 +120,7 @@ void main() {
     );
 
     expect(
-      tester.widget<Text>(find.text('1 tracks')).style?.color,
+      tester.widget<Text>(find.text('1 song')).style?.color,
       AppColors.light.textSecondary,
     );
     expect(

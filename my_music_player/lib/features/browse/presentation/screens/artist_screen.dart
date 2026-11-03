@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/palette_provider.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -22,6 +23,7 @@ class ArtistScreen extends ConsumerWidget {
     final artistAsync = ref.watch(artistDetailsProvider(artistId));
     final theme = Theme.of(context);
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: t.background,
@@ -32,9 +34,9 @@ class ArtistScreen extends ConsumerWidget {
         ),
         error: (err, stack) => AppEmptyState(
           icon: Icons.error_outline,
-          title: 'Gagal memuat artis',
+          title: l10n.browseArtistLoadError,
           subtitle: '$err',
-          actionLabel: 'Coba lagi',
+          actionLabel: l10n.commonTryAgain,
           onAction: () => ref.invalidate(artistDetailsProvider(artistId)),
         ),
       ),
@@ -48,6 +50,7 @@ class ArtistScreen extends ConsumerWidget {
     ThemeData theme,
   ) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final cardRowHeight = 140 + MediaQuery.textScalerOf(context).scale(56);
     final palette = ref.watch(paletteProvider(artist.thumbnailUrl ?? ''));
     final dominantColor = palette.value?.dominantColor?.color ?? t.background;
@@ -134,7 +137,7 @@ class ArtistScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Top Songs',
+                    l10n.browseTopSongs,
                     style: theme.textTheme.titleLarge
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
@@ -156,7 +159,7 @@ class ArtistScreen extends ConsumerWidget {
                           color: t.onAccent,
                         ),
                         label: Text(
-                          'Play All',
+                          l10n.commonPlayAll,
                           style: TextStyle(
                             color: t.onAccent,
                             fontWeight: FontWeight.bold,
@@ -189,7 +192,7 @@ class ArtistScreen extends ConsumerWidget {
                           color: t.textPrimary,
                         ),
                         label: Text(
-                          'Acak',
+                          l10n.commonShuffle,
                           style: TextStyle(
                             color: t.textPrimary,
                             fontWeight: FontWeight.bold,
@@ -268,7 +271,7 @@ class ArtistScreen extends ConsumerWidget {
                       ? Icon(
                           Icons.equalizer,
                           color: t.accent,
-                          semanticLabel: 'Sedang diputar',
+                          semanticLabel: l10n.browseNowPlaying,
                         )
                       : ExcludeSemantics(
                           child: Icon(
@@ -298,7 +301,7 @@ class ArtistScreen extends ConsumerWidget {
                 AppSpacing.sm,
               ),
               child: Text(
-                'Albums',
+                l10n.browseAlbums,
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
@@ -332,7 +335,7 @@ class ArtistScreen extends ConsumerWidget {
                 AppSpacing.sm,
               ),
               child: Text(
-                'Singles & EPs',
+                l10n.browseSinglesEps,
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
@@ -366,7 +369,7 @@ class ArtistScreen extends ConsumerWidget {
                 AppSpacing.sm,
               ),
               child: Text(
-                'Playlists',
+                l10n.browsePlaylists,
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),

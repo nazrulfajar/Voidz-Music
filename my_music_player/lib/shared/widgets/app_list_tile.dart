@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Single source of truth untuk 48-thumb track row — dipakai di search,
 /// artist topSongs, album, playlist, queue, library list.
@@ -39,6 +40,7 @@ class AppTrackTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     // Ponytail: tanpa File.existsSync di build (lag). Langsung coba FileImage;
     // errorBuilder fallback ke icon.
     Widget thumbWidget;
@@ -102,19 +104,38 @@ class AppTrackTile extends StatelessWidget {
             ),
           ),
           if (isCached) ...[
-            const SizedBox(width: AppSpacing.xs),
-            Icon(Icons.offline_pin, color: t.textSecondary, size: 14),
+            const SizedBox(width: AppSpacing.xxs),
+            Semantics(
+              label: l10n.commonDownloaded,
+              child: ExcludeSemantics(
+                child: Icon(
+                  Icons.offline_pin,
+                  color: t.textSecondary,
+                  size: 14,
+                ),
+              ),
+            ),
           ],
         ],
       ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodyMedium?.copyWith(color: t.textSecondary),
+      subtitle: Row(
+        children: [
+          Expanded(
+            child: Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(color: t.textSecondary),
+            ),
+          ),
+          if (isPlaying) ...[
+            const SizedBox(width: AppSpacing.xs),
+            const NowPlayingBadge(),
+          ],
+        ],
       ),
-      trailing: trailing ??
-          (isPlaying ? Icon(Icons.equalizer, color: t.accent) : null),
+      trailing: trailing,
       onTap: onTap,
     );
   }
@@ -128,6 +149,48 @@ class AppTrackTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Icon(Icons.music_note, color: t.textMuted),
+    );
+  }
+}
+
+/// Equalizer icon plus a visible "Now playing" label.
+///
+/// The icon is decorative and carries no semantics of its own; the badge is
+/// announced once as a status. The icon is static, so reduced-motion users see
+/// the same non-animated affordance (`DESIGN_SYSTEM.md` §10).
+class NowPlayingBadge extends StatelessWidget {
+  const NowPlayingBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Semantics(
+      label: l10n.commonNowPlaying,
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ExcludeSemantics(
+            child: Icon(
+              Icons.equalizer,
+              size: 14,
+              color: t.textPrimary,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            l10n.commonNowPlaying,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: t.textSecondary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

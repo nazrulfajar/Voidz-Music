@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_colors.dart';
+import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/app_empty_state.dart';
 import '../../shared/widgets/bottom_nav_scaffold.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
@@ -73,25 +76,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     observers: [routeObserver],
-    // Premium: never crash on unknown route — show 404
-    errorBuilder: (context, state) => Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('Not found')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 64, color: Colors.white54),
-            const SizedBox(height: 16),
-            Text('Route not found', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text(state.error?.toString() ?? state.matchedLocation, style: const TextStyle(color: Colors.white54)),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: () => context.go('/'), child: const Text('Go Home')),
-          ],
-        ),
-      ),
-    ),
+    // Never crash on unknown route: render the shared tokenized state panel.
+    // The raw GoRouter exception and matched location are intentionally not
+    // shown to the user (`docs/ERROR_HANDLING.md` §1).
+    errorBuilder: (context, state) => const _RouteNotFoundScreen(),
     // Premium: place to add auth/offline guards later
     // refreshListenable: connectivity or auth provider
     // redirect: (ctx, state) => null,
@@ -279,3 +267,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Fallback for unmatched locations (`GoRouter.errorBuilder`).
+///
+/// Uses the shared [AppStatePanel] so dark/light tokens, geometry and the CTA
+/// stay consistent with every other state surface (§6.7).
+class _RouteNotFoundScreen extends StatelessWidget {
+  const _RouteNotFoundScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      backgroundColor: tokens.background,
+      body: SafeArea(
+        child: AppStatePanel(
+          variant: AppStateVariant.error,
+          icon: Icons.search_off_rounded,
+          title: l10n.errorRouteNotFoundTitle,
+          message: l10n.errorRouteNotFoundMessage,
+          code: 'ERR-404',
+          actionLabel: l10n.errorRouteGoHome,
+          actionIcon: Icons.home_rounded,
+          onAction: () => context.go('/'),
+        ),
+      ),
+    );
+  }
+}

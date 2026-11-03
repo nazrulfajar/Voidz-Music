@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/core/network/api_service.dart';
 import 'package:my_music_player/core/router/app_router.dart';
-import 'package:my_music_player/core/theme/app_colors.dart';
 import 'package:my_music_player/core/theme/app_theme.dart';
 import 'package:my_music_player/features/cache/data/datasources/cache_download_service.dart';
 import 'package:my_music_player/features/cache/presentation/providers/cache_stats_provider.dart';
@@ -24,6 +23,7 @@ import 'package:my_music_player/features/player/presentation/providers/device_so
 import 'package:my_music_player/features/player/presentation/providers/player_controller.dart';
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
+import 'package:my_music_player/l10n/app_localizations.dart';
 
 import '../../helpers/pump_app.dart';
 import '../player/presentation/providers/fakes.dart';
@@ -169,6 +169,8 @@ void main() {
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
           routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           builder: (context, child) {
             final media = MediaQuery.of(context);
             return MediaQuery(
@@ -481,6 +483,6 @@ void main() {
         matching: find.byType(Scaffold),
       ),
     );
-    expect(scaffold.backgroundColor, AppColors.light.background);
+    expect(scaffold.backgroundColor, Colors.transparent);
   });
 }

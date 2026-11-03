@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_radius.dart';
+import '../../l10n/app_localizations.dart';
 import '../../features/player/domain/entities/track.dart';
 import '../../features/library/presentation/providers/playlist_provider.dart';
 import '../../features/library/data/repositories/playlist_repository_impl.dart';
@@ -30,6 +31,7 @@ class _AddToPlaylistSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final playlistsAsync = ref.watch(allPlaylistsProvider);
 
     return Container(
@@ -56,7 +58,7 @@ class _AddToPlaylistSheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Text(
-              'Add to Playlist',
+              l10n.playlistAddSheetTitle,
               style: theme.textTheme.titleLarge
                   ?.copyWith(fontWeight: FontWeight.bold),
             ),
@@ -73,14 +75,14 @@ class _AddToPlaylistSheet extends ConsumerWidget {
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('No custom playlists found.',
+                      Text(l10n.playlistNoneYet,
                           style: TextStyle(color: t.textSecondary)),
                       const SizedBox(height: AppSpacing.md),
                       ElevatedButton.icon(
                         onPressed: () =>
                             _showCreatePlaylistDialog(context, ref, tracks),
                         icon: const Icon(Icons.add),
-                        label: const Text('Create New Playlist'),
+                        label: Text(l10n.playlistCreateNew),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: t.raised,
                           foregroundColor: t.textPrimary,
@@ -104,7 +106,7 @@ class _AddToPlaylistSheet extends ConsumerWidget {
                           ),
                           child: Icon(Icons.add, color: t.textPrimary),
                         ),
-                        title: Text('New Playlist',
+                        title: Text(l10n.playlistNewTitle,
                             style: TextStyle(
                                 color: t.textPrimary,
                                 fontWeight: FontWeight.bold)),
@@ -117,7 +119,7 @@ class _AddToPlaylistSheet extends ConsumerWidget {
                     return ListTile(
                       leading: Icon(Icons.queue_music, color: t.textSecondary),
                       title: Text(playlist.name),
-                      subtitle: Text('${playlist.trackCount} tracks',
+                      subtitle: Text(l10n.commonTrackCount(playlist.trackCount),
                           style: TextStyle(color: t.textSecondary)),
                       onTap: () async {
                         final messenger = ScaffoldMessenger.of(context);
@@ -127,11 +129,20 @@ class _AddToPlaylistSheet extends ConsumerWidget {
                         ref.invalidate(allPlaylistsProvider);
                         if (context.mounted) {
                           Navigator.pop(context);
-                          final msg = res.added == 0
-                              ? 'Already in ${playlist.name}'
-                              : (tracks.length == 1
-                                  ? 'Added to ${playlist.name}'
-                                  : 'Added ${res.added} tracks to ${playlist.name}${res.existed > 0 ? ' (${res.existed} already existed)' : ''}');
+                          final String msg;
+                          if (res.added == 0) {
+                            msg = l10n.playlistAlreadyIn(playlist.name);
+                          } else if (tracks.length == 1) {
+                            msg = l10n.playlistAddedTo(playlist.name);
+                          } else {
+                            final suffix = res.existed > 0
+                                ? ' ${l10n.playlistAlreadyExisted(res.existed)}'
+                                : '';
+                            msg = '${l10n.playlistAddedMany(
+                              res.added,
+                              playlist.name,
+                            )}$suffix';
+                          }
                           messenger.showSnackBar(SnackBar(
                               content: Text(msg,
                                   style: TextStyle(color: t.textPrimary)),
@@ -143,7 +154,9 @@ class _AddToPlaylistSheet extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => Center(child: Text('Error: $e')),
+              error: (e, st) => Center(
+                child: Text(l10n.commonErrorWithMessage('$e')),
+              ),
             ),
           ),
         ],

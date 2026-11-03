@@ -1,0 +1,786 @@
+{
+  "@@locale": "en",
+  "appTitle": "Voidz Music",
+  "language": "Language",
+  "languageSystem": "System",
+  "languageEnglish": "English",
+  "languageIndonesian": "Indonesian",
+  "commonBack": "Back",
+  "commonCancel": "CANCEL",
+  "commonSave": "SAVE",
+  "settingsTitle": "Settings",
+  "settingsSectionPlayback": "Playback",
+  "settingsAudioQuality": "Audio quality",
+  "settingsQualityLow": "Low",
+  "settingsQualityMedium": "Medium",
+  "settingsQualityHigh": "High",
+  "settingsGaplessCrossfade": "Gapless / Crossfade",
+  "settingsGapless": "Gapless",
+  "settingsCrossfadeValue": "{seconds}s",
+  "@settingsCrossfadeValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsCrossfadeOption": "{seconds}s crossfade",
+  "@settingsCrossfadeOption": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsResumeOnStartup": "Resume on startup",
+  "settingsAudioFocus": "Audio focus",
+  "settingsAudioFocusSubtitle": "Duck 50% for nav, pause for call/headset",
+  "settingsYoutubeSource": "YouTube source",
+  "settingsYoutubeSourceSubtitle": "Search and stream from YouTube Music",
+  "settingsSectionDownloads": "Downloads",
+  "settingsWifiOnly": "Wi-Fi only",
+  "settingsStorageLimit": "Storage limit",
+  "settingsStorageLimitMax": "{size} maximum",
+  "@settingsStorageLimitMax": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsStorageUsed": "Storage used",
+  "settingsUnavailable": "Unavailable",
+  "settingsTrackCount": "{count, plural, =0{No tracks} =1{1 track} other{{count} tracks}}",
+  "@settingsTrackCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsPinnedCount": "{count, plural, =0{0 pinned} =1{1 pinned} other{{count} pinned}}",
+  "@settingsPinnedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAutoCache": "Auto-cache",
+  "settingsAutoCacheSubtitle": "Cache tracks automatically when they play",
+  "settingsClearCache": "Clear cache",
+  "settingsClearCacheSubtitle": "Removes all unpinned downloaded tracks",
+  "settingsClearCacheTitle": "Clear cache?",
+  "settingsClearCacheBody": "This will delete all unpinned downloaded tracks.",
+  "settingsClearCacheConfirm": "CLEAR",
+  "settingsCacheCleared": "Cache cleared",
+  "settingsSectionAppearance": "Appearance",
+  "settingsTheme": "Theme",
+  "settingsThemeSystem": "System",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
+  "settingsSectionAbout": "About",
+  "settingsVersion": "Version",
+  "settingsLicenses": "Licenses",
+  "settingsError": "Error: {message}",
+  "@settingsError": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "commonPlay": "Play",
+  "commonPlayAll": "Play All",
+  "commonShuffle": "Shuffle",
+  "commonTryAgain": "Try again",
+  "commonArtist": "Artist",
+  "commonAlbum": "Album",
+  "commonPlaylist": "Playlist",
+  "commonUnknown": "Unknown",
+  "commonSongCount": "{count, plural, =0{0 songs} =1{1 song} other{{count} songs}}",
+  "@commonSongCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchFilterAll": "All",
+  "searchFilterSongs": "Songs",
+  "searchFilterArtists": "Artists",
+  "searchFilterAlbums": "Albums",
+  "searchFilterPlaylists": "Playlists",
+  "searchFilterSemantics": "Filter {label}",
+  "@searchFilterSemantics": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "searchHeaderTop": "Top search results",
+  "searchHeaderResults": "Results",
+  "searchResultsCount": "{count, plural, =0{0 results} =1{1 result} other{{count} results}}",
+  "@searchResultsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchArtistsCount": "{count, plural, =0{0 artists} =1{1 artist} other{{count} artists}}",
+  "@searchArtistsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchAlbumsCount": "{count, plural, =0{0 albums} =1{1 album} other{{count} albums}}",
+  "@searchAlbumsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchPlaylistsCount": "{count, plural, =0{0 playlists} =1{1 playlist} other{{count} playlists}}",
+  "@searchPlaylistsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchOfflineTitle": "You're offline",
+  "searchOfflineMessage": "Search is available when connected",
+  "searchError": "Check your connection and try again.",
+  "searchNoResultsTitle": "No results found",
+  "searchNoResultsMessage": "No results for \"{query}\"",
+  "@searchNoResultsMessage": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "searchClear": "Clear search",
+  "searchIdleTitle": "What do you want to listen to?",
+  "searchIdleMessage": "Search for artists, songs, or albums",
+  "searchRecentTitle": "Recent searches",
+  "searchClearHistory": "Clear",
+  "searchBrowseBySource": "Browse by source",
+  "searchBrowseSources": "Browse sources",
+  "searchBrowseSourcesSubtitle": "YouTube Music and device songs",
+  "searchHint": "Search songs, artists...",
+  "searchHintOffline": "Search unavailable offline",
+  "searchRecentQuerySemantics": "Search {query}",
+  "@searchRecentQuerySemantics": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "searchRemoveRecentSemantics": "Remove {query}",
+  "@searchRemoveRecentSemantics": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "searchSemanticsArtist": "Artist, {name}",
+  "@searchSemanticsArtist": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "searchSemanticsAlbum": "Album, {title}, by {artist}",
+  "@searchSemanticsAlbum": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "searchSemanticsPlaylist": "Playlist, {title}, by {author}",
+  "@searchSemanticsPlaylist": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "searchSemanticsTrack": "Track, {title}, by {artist}",
+  "@searchSemanticsTrack": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "browseTitle": "Browse",
+  "browseYoutubeSubtitle": "Search songs, artists, and albums",
+  "browseYoutubeSemantics": "Search YouTube Music",
+  "browseDeviceSongs": "Device songs",
+  "browseDeviceSongsSubtitle": "Play audio stored on this device",
+  "browseDeviceSongsSemantics": "Open device songs",
+  "browseRecentlyPlayed": "Recently played",
+  "browseNothingPlayedTitle": "Nothing played yet",
+  "browseNothingPlayedSubtitle": "Tracks you play will appear here",
+  "browseRecentlyPlayedError": "Could not load recently played",
+  "browseRecentlyPlayedErrorSubtitle": "Check your library and try again",
+  "browsePlayTrackSemantics": "Play {title} by {artist}",
+  "@browsePlayTrackSemantics": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "browseAlbumLoadError": "Could not load album",
+  "browseArtistLoadError": "Could not load artist",
+  "browsePlaylistLoadError": "Could not load playlist",
+  "browseUnknownArtist": "Unknown Artist",
+  "browseUnknownAuthor": "Unknown Author",
+  "browseAddToPlaylist": "Add to playlist",
+  "browseNowPlaying": "Now playing",
+  "browseTrackOptions": "Track options",
+  "browseTopSongs": "Top Songs",
+  "browseAlbums": "Albums",
+  "browseSinglesEps": "Singles & EPs",
+  "browsePlaylists": "Playlists",
+  "commonTrackCount": "{count, plural, =0{0 tracks} =1{1 track} other{{count} tracks}}",
+  "@commonTrackCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonPlaylistCount": "{count, plural, =0{0 playlists} =1{1 playlist} other{{count} playlists}}",
+  "@commonPlaylistCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonMoreOptions": "More options",
+  "libraryTitle": "Your Library",
+  "libraryDownloadedCache": "Downloaded cache",
+  "libraryCustomPlaylists": "Custom playlists",
+  "libraryDeviceSongs": "Device songs",
+  "libraryPinnedOfflineTracks": "Pinned offline tracks",
+  "libraryPinnedMeta": "{artist} · Pinned offline",
+  "@libraryPinnedMeta": {
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryListeningRecap": "Listening recap",
+  "libraryListeningSummary": "Your listening summary",
+  "libraryRecentlyPlayed": "Recently played",
+  "libraryListeningHistory": "Your listening history",
+  "libraryEmptyTitle": "Your library is empty",
+  "libraryEmptySubtitle": "Scan the songs already on this device, or search for something new.",
+  "libraryEmptyScanUnavailable": "Device scan is unavailable. Search music to start your library.",
+  "librarySearchMusic": "Search music",
+  "libraryScanDevice": "Scan device",
+  "libraryAutoPlaylistLabel": "AUTO-PLAYLIST",
+  "libraryLikedSongs": "Liked Songs",
+  "libraryLikedMeta": "{count, plural, =0{Auto-playlist · 0 tracks} =1{Auto-playlist · 1 track} other{Auto-playlist · {count} tracks}}",
+  "@libraryLikedMeta": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryLoadError": "Check your connection and try again.",
+  "playlistsTitle": "Your playlists",
+  "playlistsLoadError": "Failed to load playlists",
+  "playlistsNew": "New playlist",
+  "playlistsDurationMinutes": "{minutes} min",
+  "@playlistsDurationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "playlistsDurationHoursMinutes": "{hours} hr {minutes} min",
+  "@playlistsDurationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadedTitle": "Downloads",
+  "downloadedStorageUsed": "Storage Used",
+  "downloadedStorageWarning": "Storage is almost full. Old unpinned tracks will be removed automatically.",
+  "downloadedEmptyTitle": "No downloaded tracks yet",
+  "downloadedSemantics": "Downloaded",
+  "downloadedRemove": "Remove download",
+  "downloadedLoadError": "Failed to load downloads",
+  "commonLoading": "Loading...",
+  "commonError": "Error",
+  "commonErrorWithMessage": "Error: {message}",
+  "@commonErrorWithMessage": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "commonDelete": "Delete",
+  "commonCancelAction": "Cancel",
+  "commonTrackOptions": "Track options",
+  "commonUnknownAlbum": "Unknown Album",
+  "commonAlbumCount": "{count, plural, =0{0 albums} =1{1 album} other{{count} albums}}",
+  "@commonAlbumCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonTryDifferentKeywords": "Try different keywords",
+  "commonDurationHours": "{hours} hr",
+  "@commonDurationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "timeJustNow": "just now",
+  "timeMinutesAgo": "{count}m ago",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{count}h ago",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDaysAgo": "{count}d ago",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeWeeksAgo": "{count}w ago",
+  "@timeWeeksAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeMonthsAgo": "{count}mo ago",
+  "@timeMonthsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeYearsAgo": "{count}y ago",
+  "@timeYearsAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deviceSongsRescan": "Rescan",
+  "deviceSongsScanFailed": "Scan failed. Try again.",
+  "deviceSongsSearchInList": "Search in this list",
+  "deviceSongsSearchHint": "Search songs, artists, albums",
+  "deviceSongsLoadError": "Check storage permission and try again.",
+  "deviceSongsEmptyScannedTitle": "No songs found on device",
+  "deviceSongsEmptyScannedSubtitle": "Search music instead, or scan again after adding files.",
+  "deviceSongsEmptyTitle": "No songs on this device yet",
+  "deviceSongsEmptySubtitle": "Put MP3/M4A/FLAC files in the Music or Download folder, then pull to scan",
+  "deviceSongsScanNow": "Scan now",
+  "deviceSongsNoAlbums": "No albums",
+  "deviceSongsNoArtists": "No artists",
+  "deviceSongsAddToQueue": "Add to queue",
+  "deviceSongsAddedToQueue": "Added to queue",
+  "deviceSongsPlayNext": "Play next",
+  "deviceSongsWillPlayNext": "Will play next",
+  "deviceSongsPermissionTitle": "Allow access to audio",
+  "deviceSongsPermissionMessage": "Voidz Music needs permission to scan audio files on this device.",
+  "deviceSongsOpenSettings": "Open settings",
+  "deviceSongsAllowAccess": "Allow access",
+  "deviceSongsPermissionFootnote": "You can change this in system settings.",
+  "playlistDetailNotFound": "Playlist not found",
+  "playlistDetailTagline": "Your collection, your soundtrack",
+  "playlistDetailOptions": "Playlist options",
+  "playlistDetailPlayAll": "Play all",
+  "playlistDetailRemoveTrack": "Remove from playlist",
+  "playlistDetailReadOnly": "Read-only auto-playlist",
+  "playlistDetailDelete": "Delete playlist",
+  "playlistDetailDeleteTitle": "Delete Playlist?",
+  "playlistDetailDeleteBody": "This playlist will be permanently deleted.",
+  "playlistDetailEmptyTitle": "Playlist is empty",
+  "playlistDetailEmptySystemSubtitle": "Tracks will appear here automatically",
+  "playlistDetailEmptySubtitle": "Add songs to start listening",
+  "playlistDetailOverline": "PLAYLIST",
+  "playlistDetailTracks": "TRACKS",
+  "playlistDetailOwner": "You · {count, plural, =0{0 songs} =1{1 song} other{{count} songs}}",
+  "@playlistDetailOwner": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playlistDetailUpdated": "updated {time}",
+  "@playlistDetailUpdated": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "recentlyPlayedLoadError": "Failed to load listening history",
+  "recentlyPlayedClear": "Clear history",
+  "recentlyPlayedClearSubtitle": "Remove all listening history",
+  "recentlyPlayedClearTitle": "Clear listening history?",
+  "recentlyPlayedClearBody": "This permanently removes all play history and recently played tracks. Listening recap totals will change. Your play counts are kept.",
+  "recentlyPlayedSummary": "{count, plural, =0{0 unique tracks · last 30 days} =1{1 unique track · last 30 days} other{{count} unique tracks · last 30 days}}",
+  "@recentlyPlayedSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recentlyPlayedTracks": "Tracks",
+  "recentlyPlayedOverline": "LISTENING HISTORY",
+  "recentlyPlayedUniqueCount": "{count, plural, =0{0 unique tracks} =1{1 unique track} other{{count} unique tracks}}",
+  "@recentlyPlayedUniqueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recentlyPlayedWindow": "Last 30 days",
+  "recentlyPlayedPlay": "Play recent",
+  "recentlyPlayedEmptyTitle": "No listening history",
+  "recentlyPlayedEmptySubtitle": "Tracks you play will appear here.",
+  "homeGreetingMorning": "Good Morning",
+  "homeGreetingAfternoon": "Good Afternoon",
+  "homeGreetingEvening": "Good Evening",
+  "homeContinueListening": "Continue Listening",
+  "homeRecentlyPlayed": "Recently Played",
+  "homeNoRecentTitle": "No recently played tracks",
+  "homeSearchMusic": "Search music",
+  "homeLoadError": "Unable to load",
+  "homeQuickDownloaded": "Downloaded",
+  "homeOfflineCache": "Offline cache",
+  "homeDeviceSongs": "Device songs",
+  "homeOnThisDevice": "On this device",
+  "homePlayTrack": "Play {title}",
+  "@homePlayTrack": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMixLabel": "Daily Mix",
+  "dailyMixBadge": "MIX {number}",
+  "@dailyMixBadge": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMixSemantics": "Daily Mix {mood}",
+  "@dailyMixSemantics": {
+    "placeholders": {
+      "mood": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMixTrackCount": "{count, plural, =0{0 tracks · Daily Mix} =1{1 track · Daily Mix} other{{count} tracks · Daily Mix}}",
+  "@dailyMixTrackCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dailyMixPlayAll": "Play all",
+  "dailyMixEmptyTitle": "No tracks for {mood}",
+  "@dailyMixEmptyTitle": {
+    "placeholders": {
+      "mood": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMixEmptySubtitle": "Search for music or scan your device library.",
+  "dailyMixSearch": "Search",
+  "dailyMixScanDevice": "Scan device songs",
+  "dailyMixLoadError": "Couldn't load this mix. Check your connection and try again.",
+  "recapTitle": "Recap",
+  "recapEmptyTitle": "No recap for {period}",
+  "@recapEmptyTitle": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "recapEmptySubtitle": "Play some songs first — your recap will appear here.\nHistory keeps up to 10,000 plays.",
+  "recapLoadError": "Couldn't load your recap. Check your connection and try again.",
+  "recapTopSongsTitle": "Top 5 Songs",
+  "recapTopSongsSubtitle": "Most played {period}",
+  "@recapTopSongsSubtitle": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "recapTopArtistsTitle": "Top 5 Artists",
+  "recapTopArtistsSubtitle": "Your top artists",
+  "recapTopAlbumsTitle": "Top 5 Albums",
+  "recapTopAlbumsSubtitle": "Most played albums",
+  "recapMostPlayedBadge": "#1 MOST PLAYED {period}",
+  "@recapMostPlayedBadge": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "recapTimesPlayed": "{count}× played",
+  "@recapTimesPlayed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "recapStatTotalPlays": "Total plays",
+  "recapStatUniqueSongs": "Unique songs",
+  "recapStatYear": "Year",
+  "recapPeriodMonth": "Month",
+  "recapPeriodYear": "Year",
+  "recapYearPhrase": "in {year}",
+  "@recapYearPhrase": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "recapSelectMonth": "Select month",
+  "recapSelectYear": "Select year",
+  "lyricsHeader": "LYRICS",
+  "lyricsSyncedBadge": "Synced",
+  "lyricsNotFoundTitle": "No lyrics found",
+  "lyricsNotFoundMessage": "LRCLIB has no lyrics for this track. Instrumental tracks never show lyrics.",
+  "lyricsRetry": "Retry",
+  "lyricsNotFoundFootnote": "Playback continues without lyrics.",
+  "lyricsEmpty": "Lyrics are empty",
+  "lyricsLoadError": "Lyrics are unavailable right now.",
+  "lyricsFooterSynced": "Synced lyrics · LRCLIB",
+  "lyricsFooterPlain": "Lyrics · LRCLIB",
+  "playlistAddSheetTitle": "Add to Playlist",
+  "playlistNoneYet": "No custom playlists found.",
+  "playlistCreateNew": "Create New Playlist",
+  "playlistNewTitle": "New Playlist",
+  "playlistNameHint": "Playlist name",
+  "playlistCreate": "Create",
+  "playlistCreateAndAdd": "Create & Add",
+  "playlistAlreadyIn": "Already in {name}",
+  "@playlistAlreadyIn": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistAddedTo": "Added to {name}",
+  "@playlistAddedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistAddedMany": "{count, plural, =1{Added 1 track to {name}} other{Added {count} tracks to {name}}}",
+  "@playlistAddedMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistAlreadyExisted": "{count, plural, =1{1 already existed} other{{count} already existed}}",
+  "@playlistAlreadyExisted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playerPlayingFrom": "PLAYING FROM",
+  "playerClose": "Close player",
+  "playerSleepTimer": "Sleep Timer",
+  "playerLike": "Like",
+  "playerUnlike": "Unlike",
+  "playerPrevious": "Previous",
+  "playerNext": "Next",
+  "playerPause": "Pause",
+  "playerRepeat": "Repeat",
+  "playerRepeatOne": "Repeat one",
+  "playerArtworkSemantics": "Artwork for {title}",
+  "@playerArtworkSemantics": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerDockLyrics": "Lyrics",
+  "playerDockQueue": "Queue ({count})",
+  "@playerDockQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playerDockTimer": "Timer",
+  "playerPlaybackFailed": "Playback failed",
+  "playerStreamUnavailable": "Couldn't resolve the stream.",
+  "playerRetry": "Retry",
+  "playerOfflineArtist": "Offline mode: Cannot load artist",
+  "playerArtistNotFound": "Artist page not found",
+  "playerArtistLoadError": "Couldn't load artist. Check your connection and try again.",
+  "playerOfflineAlbum": "Offline mode: Cannot load album",
+  "playerAlbumNotFound": "Album page not found",
+  "playerAlbumLoadError": "Couldn't load album. Check your connection and try again.",
+  "queueTitle": "Queue",
+  "queueClear": "Clear",
+  "queueEmpty": "Queue is empty",
+  "queueSummary": "{count, plural, =0{0 songs} =1{1 song} other{{count} songs}} · {duration}",
+  "@queueSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "queueNowPlaying": "NOW PLAYING",
+  "queueUpNext": "UP NEXT",
+  "queueDragHint": "Drag to reorder · Swipe to remove",
+  "queueDragToReorder": "Drag to reorder",
+  "queueClearTitle": "Clear queue?",
+  "queueClearBody": "Remove {count, plural, =1{1 song} other{{count} songs}} from Up Next? The current track keeps playing.",
+  "@queueClearBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueCleared": "{count, plural, =1{1 song removed} other{{count} songs removed}}",
+  "@queueCleared": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueUndo": "Undo",
+  "queueRemoveTrack": "Remove from queue",
+  "queueRemovedFromPlaylist": "Removed from {name}",
+  "@queueRemovedFromPlaylist": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sleepTimerTitle": "Sleep timer",
+  "sleepTimerSubtitle": "Playback stops automatically",
+  "sleepTimerMinutes": "{count, plural, =1{1 minute} other{{count} minutes}}",
+  "@sleepTimerMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sleepTimerEndOfTrack": "End of track",
+  "sleepTimerActive": "Timer Active",
+  "sleepTimerRemaining": "{time} remaining",
+  "@sleepTimerRemaining": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "commonSelected": "Selected",
+  "commonLoadErrorTitle": "Couldn't load results",
+  "commonRetryAction": "Retry",
+  "commonOfflineTitle": "You're offline",
+  "commonOfflinePlayingDownloaded": "Playing downloaded songs",
+  "commonNowPlaying": "Now playing",
+  "commonDownloaded": "Downloaded",
+  "shellTabHome": "Home",
+  "shellTabSearch": "Search",
+  "shellTabLibrary": "Library",
+  "errorRouteNotFoundTitle": "Page not found",
+  "errorRouteNotFoundMessage": "We couldn't find that page. It may have moved or no longer exists.",
+  "errorRouteGoHome": "Go Home"
+}

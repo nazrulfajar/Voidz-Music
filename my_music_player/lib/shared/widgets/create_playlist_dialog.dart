@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../features/library/data/repositories/playlist_repository_impl.dart';
 import '../../features/library/presentation/providers/playlist_provider.dart';
 
@@ -14,10 +15,11 @@ Future<String?> showCreatePlaylistDialog(
       useRootNavigator: true,
       builder: (dialogContext) {
         final tokens = AppColors.of(dialogContext);
+        final l10n = AppLocalizations.of(dialogContext);
         return AlertDialog(
           backgroundColor: tokens.row,
           title: Text(
-            'New Playlist',
+            l10n.playlistNewTitle,
             style: TextStyle(color: tokens.textPrimary),
           ),
           content: TextField(
@@ -25,7 +27,7 @@ Future<String?> showCreatePlaylistDialog(
             autofocus: true,
             style: TextStyle(color: tokens.textPrimary),
             decoration: InputDecoration(
-              hintText: 'Playlist name',
+              hintText: l10n.playlistNameHint,
               hintStyle: TextStyle(color: tokens.textMuted),
             ),
           ),
@@ -33,7 +35,7 @@ Future<String?> showCreatePlaylistDialog(
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(
-                'Cancel',
+                l10n.commonCancelAction,
                 style: TextStyle(color: tokens.textSecondary),
               ),
             ),
@@ -43,7 +45,7 @@ Future<String?> showCreatePlaylistDialog(
                 if (n.isNotEmpty) Navigator.pop(dialogContext, n);
               },
               child: Text(
-                'Create',
+                l10n.playlistCreate,
                 style: TextStyle(color: tokens.accent),
               ),
             ),
@@ -73,16 +75,18 @@ Future<void> showCreateAndAddDialog(
 ) async {
   final controller = TextEditingController();
   final tokens = AppColors.of(context);
+  final l10n = AppLocalizations.of(context);
   try {
     final name = await showDialog<String>(
       context: context,
       useRootNavigator: true,
       builder: (dialogContext) {
         final dialogTokens = AppColors.of(dialogContext);
+        final dialogL10n = AppLocalizations.of(dialogContext);
         return AlertDialog(
           backgroundColor: dialogTokens.row,
           title: Text(
-            'New Playlist',
+            dialogL10n.playlistNewTitle,
             style: TextStyle(color: dialogTokens.textPrimary),
           ),
           content: TextField(
@@ -90,7 +94,7 @@ Future<void> showCreateAndAddDialog(
             autofocus: true,
             style: TextStyle(color: dialogTokens.textPrimary),
             decoration: InputDecoration(
-              hintText: 'Playlist name',
+              hintText: dialogL10n.playlistNameHint,
               hintStyle: TextStyle(color: dialogTokens.textMuted),
             ),
           ),
@@ -98,7 +102,7 @@ Future<void> showCreateAndAddDialog(
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(
-                'Cancel',
+                dialogL10n.commonCancelAction,
                 style: TextStyle(color: dialogTokens.textSecondary),
               ),
             ),
@@ -108,7 +112,7 @@ Future<void> showCreateAndAddDialog(
                 if (n.isNotEmpty) Navigator.pop(dialogContext, n);
               },
               child: Text(
-                'Create & Add',
+                dialogL10n.playlistCreateAndAdd,
                 style: TextStyle(color: dialogTokens.accent),
               ),
             ),
@@ -125,12 +129,17 @@ Future<void> showCreateAndAddDialog(
     ref.invalidate(allPlaylistsProvider);
     if (context.mounted) {
       Navigator.pop(context); // close bottom sheet
-      final msg = res.added > 0
-          ? (tracks.length == 1
-              ? 'Added to ${playlist.name}'
-              : 'Added ${res.added} tracks to ${playlist.name}'
-                  '${res.existed > 0 ? ' (${res.existed} already existed)' : ''}')
-          : 'Already in ${playlist.name}';
+      final String msg;
+      if (res.added == 0) {
+        msg = l10n.playlistAlreadyIn(playlist.name);
+      } else if (tracks.length == 1) {
+        msg = l10n.playlistAddedTo(playlist.name);
+      } else {
+        final suffix = res.existed > 0
+            ? ' ${l10n.playlistAlreadyExisted(res.existed)}'
+            : '';
+        msg = '${l10n.playlistAddedMany(res.added, playlist.name)}$suffix';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

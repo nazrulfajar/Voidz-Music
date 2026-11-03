@@ -33,4 +33,9 @@ class AppSettingsModel {
   /// first enum value ([AppThemeMode.system]) for unknown ordinals.
   @enumerated
   AppThemeMode appThemeMode = AppThemeMode.system;
+
+  /// Persisted as an ordinal. Isar's generated deserializer falls back to the
+  /// first enum value ([AppLanguageMode.system]) for unknown ordinals.
+  @enumerated
+  AppLanguageMode appLanguageMode = AppLanguageMode.system;
 }

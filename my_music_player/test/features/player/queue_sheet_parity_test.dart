@@ -174,6 +174,17 @@ void main() {
 
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
+    expect(find.text('Clear queue?'), findsOneWidget);
+
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(TextButton),
+          )
+          .last,
+    );
+    await tester.pumpAndSettle();
 
     expect(controller.removedIndices, [4, 3]);
     expect(
@@ -277,6 +288,6 @@ void main() {
     await _pumpQueue(tester, tracks: []);
 
     expect(find.byType(AppEmptyState), findsOneWidget);
-    expect(find.text('Antrean kosong'), findsOneWidget);
+    expect(find.text('Queue is empty'), findsOneWidget);
   });
 }

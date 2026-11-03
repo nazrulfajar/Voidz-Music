@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
@@ -32,6 +33,7 @@ class BrowseScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final recentlyPlayed = ref.watch(browseRecentlyPlayedProvider);
 
     return Scaffold(
@@ -54,7 +56,7 @@ class BrowseScreen extends ConsumerWidget {
                     children: [
                       AppIconButton(
                         icon: Icons.arrow_back_rounded,
-                        semanticLabel: 'Back',
+                        semanticLabel: l10n.commonBack,
                         onPressed: () {
                           if (context.canPop()) {
                             context.pop();
@@ -66,7 +68,7 @@ class BrowseScreen extends ConsumerWidget {
                       const SizedBox(width: AppSpacing.space3),
                       Expanded(
                         child: Text(
-                          'Browse',
+                          l10n.browseTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -82,21 +84,21 @@ class BrowseScreen extends ConsumerWidget {
                   BrowseSourceCard(
                     icon: Icons.music_video_rounded,
                     title: 'YouTube Music',
-                    subtitle: 'Search songs, artists, and albums',
-                    semanticLabel: 'Search YouTube Music',
+                    subtitle: l10n.browseYoutubeSubtitle,
+                    semanticLabel: l10n.browseYoutubeSemantics,
                     onTap: () => context.go('/search'),
                   ),
                   const SizedBox(height: AppSpacing.space2),
                   BrowseSourceCard(
                     icon: Icons.phone_android_rounded,
-                    title: 'Device songs',
-                    subtitle: 'Play audio stored on this device',
-                    semanticLabel: 'Open device songs',
+                    title: l10n.browseDeviceSongs,
+                    subtitle: l10n.browseDeviceSongsSubtitle,
+                    semanticLabel: l10n.browseDeviceSongsSemantics,
                     onTap: () => context.go('/library/device-songs'),
                   ),
                   const SizedBox(height: AppSpacing.space6),
                   Text(
-                    'Recently played',
+                    l10n.browseRecentlyPlayed,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -107,10 +109,10 @@ class BrowseScreen extends ConsumerWidget {
                   recentlyPlayed.when(
                     data: (tracks) {
                       if (tracks.isEmpty) {
-                        return const AppEmptyState(
+                        return AppEmptyState(
                           icon: Icons.history_rounded,
-                          title: 'Nothing played yet',
-                          subtitle: 'Tracks you play will appear here',
+                          title: l10n.browseNothingPlayedTitle,
+                          subtitle: l10n.browseNothingPlayedSubtitle,
                         );
                       }
                       return Column(
@@ -132,9 +134,9 @@ class BrowseScreen extends ConsumerWidget {
                     ),
                     error: (_, __) => AppEmptyState(
                       icon: Icons.error_outline,
-                      title: 'Could not load recently played',
-                      subtitle: 'Check your library and try again',
-                      actionLabel: 'Try again',
+                      title: l10n.browseRecentlyPlayedError,
+                      subtitle: l10n.browseRecentlyPlayedErrorSubtitle,
+                      actionLabel: l10n.commonTryAgain,
                       onAction: () =>
                           ref.invalidate(browseRecentlyPlayedProvider),
                     ),
@@ -163,10 +165,11 @@ class _RecentTrackRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Semantics(
       button: true,
-      label: 'Play ${track.title} by ${track.artist}',
+      label: l10n.browsePlayTrackSemantics(track.title, track.artist),
       excludeSemantics: true,
       child: Material(
         color: Colors.transparent,

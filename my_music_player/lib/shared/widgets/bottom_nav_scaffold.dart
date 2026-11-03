@@ -2,20 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_glass.dart';
 import '../../features/player/presentation/widgets/mini_player.dart';
 import 'app_bottom_nav.dart';
+import 'glass_background.dart';
 
 /// Persistent shell for the three main branches.
 ///
-/// The mini-player and custom pill navigation float over the page content;
-/// the page keeps its own scroll view and bottom padding.
+/// Below 600dp the mini-player and custom pill navigation float over the page
+/// content. At >= 600dp the pill is replaced by a left rail; the mini-player
+/// stays in the bottom slot, inset past the rail so neither overlaps the other
+/// or the page content.
 class BottomNavScaffold extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   const BottomNavScaffold({
     super.key,
     required this.navigationShell,
+    this.glassQuality = GlassQuality.blurred,
   });
+
+  /// Shell chrome quality. [GlassQuality.opaque] removes every shell blur.
+  final GlassQuality glassQuality;
 
   void _onItemTapped(int index) {
     navigationShell.goBranch(
@@ -42,23 +50,65 @@ class BottomNavScaffold extends ConsumerWidget {
         }
         Navigator.of(context, rootNavigator: true).maybePop();
       },
-      child: Scaffold(
-        extendBody: true,
-        body: navigationShell,
-        bottomNavigationBar: SafeArea(
-          top: false,
-          minimum: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const MiniPlayer(),
-              AppBottomNav(
-                currentIndex: navigationShell.currentIndex,
-                onSelected: _onItemTapped,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final useRail = constraints.maxWidth >= AppShellLayout.railBreakpoint;
+
+          return Scaffold(
+            backgroundColor: Colors.transparent,
+            extendBody: true,
+            body: GlassBackground(
+              child: useRail
+                  ? Row(
+                      children: [
+                        SafeArea(
+                          bottom: false,
+                          right: false,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppShellLayout.railSideInset,
+                              AppShellLayout.shellGap,
+                              0,
+                              AppShellLayout.shellGap,
+                            ),
+                            child: AppNavigationRail(
+                              currentIndex: navigationShell.currentIndex,
+                              onSelected: _onItemTapped,
+                              quality: glassQuality,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppShellLayout.railContentGap),
+                        Expanded(child: navigationShell),
+                      ],
+                    )
+                  : navigationShell,
+            ),
+            bottomNavigationBar: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(
+                bottom: AppShellLayout.shellGap,
               ),
-            ],
-          ),
-        ),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: useRail ? AppShellLayout.railContentInset : 0,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MiniPlayer(quality: glassQuality),
+                    if (!useRail)
+                      AppBottomNav(
+                        currentIndex: navigationShell.currentIndex,
+                        onSelected: _onItemTapped,
+                        quality: glassQuality,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

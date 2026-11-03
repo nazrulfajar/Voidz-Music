@@ -252,7 +252,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final value = tester.widget<Text>(find.text('System'));
+      final themeRow = find
+          .ancestor(of: find.text('Theme'), matching: find.byType(InkWell))
+          .first;
+      final value = tester.widget<Text>(
+        find.descendant(of: themeRow, matching: find.text('System')),
+      );
       expect(value.style?.color, AppColors.light.textSecondary);
     });
   });

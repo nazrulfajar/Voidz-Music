@@ -85,6 +85,10 @@ class SettingsController {
     await _updateSettings((settings) => settings.appThemeMode = mode);
   }
 
+  Future<void> setAppLanguageMode(AppLanguageMode mode) async {
+    await _updateSettings((settings) => settings.appLanguageMode = mode);
+  }
+
   Future<void> clearCache() async {
     final cacheManager = _ref.read(cacheManagerProvider);
     final trackRepo = _ref.read(trackRepositoryProvider);

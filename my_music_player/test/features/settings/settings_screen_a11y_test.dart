@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
+import 'package:my_music_player/core/theme/app_glass.dart';
 import 'package:my_music_player/features/cache/presentation/providers/cache_stats_provider.dart';
 import 'package:my_music_player/features/player/domain/entities/track.dart';
 import 'package:my_music_player/features/recap/domain/entities/recap.dart';
@@ -12,10 +16,27 @@ import 'package:my_music_player/features/recap/presentation/screens/recap_screen
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
 import 'package:my_music_player/features/settings/presentation/screens/settings_screen.dart';
+import 'package:my_music_player/shared/widgets/glass_background.dart';
+import 'package:my_music_player/shared/widgets/glass_surface.dart';
 
 import '../../helpers/pump_app.dart';
 
 class _FakeSettingsController extends Fake implements SettingsController {}
+
+class _TogglingSettingsController extends Fake implements SettingsController {
+  _TogglingSettingsController(this.model, this.updates);
+
+  final AppSettingsModel model;
+  final StreamController<AppSettingsModel> updates;
+  bool? resumeOnStartup;
+
+  @override
+  Future<void> toggleResumeOnStartup(bool enabled) async {
+    resumeOnStartup = enabled;
+    model.resumeOnStartup = enabled;
+    updates.add(model);
+  }
+}
 
 void main() {
   Future<void> pumpSettings(
@@ -92,6 +113,7 @@ void main() {
       ),
       themeMode: themeMode,
       textScale: textScale,
+      locale: const Locale('id'),
     );
     await tester.pumpAndSettle();
   }
@@ -207,6 +229,68 @@ void main() {
       );
     });
 
+    testWidgets('boolean rows expose visible switches with toggled semantics',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      final model = AppSettingsModel();
+      final updates = StreamController<AppSettingsModel>.broadcast();
+      addTearDown(updates.close);
+      final toggling = _TogglingSettingsController(model, updates);
+
+      await pumpApp(
+        tester,
+        ProviderScope(
+          overrides: [
+            appSettingsProvider.overrideWith((ref) async* {
+              yield model;
+              yield* updates.stream;
+            }),
+            cacheStatsProvider.overrideWith(
+              (ref) async => CacheStats(
+                totalCachedTracks: 2,
+                totalCacheSizeBytes: 100 * 1024 * 1024,
+                maxCacheSizeBytes: 1024 * 1024 * 1024,
+                usagePercentage: 0.1,
+                pinnedTrackIds: const [],
+              ),
+            ),
+            settingsControllerProvider.overrideWithValue(toggling),
+          ],
+          child: const SettingsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final label = find.text('Resume on startup');
+      expect(label, findsOneWidget);
+      final row =
+          find.ancestor(of: label, matching: find.byType(InkWell)).first;
+      final switchFinder =
+          find.descendant(of: row, matching: find.byType(Switch));
+      expect(switchFinder, findsOneWidget);
+      expect(find.byType(Switch), findsNWidgets(5));
+      expect(
+        tester.getSize(switchFinder).height,
+        greaterThanOrEqualTo(48),
+      );
+      expect(find.text('On'), findsNothing);
+      expect(find.text('Off'), findsNothing);
+
+      var node =
+          tester.getSemantics(find.bySemanticsLabel('Resume on startup'));
+      expect(node.label, contains('Resume on startup'));
+      expect(node.flagsCollection.isToggled, isNot(Tristate.none));
+      expect(node.flagsCollection.isToggled, Tristate.isTrue);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(toggling.resumeOnStartup, isFalse);
+      node = tester.getSemantics(find.bySemanticsLabel('Resume on startup'));
+      expect(node.flagsCollection.isToggled, Tristate.isFalse);
+      semantics.dispose();
+    });
+
     for (final themeMode in [ThemeMode.dark, ThemeMode.light]) {
       testWidgets(
         'stays overflow-free at 200% text scale (${themeMode.name})',
@@ -238,7 +322,8 @@ void main() {
       await pumpSettings(tester, themeMode: ThemeMode.light);
 
       final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-      expect(scaffold.backgroundColor, AppColors.light.background);
+      expect(scaffold.backgroundColor, Colors.transparent);
+      expect(find.byType(GlassBackground), findsOneWidget);
 
       final sectionTitle = tester.widget<Text>(find.text('PLAYBACK'));
       expect(sectionTitle.style?.color, AppColors.light.textSecondary);
@@ -246,17 +331,22 @@ void main() {
       final rowLabel = tester.widget<Text>(find.text('Audio quality'));
       expect(rowLabel.style?.color, AppColors.light.textPrimary);
 
-      final card = tester.widget<Material>(
-        find
-            .ancestor(
-              of: find.text('Audio quality'),
-              matching: find.byType(Material),
-            )
-            .first,
+      final group = find.byKey(const Key('settings-group-playback'));
+      expect(
+        tester.widget<GlassSurface>(group).quality,
+        GlassQuality.frosted,
       );
-      expect(card.color, AppColors.light.surface);
-      final shape = card.shape! as RoundedRectangleBorder;
-      expect(shape.side.color, AppColors.light.border);
+      final surface = tester.widget<Container>(
+        find.descendant(of: group, matching: find.byType(Container)).first,
+      );
+      final decoration = surface.decoration! as BoxDecoration;
+      expect(
+        decoration.color,
+        AppGlass.light.card.frostedFill(AppColors.light.surface),
+      );
+      final foreground = surface.foregroundDecoration! as BoxDecoration;
+      final border = foreground.border! as Border;
+      expect(border.top.color, AppGlass.light.card.border);
 
       final value = tester.widget<Text>(find.text('Medium'));
       expect(value.style?.color, AppColors.light.textSecondary);

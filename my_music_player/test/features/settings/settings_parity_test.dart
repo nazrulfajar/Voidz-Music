@@ -6,10 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_music_player/core/constants/app_info.dart';
 import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
+import 'package:my_music_player/core/theme/app_glass.dart';
 import 'package:my_music_player/features/cache/presentation/providers/cache_stats_provider.dart';
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
 import 'package:my_music_player/features/settings/presentation/screens/settings_screen.dart';
+import 'package:my_music_player/shared/widgets/glass_surface.dart';
 
 import '../../helpers/pump_app.dart';
 
@@ -184,7 +186,7 @@ void main() {
       }
 
       expect(find.text('1.2 GB / 2 GB'), findsOneWidget);
-      expect(find.byType(Switch), findsNothing);
+      expect(find.byType(Switch), findsNWidgets(5));
 
       await tester.tap(find.text('Storage limit'));
       await tester.pumpAndSettle();
@@ -281,22 +283,27 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('rows use surface and border tokens in light theme', (
+    testWidgets('rows use glass card tokens in light theme', (
       tester,
     ) async {
       await pumpSettings(tester, themeMode: ThemeMode.light);
 
-      final group = tester.widget<Material>(
-        find
-            .ancestor(
-              of: find.text('Audio quality'),
-              matching: find.byType(Material),
-            )
-            .first,
+      final groupKey = find.byKey(const Key('settings-group-playback'));
+      expect(
+        tester.widget<GlassSurface>(groupKey).quality,
+        GlassQuality.frosted,
       );
-      expect(group.color, AppColors.light.surface);
-      final shape = group.shape! as RoundedRectangleBorder;
-      expect(shape.side.color, AppColors.light.border);
+      final surface = tester.widget<Container>(
+        find.descendant(of: groupKey, matching: find.byType(Container)).first,
+      );
+      final decoration = surface.decoration! as BoxDecoration;
+      expect(
+        decoration.color,
+        AppGlass.light.card.frostedFill(AppColors.light.surface),
+      );
+      final foreground = surface.foregroundDecoration! as BoxDecoration;
+      final border = foreground.border! as Border;
+      expect(border.top.color, AppGlass.light.card.border);
 
       final label = tester.widget<Text>(find.text('Audio quality'));
       expect(label.style?.color, AppColors.light.textPrimary);

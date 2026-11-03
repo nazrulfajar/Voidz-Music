@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
+import '../../../../shared/widgets/glass_surface.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
 import '../../data/repositories/playlist_repository_impl.dart';
@@ -22,10 +25,11 @@ class RecentlyPlayedScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final dataAsync = ref.watch(recentlyPlayedProvider);
 
     return Scaffold(
-      backgroundColor: tokens.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -77,7 +81,7 @@ class RecentlyPlayedScreen extends ConsumerWidget {
                         child: CircularProgressIndicator(color: tokens.accent),
                       ),
                       error: (error, stackTrace) => AppErrorState(
-                        error: 'Failed to load listening history',
+                        error: l10n.recentlyPlayedLoadError,
                         onRetry: () => ref.invalidate(recentlyPlayedProvider),
                       ),
                     ),
@@ -96,6 +100,7 @@ class RecentlyPlayedScreen extends ConsumerWidget {
     WidgetRef ref,
   ) async {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final action = await showModalBottomSheet<_RecentAction>(
       context: context,
       backgroundColor: tokens.row,
@@ -116,11 +121,11 @@ class RecentlyPlayedScreen extends ConsumerWidget {
                   color: sheetTokens.textPrimary,
                 ),
                 title: Text(
-                  'Clear history',
+                  l10n.recentlyPlayedClear,
                   style: TextStyle(color: sheetTokens.textPrimary),
                 ),
                 subtitle: Text(
-                  'Remove all listening history',
+                  l10n.recentlyPlayedClearSubtitle,
                   style: TextStyle(color: sheetTokens.textSecondary),
                 ),
                 onTap: () => Navigator.pop(
@@ -142,6 +147,7 @@ class RecentlyPlayedScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -149,26 +155,24 @@ class RecentlyPlayedScreen extends ConsumerWidget {
         return AlertDialog(
           backgroundColor: tokens.row,
           title: Text(
-            'Clear listening history?',
+            l10n.recentlyPlayedClearTitle,
             style: TextStyle(color: tokens.textPrimary),
           ),
           content: Text(
-            'This permanently removes all play history and recently played '
-            'tracks. Listening recap totals will change. Your play counts '
-            'are kept.',
+            l10n.recentlyPlayedClearBody,
             style: TextStyle(color: tokens.textSecondary),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
               child: Text(
-                'Cancel',
+                l10n.commonCancelAction,
                 style: TextStyle(color: tokens.textSecondary),
               ),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Clear history'),
+              child: Text(l10n.recentlyPlayedClear),
             ),
           ],
         );
@@ -190,18 +194,19 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     return Row(
       children: [
         AppIconButton(
           icon: Icons.arrow_back_ios_new_rounded,
-          semanticLabel: 'Back',
+          semanticLabel: l10n.commonBack,
           onPressed: onBack,
           iconSize: 18,
           filled: false,
         ),
         Expanded(
           child: Text(
-            'Recently played',
+            l10n.libraryRecentlyPlayed,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,
@@ -212,7 +217,7 @@ class _Header extends StatelessWidget {
         ),
         AppIconButton(
           icon: Icons.more_horiz_rounded,
-          semanticLabel: 'More options',
+          semanticLabel: l10n.commonMoreOptions,
           onPressed: onMore,
           iconSize: 24,
           filled: false,
@@ -236,27 +241,58 @@ class _History extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    // TASK-042: at 200% scale the summary alone is taller than the viewport
+    // remainder, so the whole history becomes one scrollable surface. Normal
+    // scale keeps the fixed summary + scrolling track list.
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.4;
+
+    final summary = _SummaryCard(
+      uniqueTrackCount: data.uniqueTrackCount,
+      onPlayRecent: onPlayRecent,
+    );
+    final summaryText = Text(
+      l10n.recentlyPlayedSummary(data.uniqueTrackCount),
+      style: TextStyle(fontSize: 12, color: tokens.textSecondary),
+    );
+    final section = AppSectionHeader(
+      title: l10n.recentlyPlayedTracks,
+      padding: const EdgeInsets.fromLTRB(
+        0,
+        AppSpacing.space5,
+        0,
+        AppSpacing.space2,
+      ),
+    );
+
+    if (largeText) {
+      return ListView(
+        padding: const EdgeInsets.only(
+          bottom: AppSpacing.bottomPlayerPadding,
+        ),
+        children: [
+          summary,
+          const SizedBox(height: AppSpacing.space2),
+          summaryText,
+          section,
+          for (var index = 0; index < data.tracks.length; index++) ...[
+            if (index > 0) const SizedBox(height: AppSpacing.space2),
+            _RecentTrackRow(
+              track: data.tracks[index],
+              onTap: () => onTrackTap(data.tracks[index]),
+            ),
+          ],
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SummaryCard(
-          uniqueTrackCount: data.uniqueTrackCount,
-          onPlayRecent: onPlayRecent,
-        ),
+        summary,
         const SizedBox(height: AppSpacing.space2),
-        Text(
-          '${data.uniqueTrackCount} unique tracks · last 30 days',
-          style: TextStyle(fontSize: 12, color: tokens.textSecondary),
-        ),
-        const AppSectionHeader(
-          title: 'Tracks',
-          padding: EdgeInsets.fromLTRB(
-            0,
-            AppSpacing.space5,
-            0,
-            AppSpacing.space2,
-          ),
-        ),
+        summaryText,
+        section,
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.only(
@@ -291,78 +327,81 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
-    return Container(
+    final l10n = AppLocalizations.of(context);
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.space4),
-      decoration: BoxDecoration(
-        color: tokens.row,
+      child: GlassSurface.card(
+        key: const Key('recently-played-summary-glass'),
+        quality: GlassQuality.blurred,
         borderRadius: BorderRadius.circular(AppRadius.xxl),
-        border: Border.all(color: tokens.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: tokens.raised,
-                  shape: BoxShape.circle,
+        padding: const EdgeInsets.all(AppSpacing.space4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: tokens.raised,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.schedule_rounded,
+                    size: 24,
+                    color: tokens.textPrimary,
+                  ),
                 ),
-                child: Icon(
-                  Icons.schedule_rounded,
-                  size: 24,
-                  color: tokens.textPrimary,
+                const SizedBox(width: AppSpacing.space3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.recentlyPlayedOverline,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 1.2,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        l10n.recentlyPlayedUniqueCount(uniqueTrackCount),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        l10n.recentlyPlayedWindow,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.space3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LISTENING HISTORY',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 1.2,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$uniqueTrackCount unique tracks',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: tokens.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'Last 30 days',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.space3),
-          SizedBox(
-            width: double.infinity,
-            height: AppSpacing.space12,
-            child: FilledButton.icon(
-              onPressed: onPlayRecent,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Play recent'),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.space3),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppSpacing.space12),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onPlayRecent,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: Text(l10n.recentlyPlayedPlay),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -377,49 +416,63 @@ class _RecentTrackRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
-    return InkWell(
-      onTap: onTap,
+    return GlassSurface.card(
+      key: ValueKey('recently-played-row-glass-${track.sourceId}'),
+      quality: GlassQuality.frosted,
       borderRadius: BorderRadius.circular(AppRadius.xl),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 72),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.space3,
-          vertical: AppSpacing.space2,
-        ),
-        decoration: BoxDecoration(
-          color: tokens.row,
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          border: Border.all(color: tokens.border),
-        ),
-        child: Row(
-          children: [
-            AppArtwork(
-              localPath: track.localThumbnailPath,
-              imageUrl: track.thumbnailUrl,
-              size: 44,
-              radius: AppRadius.md,
-            ),
-            const SizedBox(width: AppSpacing.space3),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 72),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.space3,
+                vertical: AppSpacing.space2,
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: tokens.textPrimary,
+                  AppArtwork(
+                    localPath: track.localThumbnailPath,
+                    imageUrl: track.thumbnailUrl,
+                    size: 44,
+                    radius: AppRadius.md,
+                  ),
+                  const SizedBox(width: AppSpacing.space3),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          track.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(width: AppSpacing.space2),
                   Text(
-                    track.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    _formatDuration(track.durationMs),
                     style: TextStyle(
                       fontSize: 12,
                       color: tokens.textSecondary,
@@ -428,12 +481,7 @@ class _RecentTrackRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.space2),
-            Text(
-              _formatDuration(track.durationMs),
-              style: TextStyle(fontSize: 12, color: tokens.textSecondary),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -447,11 +495,12 @@ class _EmptyHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AppEmptyState(
       icon: Icons.history_rounded,
-      title: 'No listening history',
-      subtitle: 'Tracks you play will appear here.',
-      actionLabel: 'Search music',
+      title: l10n.recentlyPlayedEmptyTitle,
+      subtitle: l10n.recentlyPlayedEmptySubtitle,
+      actionLabel: l10n.librarySearchMusic,
       onAction: onSearch,
     );
   }

@@ -47,6 +47,7 @@ Future<void> _pumpLyrics(
   WidgetTester tester, {
   required Lyrics lyrics,
   double textScale = 1.0,
+  Locale locale = const Locale('en'),
 }) async {
   await pumpApp(
     tester,
@@ -63,6 +64,7 @@ Future<void> _pumpLyrics(
       child: const Scaffold(body: LyricsView()),
     ),
     textScale: textScale,
+    locale: locale,
   );
   await tester.pumpAndSettle();
 }
@@ -120,5 +122,22 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('LYRICS'), findsOneWidget);
+  });
+
+  testWidgets('synced lyrics copy follows the Indonesian locale',
+      (tester) async {
+    await _pumpLyrics(tester, lyrics: _synced, locale: const Locale('id'));
+
+    expect(find.text('LIRIK'), findsOneWidget);
+    expect(find.text('Sinkron'), findsOneWidget);
+    expect(find.text('Lirik sinkron · LRCLIB'), findsOneWidget);
+  });
+
+  testWidgets('missing lyrics copy follows the Indonesian locale',
+      (tester) async {
+    await _pumpLyrics(tester, lyrics: _notFound, locale: const Locale('id'));
+
+    expect(find.text('Lirik tidak ditemukan'), findsOneWidget);
+    expect(find.text('Pemutaran berlanjut tanpa lirik.'), findsOneWidget);
   });
 }
