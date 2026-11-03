@@ -97,6 +97,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.space2,
+                          vertical: AppSpacing.space2,
                         ),
                         child: Row(
                           children: [
@@ -108,9 +109,10 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                 radius: AppRadius.md,
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.space2),
+                            const SizedBox(width: AppSpacing.space3),
                             Expanded(
                               child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -125,7 +127,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    track.artist,
+                                    '${track.artist} · ${track.source.name}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: textTheme.labelSmall?.copyWith(
@@ -166,7 +168,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                       const Positioned(
                         left: AppSpacing.screenInset,
                         right: AppSpacing.screenInset,
-                        bottom: 0,
+                        bottom: AppSpacing.xxs,
                         child: _MiniPlayerProgress(),
                       ),
                     ],

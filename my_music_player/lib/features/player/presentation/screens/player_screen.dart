@@ -42,6 +42,7 @@ class _PlayerLayout {
 
   static const double contentMaxWidth = 420.0;
   static const double horizontalInset = 16.0;
+  static const double metadataInset = 24.0;
   static const double twoPaneInset = 24.0;
   static const double playButtonSize = 76.0;
 
@@ -290,6 +291,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     AppColorTokens tokens,
   ) {
     final artworkSize = _portraitArtworkSize(constraints);
+    final spacious = constraints.maxHeight >= 760;
 
     return Column(
       children: [
@@ -303,48 +305,57 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           child: _buildHeader(context, track, tokens),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(
-              horizontal: _PlayerLayout.horizontalInset,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: _PlayerLayout.contentMaxWidth,
+          child: LayoutBuilder(
+            builder: (context, bodyConstraints) {
+              return SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _PlayerLayout.metadataInset,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: AppSpacing.md),
-                    Center(child: _buildArtwork(track, artworkSize)),
-                    const SizedBox(height: AppSpacing.lg),
-                    if (_hasQuality(track)) ...[
-                      Center(child: _buildQualityBadge(track, tokens)),
-                      const SizedBox(height: AppSpacing.lg),
-                    ],
-                    _buildTitleRow(context, track, tokens),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildSeek(context, playerState, tokens),
-                    const SizedBox(height: AppSpacing.xs),
-                    _buildTimes(playerState, tokens),
-                    if (playerState.errorMessage != null) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      _buildErrorCard(playerState, track),
-                    ],
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: _PlayerLayout.contentMaxWidth,
+                      minHeight: bodyConstraints.maxHeight,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: AppSpacing.space3),
+                        Center(child: _buildArtwork(track, artworkSize)),
+                        SizedBox(
+                          height:
+                              spacious ? AppSpacing.space10 : AppSpacing.space4,
+                        ),
+                        if (_hasQuality(track)) ...[
+                          Center(child: _buildQualityBadge(track, tokens)),
+                          const SizedBox(height: AppSpacing.space4),
+                        ],
+                        _buildTitleRow(context, track, tokens),
+                        const SizedBox(height: AppSpacing.space2),
+                        _buildSeek(context, playerState, tokens),
+                        const SizedBox(height: AppSpacing.space1),
+                        _buildTimes(playerState, tokens),
+                        if (playerState.errorMessage != null) ...[
+                          const SizedBox(height: AppSpacing.space4),
+                          _buildErrorCard(playerState, track),
+                        ],
+                        const SizedBox(height: AppSpacing.space4),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             _PlayerLayout.horizontalInset,
             0,
             _PlayerLayout.horizontalInset,
-            AppSpacing.sm,
+            spacious ? AppSpacing.space3 : AppSpacing.space2,
           ),
           child: Center(
             child: ConstrainedBox(
@@ -356,7 +367,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildControls(context, playerState, tokens),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(
+                    height: spacious ? AppSpacing.space8 : AppSpacing.space3,
+                  ),
                   _buildDock(context, playerState, tokens),
                 ],
               ),
@@ -416,6 +429,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           Expanded(
                             child: SingleChildScrollView(
                               physics: const ClampingScrollPhysics(),
+                              // Keep the edge thumb inside the scroll clip.
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.space2,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -456,7 +473,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   double _portraitArtworkSize(BoxConstraints constraints) {
-    final widthCap = constraints.maxWidth - _PlayerLayout.horizontalInset * 2;
+    final widthCap = constraints.maxWidth - _PlayerLayout.metadataInset * 2;
     final heightBudget =
         constraints.maxHeight - _PlayerLayout.artworkReservedHeight;
     final size = math.min(widthCap, heightBudget);
@@ -464,7 +481,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   bool _hasQuality(Track track) =>
-      track.audioFormat != null || track.bitrateKbps != null;
+      (track.audioFormat?.trim().isNotEmpty ?? false) ||
+      (track.bitrateKbps ?? 0) > 0;
 
   /// 48dp chrome button for PlayerBack/PlayerMore/PlayerLike.
   Widget _buildGlassIconButton({
@@ -561,6 +579,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 style: TextStyle(color: tokens.textPrimary),
               ),
             ),
+            if (track.album?.isNotEmpty ?? false)
+              MenuItemButton(
+                onPressed: () => _navigateToAlbum(
+                  context,
+                  ref,
+                  track.album!,
+                  track.artist,
+                ),
+                child: Text(
+                  track.album!,
+                  style: TextStyle(color: tokens.textPrimary),
+                ),
+              ),
           ],
           builder: (context, controller, child) {
             return _buildGlassIconButton(
@@ -583,49 +614,84 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildArtwork(Track track, double size) {
-    return AnimatedSwitcher(
-      duration: _motion(context, 300),
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeIn,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.96, end: 1).animate(animation),
-            child: child,
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: OverflowBox(
+              minWidth: size + AppSpacing.space12,
+              maxWidth: size + AppSpacing.space12,
+              minHeight: size + AppSpacing.space12,
+              maxHeight: size + AppSpacing.space12,
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.space2),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppGlass.of(context).chrome.border),
+                ),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppGlass.of(context).chrome.border,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        );
-      },
-      child: DoubleTapArtwork(
-        key: ValueKey('player-artwork-${track.sourceId}'),
-        track: track,
-        size: size,
-        onDoubleTap: () {
-          ref.read(playerControllerProvider.notifier).toggleLike();
-        },
-      ),
+        ),
+        AnimatedSwitcher(
+          duration: _motion(context, 300),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.96, end: 1).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: DoubleTapArtwork(
+            key: ValueKey('player-artwork-${track.sourceId}'),
+            track: track,
+            size: size,
+            onDoubleTap: () {
+              ref.read(playerControllerProvider.notifier).toggleLike();
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildQualityBadge(Track track, AppColorTokens tokens) {
     return Container(
-      width: 170,
       constraints: const BoxConstraints(minHeight: 27),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.space4,
+        vertical: AppSpacing.space1,
+      ),
       decoration: BoxDecoration(
         color: tokens.background,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: tokens.qualityOutline),
       ),
-      alignment: Alignment.center,
       child: Text(
         [
-          if (track.audioFormat != null) track.audioFormat!.toUpperCase(),
-          if (track.bitrateKbps != null) '${track.bitrateKbps} kbps',
+          if ((track.bitrateKbps ?? 0) > 0) '${track.bitrateKbps} kbps',
+          if (track.audioFormat?.trim().isNotEmpty ?? false)
+            track.audioFormat!.trim().toUpperCase(),
         ].join(' · '),
         style: TextStyle(
           fontSize: 10,
-          color: tokens.textSecondary,
+          color: tokens.textPrimary,
         ),
+        textAlign: TextAlign.center,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -639,7 +705,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   ) {
     final l10n = AppLocalizations.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: AnimatedSwitcher(
@@ -658,7 +724,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             },
             child: Column(
               key: ValueKey('player-meta-${track.sourceId}'),
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
                   track.title,
@@ -672,48 +738,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Wrap(
-                  spacing: 4,
-                  children: [
-                    GestureDetector(
-                      onTap: () => _navigateToArtist(
-                        context,
-                        ref,
-                        track.artist,
-                      ),
-                      child: Text(
-                        track.artist,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: tokens.textSecondary,
-                        ),
-                      ),
+                GestureDetector(
+                  onTap: () => _navigateToArtist(
+                    context,
+                    ref,
+                    track.artist,
+                  ),
+                  child: Text(
+                    track.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 21 / 15,
+                      color: tokens.textSecondary,
                     ),
-                    if (track.album != null && track.album!.isNotEmpty) ...[
-                      Text(
-                        '·',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: tokens.textSecondary,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => _navigateToAlbum(
-                          context,
-                          ref,
-                          track.album!,
-                          track.artist,
-                        ),
-                        child: Text(
-                          track.album!,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: tokens.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -738,18 +778,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     PlayerState playerState,
     AppColorTokens tokens,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: SliderTheme(
-        data: SliderTheme.of(context).copyWith(
-          activeTrackColor: tokens.accent,
-          inactiveTrackColor: tokens.track,
-          thumbColor: tokens.accent,
-          trackHeight: 5,
-          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.5),
-          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-        ),
+    return SliderTheme(
+      data: SliderTheme.of(context).copyWith(
+        activeTrackColor: tokens.accent,
+        inactiveTrackColor: tokens.track,
+        thumbColor: tokens.accent,
+        trackHeight: 5,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.5),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+      ),
+      child: SizedBox(
+        height: _PlayerLayout.secondaryControlSize,
         child: Slider(
+          padding: EdgeInsets.zero,
           value: playerState.position.inMilliseconds.toDouble().clamp(
                 0.0,
                 playerState.duration.inMilliseconds > 0
@@ -770,27 +811,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildTimes(PlayerState playerState, AppColorTokens tokens) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            _formatDuration(playerState.position),
-            style: TextStyle(
-              fontSize: 11,
-              color: tokens.textSecondary,
-            ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          _formatDuration(playerState.position),
+          style: TextStyle(
+            fontSize: 11,
+            color: tokens.textSecondary,
           ),
-          Text(
-            _formatDuration(playerState.duration),
-            style: TextStyle(
-              fontSize: 11,
-              color: tokens.textSecondary,
-            ),
+        ),
+        Text(
+          _formatDuration(playerState.duration),
+          style: TextStyle(
+            fontSize: 11,
+            color: tokens.textSecondary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -809,7 +847,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     BuildContext context,
     PlayerState playerState,
     AppColorTokens tokens, {
-    double horizontalPadding = AppSpacing.space5,
+    double horizontalPadding = 0,
   }) {
     final l10n = AppLocalizations.of(context);
     final canShuffle = playerState.currentQueue.length > 1;
@@ -837,7 +875,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           AppIconButton(
             icon: Icons.skip_previous_rounded,
             semanticLabel: l10n.playerPrevious,
-            iconSize: 21,
+            iconSize: 28,
             filled: false,
             onPressed: () {
               ref.read(playerControllerProvider.notifier).playPrevious();
@@ -847,7 +885,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           AppIconButton(
             icon: Icons.skip_next_rounded,
             semanticLabel: l10n.playerNext,
-            iconSize: 21,
+            iconSize: 28,
             filled: false,
             onPressed: () {
               ref.read(playerControllerProvider.notifier).playNext();
@@ -939,7 +977,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                           ? Icons.pause_rounded
                           : Icons.play_arrow_rounded,
                       key: ValueKey(isPlaying),
-                      size: 28,
+                      size: 36,
                       color: tokens.onAccent,
                     ),
                   ),
@@ -1121,23 +1159,28 @@ class _DockItem extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.x4xl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: color,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.space2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: AppSpacing.space2),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

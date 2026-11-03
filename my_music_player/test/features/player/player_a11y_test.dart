@@ -12,7 +12,9 @@ import 'package:my_music_player/features/player/presentation/screens/player_scre
 import 'package:my_music_player/features/player/presentation/widgets/mini_player.dart';
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
+import 'package:my_music_player/shared/widgets/app_artwork.dart';
 import 'package:my_music_player/shared/widgets/app_icon_button.dart';
+import 'package:my_music_player/shared/widgets/glass_surface.dart';
 
 import '../../helpers/pump_app.dart';
 import 'presentation/providers/fakes.dart';
@@ -182,6 +184,7 @@ void main() {
 
     expect(find.text('Sleep Timer'), findsOneWidget);
     expect(find.text('Add to Playlist'), findsOneWidget);
+    expect(find.text('Starboy'), findsOneWidget);
   });
 
   testWidgets('mini player controls have labels and >= 48dp targets',
@@ -209,6 +212,29 @@ void main() {
       textScale: 2.0,
     );
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mini player matches cover, text and progress reference padding',
+      (tester) async {
+    await pumpApp(tester, _miniPlayerApp(_playerState()));
+
+    final surface = tester.getRect(find.byType(GlassSurface));
+    final artwork = tester.getRect(find.byType(AppArtwork));
+    final title = tester.getRect(find.text('Track v0'));
+    expect(surface.height, 66);
+    expect(artwork.size, const Size(46, 46));
+    expect(artwork.top - surface.top, 10);
+    expect(surface.bottom - artwork.bottom, 10);
+    expect(title.left - artwork.right, 12);
+
+    final artist = tester.widget<Text>(find.text('The Weeknd · youtube'));
+    expect(artist.maxLines, 1);
+    expect(artist.overflow, TextOverflow.ellipsis);
+    final progress = tester.getRect(find.bySemanticsLabel('Playback position'));
+    expect(progress.left - surface.left, 16);
+    expect(surface.right - progress.right, 16);
+    expect(surface.bottom - progress.bottom, 2);
     expect(tester.takeException(), isNull);
   });
 }
