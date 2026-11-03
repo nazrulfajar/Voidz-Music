@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'core/utils/app_logger.dart';
 import 'shared/widgets/app_chrome.dart';
 import 'features/player/presentation/widgets/mini_player.dart';
 import 'core/constants/enums.dart';
@@ -69,7 +70,7 @@ Future<void> main() async {
   try {
     await LocalProxyServer.instance.start().timeout(const Duration(seconds: 5));
   } catch (e) {
-    print('LocalProxyServer start failed (non-fatal): $e');
+    appLogger.d('LocalProxyServer start failed (non-fatal): $e');
   }
 
   // Request notification permission for Android 13+ — non-blocking.
@@ -81,7 +82,7 @@ Future<void> main() async {
           .request()
           .timeout(const Duration(seconds: 3));
     } catch (e) {
-      print('Permission request timeout/non-fatal: $e');
+      appLogger.d('Permission request timeout/non-fatal: $e');
     }
   }
 
@@ -104,7 +105,7 @@ Future<void> main() async {
       rewindInterval: const Duration(seconds: 10),
     ).timeout(const Duration(seconds: 5));
   } catch (e) {
-    print('JustAudioBackground init failed (non-fatal): $e');
+    appLogger.d('JustAudioBackground init failed (non-fatal): $e');
   }
 
   // Initialize Isar DB with timeout — critical, but don't hang splash forever
@@ -128,7 +129,7 @@ Future<void> main() async {
     ).timeout(const Duration(seconds: 10));
     // Premium: migrate cache dir in background (non-blocking)
     migrateCacheIfNeeded(isar)
-        .catchError((e) => print('migrateCache error: $e'));
+        .catchError((e) => appLogger.d('migrateCache error: $e'));
     // Sanitize crossfadeSeconds sentinel from old DB (Isar returns -9223372036854775808 for uninitialized int)
     try {
       final s = await isar.appSettingsModels.get(1);
@@ -137,10 +138,10 @@ Future<void> main() async {
           s.crossfadeSeconds = 0;
           await isar.appSettingsModels.put(s);
         });
-        print('Sanitized crossfadeSeconds sentinel');
+        appLogger.d('Sanitized crossfadeSeconds sentinel');
       }
     } catch (e) {
-      print('crossfade sanitize failed: $e');
+      appLogger.d('crossfade sanitize failed: $e');
     }
 
     // Create 1x1 transparent PNG for notification largeIcon placeholder (hide white box)
@@ -154,12 +155,12 @@ Future<void> main() async {
         await f.writeAsBytes(base64Decode(b64), flush: true);
       }
       AudioPlayerService.transparentArtPath = transparentPath;
-      print('Transparent art ready: $transparentPath');
+      appLogger.d('Transparent art ready: $transparentPath');
     } catch (e) {
-      print('Transparent art create failed: $e');
+      appLogger.d('Transparent art create failed: $e');
     }
   } catch (e) {
-    print(
+    appLogger.d(
         'Isar open failed/timeout: $e — retrying documents dir without timeout (fix hot restart hilang)');
     // Ponytail: jangan fallback ke temp dir (akan bikin DB kosong & history hilang setelah hot restart).
     // Retry sekali lagi dengan documents dir tanpa timeout, baru fallback error UI.
@@ -179,9 +180,9 @@ Future<void> main() async {
         ],
         directory: retryDir.path,
       );
-      print('Isar retry open succeeded: ${retryDir.path}');
+      appLogger.d('Isar retry open succeeded: ${retryDir.path}');
     } catch (e2) {
-      print('Retry Isar also failed: $e2');
+      appLogger.d('Retry Isar also failed: $e2');
       runApp(MaterialApp(
           home: Scaffold(
               body: Center(
@@ -233,13 +234,13 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
               .read(playerControllerProvider.notifier)
               .restoreQueueState()
               .catchError((e) {
-            print('restoreQueueState failed (non-fatal): $e');
+            appLogger.d('restoreQueueState failed (non-fatal): $e');
           }).timeout(const Duration(seconds: 8), onTimeout: () {
-            print('restoreQueueState timeout (non-fatal)');
+            appLogger.d('restoreQueueState timeout (non-fatal)');
           });
         }
       } catch (e) {
-        print('Settings load failed (non-fatal): $e');
+        appLogger.d('Settings load failed (non-fatal): $e');
       }
     });
   }

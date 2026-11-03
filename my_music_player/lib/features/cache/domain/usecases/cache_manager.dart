@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/enums.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../features/player/domain/entities/track.dart';
 import '../../../../features/player/domain/repositories/track_repository.dart';
 import '../../../../features/player/data/repositories/track_repository_impl.dart';
@@ -22,7 +23,7 @@ class CacheManager {
   Future<void> checkAndEvictCache() async {
     final result = await _trackRepo.getAllCachedTracks();
     result.fold(
-      (failure) => print('Failed to get cached tracks: \${failure.message}'),
+      (failure) => appLogger.d('Failed to get cached tracks: \${failure.message}'),
       (tracks) async {
         int totalSize = 0;
         final unpinnedTracks = <Track>[];
@@ -43,7 +44,7 @@ class CacheManager {
         }
         
         if (totalSize > maxCacheSizeBytes) {
-          print('Cache limit exceeded. Total: $totalSize, Max: $maxCacheSizeBytes. Evicting...');
+          appLogger.d('Cache limit exceeded. Total: $totalSize, Max: $maxCacheSizeBytes. Evicting...');
           
           // Sort by last played ascending (oldest first)
           unpinnedTracks.sort((a, b) {
@@ -100,9 +101,9 @@ class CacheManager {
       );
       
       await _trackRepo.updateTrack(updatedTrack);
-      print('Evicted track from cache: \${track.title}');
+      appLogger.d('Evicted track from cache: \${track.title}');
     } catch (e) {
-      print('Failed to evict track \${track.sourceId}: \$e');
+      appLogger.d('Failed to evict track \${track.sourceId}: \$e');
     }
   }
 }
