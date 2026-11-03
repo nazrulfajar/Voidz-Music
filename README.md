@@ -1,5 +1,7 @@
 # Voidz Music
 
+[![CI](https://github.com/nazrulfajar/Voidz-Music/actions/workflows/ci.yml/badge.svg)](https://github.com/nazrulfajar/Voidz-Music/actions/workflows/ci.yml)
+
 Voidz Music is a personal, premium-feeling music player built with Flutter. The
 YouTube resolver runs entirely on-device (serverless), so the app works without
 a FastAPI/yt-dlp backend. It provides background playback, offline caching,
@@ -132,6 +134,16 @@ apksigner verify --print-certs build/app/outputs/flutter-apk/app-arm64-v8a-relea
 ```
 
 Do not distribute an APK signed with the Android debug key.
+
+### Automated releases
+
+Pull requests and pushes to `main` run `.github/workflows/ci.yml`
+(`flutter analyze`, `flutter test`, and a debug APK build).
+
+Pushing a tag such as `v0.1.1` runs `.github/workflows/release.yml`. The
+workflow rebuilds and tests the app, signs the split APKs with the repository
+secrets `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PROPERTIES`, verifies the
+signer, and creates the GitHub Release with the APKs and `SHA256SUMS.txt`.
 
 ## 📝 License
 
