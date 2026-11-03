@@ -245,14 +245,8 @@ class _PlaylistDetailBody extends ConsumerWidget {
                     },
                     itemBuilder: (context, index) {
                       final track = tracks[index];
-                      return Padding(
-                        key: ValueKey(
-                          'playlist-reorder-${track.sourceId}-$index',
-                        ),
-                        padding: const EdgeInsets.only(
-                          bottom: AppSpacing.space2,
-                        ),
-                        child: _PlaylistTrackRow(
+                      return _rowPadding(
+                        _PlaylistTrackRow(
                           track: track,
                           isPlaying: track.sourceId == playingId,
                           isSystem: false,
@@ -260,6 +254,9 @@ class _PlaylistDetailBody extends ConsumerWidget {
                               .read(playerControllerProvider.notifier)
                               .playTrack(track, queue: tracks),
                           onRemove: () => _removeTrack(ref, track),
+                        ),
+                        key: ValueKey(
+                          'playlist-reorder-${track.sourceId}-$index',
                         ),
                       );
                     },
@@ -300,8 +297,9 @@ class _PlaylistDetailBody extends ConsumerWidget {
     );
   }
 
-  Widget _rowPadding(Widget child) {
+  Widget _rowPadding(Widget child, {Key? key}) {
     return Padding(
+      key: key,
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screenInset,
         0,

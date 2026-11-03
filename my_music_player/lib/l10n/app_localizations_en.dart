@@ -858,6 +858,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeContinueListening => 'Continue Listening';
 
   @override
+  String get homeNowListening => 'Now Listening';
+
+  @override
+  String homePauseTrack(String title) {
+    return 'Pause $title';
+  }
+
+  @override
   String get homeRecentlyPlayed => 'Recently Played';
 
   @override
@@ -1305,6 +1313,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get miniPlayerProgress => 'Playback position';
+
+  @override
+  String get miniPlayerDismissHint => 'Swipe left or right to dismiss';
+
+  @override
+  String get miniPlayerDismiss => 'Dismiss player';
 
   @override
   String get errorRouteNotFoundTitle => 'Page not found';

@@ -137,7 +137,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(tester.widget<Text>(find.text('Track v0')).maxLines, 3);
+    expect(tester.widget<Text>(find.text('Track v0')).maxLines, 1);
 
     for (final label in const ['Lyrics', 'Queue (2)', 'Timer']) {
       expect(find.bySemanticsLabel(label), findsOneWidget, reason: label);

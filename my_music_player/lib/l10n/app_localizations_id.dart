@@ -857,6 +857,14 @@ class AppLocalizationsId extends AppLocalizations {
   String get homeContinueListening => 'Lanjutkan Mendengarkan';
 
   @override
+  String get homeNowListening => 'Sedang Mendengarkan';
+
+  @override
+  String homePauseTrack(String title) {
+    return 'Jeda $title';
+  }
+
+  @override
   String get homeRecentlyPlayed => 'Terakhir diputar';
 
   @override
@@ -1304,6 +1312,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get miniPlayerProgress => 'Posisi pemutaran';
+
+  @override
+  String get miniPlayerDismissHint => 'Geser kiri atau kanan untuk menutup';
+
+  @override
+  String get miniPlayerDismiss => 'Tutup pemutar';
 
   @override
   String get errorRouteNotFoundTitle => 'Halaman tidak ditemukan';

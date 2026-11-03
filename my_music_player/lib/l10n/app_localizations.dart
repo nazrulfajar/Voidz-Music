@@ -1412,6 +1412,18 @@ abstract class AppLocalizations {
   /// **'Continue Listening'**
   String get homeContinueListening;
 
+  /// No description provided for @homeNowListening.
+  ///
+  /// In en, this message translates to:
+  /// **'Now Listening'**
+  String get homeNowListening;
+
+  /// No description provided for @homePauseTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause {title}'**
+  String homePauseTrack(String title);
+
   /// No description provided for @homeRecentlyPlayed.
   ///
   /// In en, this message translates to:
@@ -2113,6 +2125,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Playback position'**
   String get miniPlayerProgress;
+
+  /// No description provided for @miniPlayerDismissHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe left or right to dismiss'**
+  String get miniPlayerDismissHint;
+
+  /// No description provided for @miniPlayerDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss player'**
+  String get miniPlayerDismiss;
 
   /// No description provided for @errorRouteNotFoundTitle.
   ///

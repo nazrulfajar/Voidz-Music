@@ -83,6 +83,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
+  Duration _motion(BuildContext context, int milliseconds) {
+    return MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : Duration(milliseconds: milliseconds);
+  }
+
   // Premium: push canonical detail without closing player, no tab-switch hack.
   // Player stays in stack so back returns to Now Playing (Spotify/Apple behavior).
   Future<void> _navigateToArtist(
@@ -577,12 +583,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildArtwork(Track track, double size) {
-    return DoubleTapArtwork(
-      track: track,
-      size: size,
-      onDoubleTap: () {
-        ref.read(playerControllerProvider.notifier).toggleLike();
+    return AnimatedSwitcher(
+      duration: _motion(context, 300),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(animation),
+            child: child,
+          ),
+        );
       },
+      child: DoubleTapArtwork(
+        key: ValueKey('player-artwork-${track.sourceId}'),
+        track: track,
+        size: size,
+        onDoubleTap: () {
+          ref.read(playerControllerProvider.notifier).toggleLike();
+        },
+      ),
     );
   }
 
@@ -621,65 +642,81 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                track.title,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  height: 34 / 28,
-                  color: tokens.textPrimary,
+          child: AnimatedSwitcher(
+            duration: _motion(context, 300),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.04),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
                 ),
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4,
-                children: [
-                  GestureDetector(
-                    onTap: () => _navigateToArtist(
-                      context,
-                      ref,
-                      track.artist,
-                    ),
-                    child: Text(
-                      track.artist,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
+              );
+            },
+            child: Column(
+              key: ValueKey('player-meta-${track.sourceId}'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    height: 34 / 28,
+                    color: tokens.textPrimary,
                   ),
-                  if (track.album != null && track.album!.isNotEmpty) ...[
-                    Text(
-                      '·',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: tokens.textSecondary,
-                      ),
-                    ),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  children: [
                     GestureDetector(
-                      onTap: () => _navigateToAlbum(
+                      onTap: () => _navigateToArtist(
                         context,
                         ref,
-                        track.album!,
                         track.artist,
                       ),
                       child: Text(
-                        track.album!,
+                        track.artist,
                         style: TextStyle(
                           fontSize: 15,
                           color: tokens.textSecondary,
                         ),
                       ),
                     ),
+                    if (track.album != null && track.album!.isNotEmpty) ...[
+                      Text(
+                        '·',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: tokens.textSecondary,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _navigateToAlbum(
+                          context,
+                          ref,
+                          track.album!,
+                          track.artist,
+                        ),
+                        child: Text(
+                          track.album!,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(width: AppSpacing.md),
@@ -871,20 +908,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 maxWidth: _PlayerLayout.playHaloSize,
                 minHeight: _PlayerLayout.playHaloSize,
                 maxHeight: _PlayerLayout.playHaloSize,
-                child: GlassSurface.chrome(
-                  key: const Key('player-play-halo'),
-                  quality: widget.glassQuality,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
+                child: AnimatedScale(
+                  scale: isPlaying ? 1 : 0.94,
+                  duration: _motion(context, 300),
+                  curve: Curves.easeOut,
+                  child: GlassSurface.chrome(
+                    key: const Key('player-play-halo'),
+                    quality: widget.glassQuality,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
                 ),
               ),
               SizedBox(
                 width: _PlayerLayout.playButtonSize,
                 height: _PlayerLayout.playButtonSize,
                 child: IconButton(
-                  icon: Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    size: 28,
-                    color: tokens.onAccent,
+                  icon: AnimatedSwitcher(
+                    duration: _motion(context, 200),
+                    transitionBuilder: (child, animation) {
+                      return ScaleTransition(
+                        scale: animation,
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Icon(
+                      isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      key: ValueKey(isPlaying),
+                      size: 28,
+                      color: tokens.onAccent,
+                    ),
                   ),
                   style: IconButton.styleFrom(
                     backgroundColor: tokens.accent,

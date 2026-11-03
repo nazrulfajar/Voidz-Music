@@ -7,6 +7,7 @@ import 'package:my_music_player/core/constants/app_info.dart';
 import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
 import 'package:my_music_player/core/theme/app_glass.dart';
+import 'package:my_music_player/core/theme/app_spacing.dart';
 import 'package:my_music_player/features/cache/presentation/providers/cache_stats_provider.dart';
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
@@ -314,6 +315,38 @@ void main() {
       expect(value.style?.fontSize, 12);
 
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('row value sits flush against the chevron and right edge', (
+      tester,
+    ) async {
+      await pumpSettings(tester);
+
+      final group = find.byKey(const Key('settings-group-playback'));
+      expect(
+        tester.widget<Text>(find.text('Medium')).textAlign,
+        TextAlign.right,
+      );
+      final value = tester.getRect(find.text('Medium'));
+      final chevrons = find.descendant(
+        of: group,
+        matching: find.byIcon(Icons.chevron_right),
+      );
+      final chevron = chevrons
+          .evaluate()
+          .map((element) => tester.getRect(find.byWidget(element.widget)))
+          .firstWhere(
+            (rect) => (rect.center.dy - value.center.dy).abs() < 4,
+          );
+
+      expect(value.right, closeTo(chevron.left - AppSpacing.space1, 0.5));
+      expect(
+        chevron.right,
+        closeTo(
+          tester.getRect(group).right - AppSpacing.space4,
+          0.5,
+        ),
+      );
     });
   });
 }

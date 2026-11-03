@@ -507,6 +507,15 @@
   "homeGreetingAfternoon": "Good Afternoon",
   "homeGreetingEvening": "Good Evening",
   "homeContinueListening": "Continue Listening",
+  "homeNowListening": "Now Listening",
+  "homePauseTrack": "Pause {title}",
+  "@homePauseTrack": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "homeRecentlyPlayed": "Recently Played",
   "homeNoRecentTitle": "No recently played tracks",
   "homeSearchMusic": "Search music",
@@ -794,6 +803,8 @@
   "shellTabLibrary": "Library",
   "miniPlayerOpen": "Open player",
   "miniPlayerProgress": "Playback position",
+  "miniPlayerDismissHint": "Swipe left or right to dismiss",
+  "miniPlayerDismiss": "Dismiss player",
   "errorRouteNotFoundTitle": "Page not found",
   "errorRouteNotFoundMessage": "We couldn't find that page. It may have moved or no longer exists.",
   "errorRouteGoHome": "Go Home"

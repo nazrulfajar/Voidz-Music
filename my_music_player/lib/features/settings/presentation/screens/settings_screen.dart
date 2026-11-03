@@ -777,7 +777,9 @@ class _SettingsRow extends StatelessWidget {
                 ),
               ] else if (value != null) ...[
                 const SizedBox(width: AppSpacing.space2),
-                Flexible(
+                // Tight flex keeps the value flush against the chevron/edge;
+                // a loose Flexible leaves its unused share after the chevron.
+                Expanded(
                   flex: 2,
                   child: Text(
                     value!,

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
@@ -13,7 +15,7 @@ import '../providers/player_controller.dart';
 
 /// Mini-player from `docs/DESIGN_SYSTEM.md` §6.1: 66dp, r20, glass chrome,
 /// 1px border, 46dp artwork and 2dp progress. No colour.
-class MiniPlayer extends ConsumerWidget {
+class MiniPlayer extends ConsumerStatefulWidget {
   const MiniPlayer({
     super.key,
     this.quality = GlassQuality.blurred,
@@ -23,7 +25,14 @@ class MiniPlayer extends ConsumerWidget {
   final GlassQuality quality;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MiniPlayer> createState() => _MiniPlayerState();
+}
+
+class _MiniPlayerState extends ConsumerState<MiniPlayer> {
+  double _horizontalDrag = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final track = ref.watch(
       playerControllerProvider.select((state) => state.currentTrack),
     );
@@ -37,12 +46,13 @@ class MiniPlayer extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
 
     void openPlayer() => context.push('/player');
-    void openLyrics() => context.push('/lyrics');
     void previous() =>
         ref.read(playerControllerProvider.notifier).playPrevious();
     void toggle() =>
         ref.read(playerControllerProvider.notifier).togglePlayPause();
     void next() => ref.read(playerControllerProvider.notifier).playNext();
+    void dismiss() =>
+        ref.read(playerControllerProvider.notifier).dismissPlayer();
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -54,95 +64,108 @@ class MiniPlayer extends ConsumerWidget {
             container: true,
             button: true,
             label: l10n.miniPlayerOpen,
+            hint: l10n.miniPlayerDismissHint,
             onTap: openPlayer,
+            customSemanticsActions: {
+              CustomSemanticsAction(label: l10n.miniPlayerDismiss): dismiss,
+            },
             child: GestureDetector(
               excludeFromSemantics: true,
               onTap: openPlayer,
               onVerticalDragEnd: (details) {
                 if ((details.primaryVelocity ?? 0) < -100) openPlayer();
               },
+              onHorizontalDragStart: (_) => _horizontalDrag = 0,
+              onHorizontalDragUpdate: (details) {
+                _horizontalDrag += details.delta.dx;
+              },
+              onHorizontalDragEnd: (details) {
+                if ((details.primaryVelocity ?? 0).abs() > 250 ||
+                    _horizontalDrag.abs() > 80) {
+                  dismiss();
+                }
+                _horizontalDrag = 0;
+              },
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 66),
                 child: GlassSurface.chrome(
-                  quality: quality,
+                  quality: widget.quality,
                   borderRadius: BorderRadius.circular(AppRadius.xxl),
                   child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      Row(
-                        children: [
-                          const SizedBox(width: 8),
-                          ExcludeSemantics(
-                            child: AppArtwork(
-                              localPath: track.localThumbnailPath,
-                              imageUrl: track.thumbnailUrl,
-                              size: 46,
-                              radius: AppRadius.md,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.space2,
+                        ),
+                        child: Row(
+                          children: [
+                            ExcludeSemantics(
+                              child: AppArtwork(
+                                localPath: track.localThumbnailPath,
+                                imageUrl: track.thumbnailUrl,
+                                size: 46,
+                                radius: AppRadius.md,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  track.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: textTheme.titleSmall?.copyWith(
-                                    color: tokens.textPrimary,
-                                    fontWeight: FontWeight.w700,
+                            const SizedBox(width: AppSpacing.space2),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    track.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.titleSmall?.copyWith(
+                                      color: tokens.textPrimary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  track.artist,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: tokens.textSecondary,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    track.artist,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: textTheme.labelSmall?.copyWith(
+                                      color: tokens.textSecondary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          AppIconButton(
-                            icon: Icons.skip_previous_rounded,
-                            semanticLabel: l10n.playerPrevious,
-                            iconSize: 18,
-                            filled: false,
-                            onPressed: previous,
-                          ),
-                          AppIconButton(
-                            icon: isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            semanticLabel:
-                                isPlaying ? l10n.playerPause : l10n.commonPlay,
-                            iconSize: 18,
-                            filled: false,
-                            onPressed: toggle,
-                          ),
-                          AppIconButton(
-                            icon: Icons.skip_next_rounded,
-                            semanticLabel: l10n.playerNext,
-                            iconSize: 18,
-                            filled: false,
-                            onPressed: next,
-                          ),
-                          AppIconButton(
-                            icon: Icons.lyrics_outlined,
-                            semanticLabel: l10n.playerDockLyrics,
-                            iconSize: 18,
-                            filled: false,
-                            onPressed: openLyrics,
-                          ),
-                          const SizedBox(width: 4),
-                        ],
+                            AppIconButton(
+                              icon: Icons.skip_previous_rounded,
+                              semanticLabel: l10n.playerPrevious,
+                              iconSize: 18,
+                              filled: false,
+                              onPressed: previous,
+                            ),
+                            AppIconButton(
+                              icon: isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              semanticLabel: isPlaying
+                                  ? l10n.playerPause
+                                  : l10n.commonPlay,
+                              iconSize: 18,
+                              filled: false,
+                              onPressed: toggle,
+                            ),
+                            AppIconButton(
+                              icon: Icons.skip_next_rounded,
+                              semanticLabel: l10n.playerNext,
+                              iconSize: 18,
+                              filled: false,
+                              onPressed: next,
+                            ),
+                          ],
+                        ),
                       ),
                       const Positioned(
-                        left: 10,
-                        right: 10,
+                        left: AppSpacing.screenInset,
+                        right: AppSpacing.screenInset,
                         bottom: 0,
                         child: _MiniPlayerProgress(),
                       ),

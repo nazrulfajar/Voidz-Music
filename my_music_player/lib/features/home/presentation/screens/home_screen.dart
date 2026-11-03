@@ -64,6 +64,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       } catch (_) {}
     }
 
+    final recentTracks = recentlyPlayedAsync.valueOrNull ?? const <Track>[];
+    final cardTrack = playerState.currentTrack ??
+        (recentTracks.isNotEmpty ? recentTracks.first : null);
+    final isCardCurrent = cardTrack != null &&
+        playerState.currentTrack?.sourceId == cardTrack.sourceId;
+    final cardQueue = isCardCurrent ? playerState.currentQueue : recentTracks;
+    final isCardFinished = isCardCurrent &&
+        playerState.duration > Duration.zero &&
+        playerState.position >= playerState.duration;
+    final isCardPlaying =
+        isCardCurrent && playerState.isPlaying && !isCardFinished;
+    final cardProgress =
+        isCardCurrent && playerState.duration.inMilliseconds > 0
+            ? (playerState.position.inMilliseconds /
+                    playerState.duration.inMilliseconds)
+                .clamp(0.0, 1.0)
+            : 0.0;
+
+    void onCardTap() {
+      if (cardTrack == null) return;
+      final controller = ref.read(playerControllerProvider.notifier);
+      if (isCardCurrent && !isCardFinished) {
+        controller.togglePlayPause();
+      } else {
+        controller.playTrack(cardTrack, queue: cardQueue);
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
@@ -124,196 +152,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: AppOfflineBanner(),
                         ),
 
-                      // Continue listening section
-                      if (recentlyPlayedAsync.valueOrNull?.isNotEmpty ?? false)
-                        AppSectionHeader(title: l10n.homeContinueListening),
-                      recentlyPlayedAsync.when(
-                        data: (tracks) {
-                          if (tracks.isEmpty) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.screenInset,
-                              ),
-                              child: AppEmptyState(
-                                compact: true,
-                                icon: Icons.history_rounded,
-                                title: l10n.homeNoRecentTitle,
-                                actionLabel: l10n.homeSearchMusic,
-                                onAction: () => context.go('/search'),
-                              ),
-                            );
-                          }
-                          final first = tracks.first;
-                          final isCurrent =
-                              playerState.currentTrack?.sourceId ==
-                                  first.sourceId;
-                          final progress =
-                              playerState.duration.inMilliseconds > 0
-                                  ? (playerState.position.inMilliseconds /
-                                          playerState.duration.inMilliseconds)
-                                      .clamp(0.0, 1.0)
-                                  : 0.0;
-                          return Padding(
+                      // Continue listening / now listening section.
+                      if (cardTrack != null)
+                        AppSectionHeader(
+                          title: isCardPlaying
+                              ? l10n.homeNowListening
+                              : l10n.homeContinueListening,
+                        ),
+                      if (cardTrack != null)
+                        _ContinueListeningCard(
+                          track: cardTrack,
+                          isCurrent: isCardCurrent,
+                          isPlaying: isCardPlaying,
+                          progress: cardProgress,
+                          onTap: onCardTap,
+                        )
+                      else
+                        recentlyPlayedAsync.when(
+                          data: (_) => Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.screenInset,
                             ),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minHeight: 98),
-                              child: GlassSurface.card(
-                                key: const Key('home-continue-glass'),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.xxl,
-                                ),
-                                child: Stack(
-                                  children: [
-                                    Positioned.fill(
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadius.xxl,
-                                        ),
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            AppRadius.xxl,
-                                          ),
-                                          onTap: () =>
-                                              _playTrack(first, tracks),
-                                        ),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(
-                                        AppSpacing.space3,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          AppArtwork(
-                                            localPath: first.localThumbnailPath,
-                                            imageUrl: first.thumbnailUrl,
-                                            size: 68,
-                                            radius: AppRadius.artworkSmall,
-                                          ),
-                                          const SizedBox(
-                                              width: AppSpacing.space3),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  first.title,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: theme
-                                                      .textTheme.titleMedium
-                                                      ?.copyWith(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: t.textPrimary,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                    height: AppSpacing.xs),
-                                                Text(
-                                                  '${first.artist} · '
-                                                  '${first.source.name}',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: theme
-                                                      .textTheme.bodySmall
-                                                      ?.copyWith(
-                                                    color: t.textSecondary,
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                    height: AppSpacing.space2),
-                                                ConstrainedBox(
-                                                  constraints:
-                                                      const BoxConstraints(
-                                                    maxWidth: 198,
-                                                  ),
-                                                  child: Container(
-                                                    height: 3,
-                                                    width: double.infinity,
-                                                    decoration: BoxDecoration(
-                                                      color: t.track,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              AppRadius.sm),
-                                                    ),
-                                                    alignment:
-                                                        Alignment.centerLeft,
-                                                    child: isCurrent
-                                                        ? FractionallySizedBox(
-                                                            widthFactor:
-                                                                progress,
-                                                            child: Container(
-                                                              color: t.accent,
-                                                            ),
-                                                          )
-                                                        : null,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                              width: AppSpacing.space2),
-                                          Semantics(
-                                            button: true,
-                                            label: l10n.homePlayTrack(
-                                              first.title,
-                                            ),
-                                            child: GestureDetector(
-                                              behavior: HitTestBehavior.opaque,
-                                              onTap: () =>
-                                                  _playTrack(first, tracks),
-                                              child: Container(
-                                                width: 48,
-                                                height: 48,
-                                                decoration: BoxDecoration(
-                                                  color: t.accent,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: Icon(
-                                                  Icons.play_arrow_rounded,
-                                                  color: t.onAccent,
-                                                  size: 24,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            child: AppEmptyState(
+                              compact: true,
+                              icon: Icons.history_rounded,
+                              title: l10n.homeNoRecentTitle,
+                              actionLabel: l10n.homeSearchMusic,
+                              onAction: () => context.go('/search'),
+                            ),
+                          ),
+                          loading: () => const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppSpacing.screenInset,
+                            ),
+                            child: ShimmerContinueCard(),
+                          ),
+                          error: (_, __) => Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.screenInset,
+                            ),
+                            child: Text(
+                              l10n.homeLoadError,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: t.textSecondary,
                               ),
                             ),
-                          );
-                        },
-                        loading: () => const Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: AppSpacing.screenInset,
-                          ),
-                          child: ShimmerContinueCard(),
-                        ),
-                        error: (_, __) => Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.screenInset,
-                          ),
-                          child: Text(
-                            l10n.homeLoadError,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: t.textSecondary,
-                            ),
                           ),
                         ),
-                      ),
 
                       const SizedBox(height: AppSpacing.sectionGap),
 
@@ -518,6 +403,163 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: AppSpacing.space6),
                     ],
                   ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Continue/now-listening card. Receives immutable playback state and a single
+/// callback; it never reads the player controller itself.
+class _ContinueListeningCard extends StatelessWidget {
+  const _ContinueListeningCard({
+    required this.track,
+    required this.isCurrent,
+    required this.isPlaying,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final Track track;
+  final bool isCurrent;
+  final bool isPlaying;
+  final double progress;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    final actionLabel = isPlaying
+        ? l10n.homePauseTrack(track.title)
+        : l10n.homePlayTrack(track.title);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenInset,
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 98),
+        child: GlassSurface.card(
+          key: const Key('home-continue-glass'),
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.xxl),
+                    onTap: onTap,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.space3),
+                child: Row(
+                  children: [
+                    AppArtwork(
+                      localPath: track.localThumbnailPath,
+                      imageUrl: track.thumbnailUrl,
+                      size: 68,
+                      radius: AppRadius.artworkSmall,
+                    ),
+                    const SizedBox(width: AppSpacing.space3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            track.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: tokens.textPrimary,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '${track.artist} · ${track.source.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.space2),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 198),
+                            child: Container(
+                              height: 3,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: tokens.track,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.sm,
+                                ),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              child: isCurrent
+                                  ? FractionallySizedBox(
+                                      widthFactor: progress,
+                                      child: Container(color: tokens.accent),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.space2),
+                    Semantics(
+                      button: true,
+                      label: actionLabel,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onTap,
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: tokens.accent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 200),
+                            transitionBuilder: (child, animation) {
+                              return ScaleTransition(
+                                scale: animation,
+                                child: FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Icon(
+                              isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              key: ValueKey(isPlaying),
+                              color: tokens.onAccent,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -24,6 +24,7 @@ import 'package:my_music_player/features/player/presentation/providers/player_co
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
 import 'package:my_music_player/l10n/app_localizations.dart';
+import 'package:my_music_player/shared/widgets/playlist_mosaic_cover.dart';
 
 import '../../helpers/pump_app.dart';
 import '../player/presentation/providers/fakes.dart';
@@ -233,6 +234,13 @@ void main() {
     final delegate =
         grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(delegate.crossAxisCount, 2);
+
+    final covers = find.descendant(
+      of: find.byType(PlaylistsScreen),
+      matching: find.byType(PlaylistMosaicCover),
+    );
+    final coverSize = tester.getSize(covers.first);
+    expect((coverSize.width - coverSize.height).abs(), lessThan(4));
 
     await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
     await tester.pumpAndSettle();

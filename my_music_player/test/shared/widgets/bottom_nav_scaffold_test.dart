@@ -203,7 +203,20 @@ Future<({ProviderContainer container, GoRouter router})> _pumpShell(
             ),
             child: AppChrome(
               router: router,
-              miniPlayer: withTrack ? const MiniPlayer() : null,
+              miniPlayer: withTrack
+                  ? Consumer(
+                      builder: (context, ref, _) {
+                        final hasTrack = ref.watch(
+                          playerControllerProvider.select(
+                            (state) => state.currentTrack != null,
+                          ),
+                        );
+                        return hasTrack
+                            ? const MiniPlayer()
+                            : const SizedBox.shrink();
+                      },
+                    )
+                  : null,
               child: child ?? const SizedBox.shrink(),
             ),
           );
@@ -353,17 +366,39 @@ void main() {
     expect(find.byType(MiniPlayer), findsOneWidget);
   });
 
-  testWidgets('mini-player lyrics action opens the immersive lyrics route',
+  testWidgets('mini-player no longer exposes a lyrics shortcut',
+      (tester) async {
+    await _pumpShell(tester, withTrack: true);
+
+    expect(
+      find.descendant(
+        of: find.byType(MiniPlayer),
+        matching: find.byIcon(Icons.lyrics_outlined),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('swiping the mini-player stops playback and clears the queue',
       (tester) async {
     final shell = await _pumpShell(tester, withTrack: true);
 
-    await tester.tap(find.byIcon(Icons.lyrics_outlined));
+    await tester.drag(
+      find.byType(MiniPlayer),
+      const Offset(-120, 0),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('lyrics-page'), findsOneWidget);
-    expect(find.byType(AppBottomNav), findsNothing);
+    expect(
+      shell.container.read(playerControllerProvider).currentTrack,
+      isNull,
+      reason: 'state must be cleared before the widget disappears',
+    );
+    expect(
+      shell.container.read(playerControllerProvider).currentQueue,
+      isEmpty,
+    );
     expect(find.byType(MiniPlayer), findsNothing);
-    expect(shell.router.canPop(), isTrue);
   });
 
   testWidgets('player is immersive: no navigation and no mini-player',

@@ -219,6 +219,8 @@
   "homeGreetingAfternoon": "Selamat Siang",
   "homeGreetingEvening": "Selamat Malam",
   "homeContinueListening": "Lanjutkan Mendengarkan",
+  "homeNowListening": "Sedang Mendengarkan",
+  "homePauseTrack": "Jeda {title}",
   "homeRecentlyPlayed": "Terakhir diputar",
   "homeNoRecentTitle": "Belum ada yang terakhir diputar",
   "homeSearchMusic": "Cari musik",
@@ -336,6 +338,8 @@
   "shellTabLibrary": "Library",
   "miniPlayerOpen": "Buka pemutar",
   "miniPlayerProgress": "Posisi pemutaran",
+  "miniPlayerDismissHint": "Geser kiri atau kanan untuk menutup",
+  "miniPlayerDismiss": "Tutup pemutar",
   "errorRouteNotFoundTitle": "Halaman tidak ditemukan",
   "errorRouteNotFoundMessage": "Kami tidak dapat menemukan halaman itu. Mungkin sudah dipindahkan atau tidak ada lagi.",
   "errorRouteGoHome": "Ke Beranda"

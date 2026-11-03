@@ -46,6 +46,29 @@ class _RecordingPlayerController extends PlayerController {
   }
 }
 
+class _DynamicPlayerController extends _RecordingPlayerController {
+  _DynamicPlayerController(Ref ref, PlayerState initial) : super(ref) {
+    state = initial;
+  }
+
+  @override
+  Future<void> togglePlayPause() async {
+    state = state.copyWith(isPlaying: !state.isPlaying);
+  }
+
+  @override
+  Future<void> playTrack(Track track, {List<Track>? queue}) async {
+    await super.playTrack(track, queue: queue);
+    state = PlayerState(
+      currentTrack: track,
+      currentQueue: queue ?? [track],
+      currentIndex: 0,
+      isPlaying: true,
+      duration: Duration(milliseconds: track.durationMs),
+    );
+  }
+}
+
 class _RouteStub extends StatelessWidget {
   const _RouteStub(this.label);
 
@@ -76,6 +99,7 @@ void main() {
     WidgetTester tester, {
     List<Track> recentlyPlayed = const <Track>[],
     List<Track> quickPicks = const <Track>[],
+    PlayerState? playerState,
     double textScale = 1.0,
     Locale? locale,
   }) async {
@@ -121,13 +145,15 @@ void main() {
             (ref) => Stream<bool>.value(true),
           ),
           playerControllerProvider.overrideWith(
-            (ref) => PlayerController(
-              FakeAudioPlayerService(),
-              FakeApiService(),
-              FakeTrackRepository(),
-              FakeCacheDownloadService(),
-              ref,
-            ),
+            (ref) => playerState == null
+                ? PlayerController(
+                    FakeAudioPlayerService(),
+                    FakeApiService(),
+                    FakeTrackRepository(),
+                    FakeCacheDownloadService(),
+                    ref,
+                  )
+                : _DynamicPlayerController(ref, playerState),
           ),
           appSettingsProvider.overrideWith((ref) => const Stream.empty()),
         ],
@@ -237,6 +263,79 @@ void main() {
     expect(find.bySemanticsLabel('Settings'), findsOneWidget);
     expect(find.bySemanticsLabel('Play Alpha'), findsOneWidget);
 
+    semantics.dispose();
+  });
+
+  testWidgets('continue card switches to now listening and pauses in place',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    final track = _track();
+    await pumpHome(
+      tester,
+      recentlyPlayed: [track],
+      playerState: PlayerState(
+        currentTrack: track,
+        currentQueue: [track],
+        currentIndex: 0,
+        isPlaying: true,
+        position: const Duration(seconds: 10),
+        duration: const Duration(seconds: 200),
+      ),
+    );
+
+    expect(find.text('NOW LISTENING'), findsOneWidget);
+    expect(find.bySemanticsLabel('Pause Alpha'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Pause Alpha'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CONTINUE LISTENING'), findsOneWidget);
+    expect(find.bySemanticsLabel('Play Alpha'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('continue card follows the current track over recent history',
+      (tester) async {
+    await pumpHome(
+      tester,
+      recentlyPlayed: [_track()],
+      playerState: PlayerState(
+        currentTrack: _track(sourceId: 'live', title: 'Live Track'),
+        currentQueue: [_track(sourceId: 'live', title: 'Live Track')],
+        currentIndex: 0,
+        isPlaying: true,
+        duration: const Duration(seconds: 200),
+      ),
+    );
+
+    expect(find.text('NOW LISTENING'), findsOneWidget);
+    expect(find.text('Live Track'), findsWidgets);
+  });
+
+  testWidgets('finished playback falls back to continue listening and restarts',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    final track = _track(durationMs: 200000);
+    await pumpHome(
+      tester,
+      recentlyPlayed: [track],
+      playerState: PlayerState(
+        currentTrack: track,
+        currentQueue: [track],
+        currentIndex: 0,
+        isPlaying: true,
+        position: const Duration(seconds: 200),
+        duration: const Duration(seconds: 200),
+      ),
+    );
+
+    expect(find.text('CONTINUE LISTENING'), findsOneWidget);
+    expect(find.bySemanticsLabel('Play Alpha'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Play Alpha'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('NOW LISTENING'), findsOneWidget);
     semantics.dispose();
   });
 

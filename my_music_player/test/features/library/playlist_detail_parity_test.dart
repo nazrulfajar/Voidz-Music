@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
+import 'package:my_music_player/core/theme/app_spacing.dart';
 import 'package:my_music_player/core/theme/app_theme.dart';
 import 'package:my_music_player/features/library/data/repositories/playlist_repository_impl.dart';
 import 'package:my_music_player/features/library/domain/entities/playlist.dart';
@@ -311,6 +312,13 @@ void main() {
     final row = find.byKey(const ValueKey('playlist-track-v0'));
     expect(row, findsOneWidget);
     expect(tester.getSize(row).height, 72);
+
+    final rowRect = tester.getRect(row);
+    expect(rowRect.left, AppSpacing.screenInset);
+    expect(
+      rowRect.right,
+      kTestSurfaceSize.width - AppSpacing.screenInset,
+    );
   });
 
   testWidgets('the playing row uses raised instead of the accent colour',

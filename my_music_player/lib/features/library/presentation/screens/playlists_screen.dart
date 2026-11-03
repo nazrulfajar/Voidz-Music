@@ -209,7 +209,7 @@ class _PlaylistsBody extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: AppSpacing.space3,
               mainAxisSpacing: AppSpacing.space3,
-              childAspectRatio: 0.82,
+              childAspectRatio: 0.74,
             ),
             itemCount: playlists.length,
             itemBuilder: (context, index) => _PlaylistCard(
@@ -340,7 +340,7 @@ class _PlaylistCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.space3,
-                  0,
+                  AppSpacing.space2,
                   AppSpacing.space3,
                   AppSpacing.space3,
                 ),
