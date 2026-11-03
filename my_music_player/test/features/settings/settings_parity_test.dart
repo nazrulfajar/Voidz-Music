@@ -235,7 +235,7 @@ void main() {
     ) async {
       await pumpSettings(tester);
 
-      expect(appVersion, '0.1.0+1');
+      expect(appVersion, '0.1.1+2');
       expect(find.text(appVersion), findsOneWidget);
       expect(find.text('Reset app'), findsNothing);
 
