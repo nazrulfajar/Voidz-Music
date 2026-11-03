@@ -7,6 +7,7 @@ import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
@@ -1021,6 +1022,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         .playTrack(track, queue: [track]);
                   },
                   child: Container(
+                    constraints: const BoxConstraints(
+                      minHeight: AppSizes.trackRowHeight,
+                    ),
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.space2,
                       vertical: AppSpacing.space2,

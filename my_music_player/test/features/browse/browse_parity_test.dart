@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:my_music_player/core/constants/enums.dart';
+import 'package:my_music_player/core/theme/app_sizes.dart';
 import 'package:my_music_player/features/browse/presentation/providers/browse_provider.dart';
 import 'package:my_music_player/features/browse/presentation/screens/browse_screen.dart';
 import 'package:my_music_player/features/player/domain/entities/track.dart';
@@ -106,6 +107,23 @@ void main() {
     }
   });
 
+  testWidgets('recent rows use the shared 72dp track row height',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpBrowse(tester, tracks: const [_oneMoreTime, _getLucky]);
+
+      final first = find.bySemanticsLabel('Play One More Time by Daft Punk');
+      final second = find.bySemanticsLabel('Play Get Lucky by Daft Punk');
+      expect(first, findsOneWidget);
+      expect(second, findsOneWidget);
+      expect(tester.getSize(first).height, AppSizes.trackRowHeight);
+      expect(tester.getSize(second).height, AppSizes.trackRowHeight);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets('tapping a track plays it with the list as the queue',
       (tester) async {
     final semantics = tester.ensureSemantics();
@@ -132,15 +150,29 @@ void main() {
 
   testWidgets('hub is readable at text scale 2.0 without overflow',
       (tester) async {
-    await pumpBrowse(
-      tester,
-      tracks: const [_oneMoreTime, _getLucky],
-      textScale: 2.0,
-    );
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpBrowse(
+        tester,
+        tracks: const [_oneMoreTime, _getLucky],
+        textScale: 2.0,
+      );
 
-    expect(find.text('Browse'), findsOneWidget);
-    expect(find.text('Recently played'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+      expect(find.text('Browse'), findsOneWidget);
+      expect(find.text('Recently played'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      final first = tester.getSize(
+        find.bySemanticsLabel('Play One More Time by Daft Punk'),
+      );
+      final second = tester.getSize(
+        find.bySemanticsLabel('Play Get Lucky by Daft Punk'),
+      );
+      expect(first.height, greaterThan(AppSizes.trackRowHeight));
+      expect(second.height, first.height);
+    } finally {
+      semantics.dispose();
+    }
   });
 
   testWidgets('hub uses the light theme tokens', (tester) async {

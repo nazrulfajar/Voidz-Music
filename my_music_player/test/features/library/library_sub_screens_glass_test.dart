@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_music_player/core/constants/enums.dart';
 import 'package:my_music_player/core/network/api_service.dart';
 import 'package:my_music_player/core/theme/app_glass.dart';
+import 'package:my_music_player/core/theme/app_sizes.dart';
 import 'package:my_music_player/features/cache/data/datasources/cache_download_service.dart';
 import 'package:my_music_player/features/library/data/repositories/playlist_repository_impl.dart';
 import 'package:my_music_player/features/library/domain/entities/playlist.dart';
@@ -97,6 +98,7 @@ void main() {
     required List<Override> overrides,
     double textScale = 1.0,
     bool disableAnimations = false,
+    Size surfaceSize = kTestSurfaceSize,
   }) async {
     final container = ProviderContainer(overrides: overrides);
     addTearDown(container.dispose);
@@ -115,6 +117,7 @@ void main() {
       tester,
       UncontrolledProviderScope(container: container, child: child),
       textScale: textScale,
+      surfaceSize: surfaceSize,
     );
     await tester.pumpAndSettle();
   }
@@ -273,6 +276,30 @@ void main() {
     expect(find.byType(BackdropFilter), findsOneWidget);
   });
 
+  testWidgets('recently played rows use the shared 72dp track row height',
+      (tester) async {
+    repo
+      ..recentTracks = [_track('a'), _track('b')]
+      ..recentCount = 2;
+
+    await pumpScreen(
+      tester,
+      const RecentlyPlayedScreen(),
+      overrides: baseOverrides(),
+    );
+
+    final first = find.byKey(
+      const ValueKey('recently-played-row-glass-a'),
+    );
+    final second = find.byKey(
+      const ValueKey('recently-played-row-glass-b'),
+    );
+    expect(first, findsOneWidget);
+    expect(second, findsOneWidget);
+    expect(tester.getSize(first).height, AppSizes.trackRowHeight);
+    expect(tester.getSize(second).height, AppSizes.trackRowHeight);
+  });
+
   testWidgets('disableAnimations removes the device songs blur',
       (tester) async {
     await pumpScreen(
@@ -359,14 +386,25 @@ void main() {
 
   testWidgets('recently played survives 200% text scale', (tester) async {
     repo
-      ..recentTracks = [_track('a')]
-      ..recentCount = 1;
+      ..recentTracks = [_track('a'), _track('b')]
+      ..recentCount = 2;
     await pumpScreen(
       tester,
       const RecentlyPlayedScreen(),
       overrides: baseOverrides(),
       textScale: 2.0,
+      // Tall surface so both rows are laid out below the 200% summary card.
+      surfaceSize: const Size(360, 1600),
     );
     expect(tester.takeException(), isNull);
+
+    final first = tester.getSize(
+      find.byKey(const ValueKey('recently-played-row-glass-a')),
+    );
+    final second = tester.getSize(
+      find.byKey(const ValueKey('recently-played-row-glass-b')),
+    );
+    expect(first.height, greaterThan(AppSizes.trackRowHeight));
+    expect(second.height, first.height);
   });
 }

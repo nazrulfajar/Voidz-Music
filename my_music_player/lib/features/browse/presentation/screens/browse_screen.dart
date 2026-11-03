@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
@@ -178,7 +179,9 @@ class _RecentTrackRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.lg),
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 64),
+            constraints: const BoxConstraints(
+              minHeight: AppSizes.trackRowHeight,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.space1,
