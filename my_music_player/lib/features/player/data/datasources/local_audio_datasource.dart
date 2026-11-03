@@ -12,7 +12,8 @@ final localAudioDataSourceProvider = Provider<LocalAudioDataSource>((ref) {
 });
 
 class LocalAudioDataSource {
-  static const _channel = MethodChannel('com.mymusic.my_music_player/media');
+  static const _channel =
+      MethodChannel('io.github.nazrulfajar.voidzmusic/media');
 
   Future<bool> checkAndRequestPermission({bool retryRequest = false}) async {
     if (!Platform.isAndroid) return false;

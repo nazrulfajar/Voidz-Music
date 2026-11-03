@@ -86,7 +86,8 @@ Future<void> main() async {
   // Initialize JustAudioBackground for background playback — premium MediaStyle (artcover + 3 controls)
   try {
     await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.mymusic.my_music_player.channel.audio',
+      androidNotificationChannelId:
+          'io.github.nazrulfajar.voidzmusic.channel.audio',
       androidNotificationChannelName: 'Audio playback',
       androidNotificationChannelDescription:
           'Playback controls for Voidz Music',

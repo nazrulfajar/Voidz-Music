@@ -1,4 +1,4 @@
-package com.mymusic.my_music_player
+package io.github.nazrulfajar.voidzmusic
 
 import android.os.Bundle
 import android.provider.MediaStore
@@ -10,7 +10,7 @@ import io.flutter.plugin.common.MethodChannel
 import com.ryanheise.audioservice.AudioServiceActivity
 
 class MainActivity : AudioServiceActivity() {
-    private val MEDIA_CHANNEL = "com.mymusic.my_music_player/media"
+    private val MEDIA_CHANNEL = "io.github.nazrulfajar.voidzmusic/media"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
