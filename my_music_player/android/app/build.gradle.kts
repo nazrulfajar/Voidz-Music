@@ -1,3 +1,4 @@
+import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -7,11 +8,38 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val keystorePropertiesFile = rootProject.file("key.properties")
+// The keystore can live outside the repo. Resolution order:
+// 1. -Pvoidz.keystore.properties=/path/to/key.properties
+// 2. VOIDZ_KEYSTORE_PROPERTIES environment variable
+// 3. android/key.properties (legacy/local default)
+val keystorePropertiesPath =
+    providers.gradleProperty("voidz.keystore.properties").orNull
+        ?: System.getenv("VOIDZ_KEYSTORE_PROPERTIES")
+
+val keystorePropertiesFile = if (keystorePropertiesPath != null) {
+    File(keystorePropertiesPath)
+} else {
+    rootProject.file("key.properties")
+}
+
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
 }
+
+// Resolve storeFile relative to key.properties, not relative to android/app.
+val keystoreBaseDir =
+    keystorePropertiesFile.absoluteFile.parentFile ?: rootProject.projectDir
+val releaseStoreFile = keystoreProperties.getProperty("storeFile")?.let { path ->
+    val candidate = File(path)
+    if (candidate.isAbsolute) candidate else File(keystoreBaseDir, path)
+}
+
+val hasReleaseSigning = keystorePropertiesFile.exists() &&
+    releaseStoreFile?.exists() == true &&
+    keystoreProperties.getProperty("storePassword") != null &&
+    keystoreProperties.getProperty("keyPassword") != null &&
+    keystoreProperties.getProperty("keyAlias") != null
 
 android {
     namespace = "io.github.nazrulfajar.voidzmusic"
@@ -43,20 +71,20 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+            if (hasReleaseSigning) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = releaseStoreFile
+                storePassword = keystoreProperties.getProperty("storePassword")
             }
         }
     }
 
     buildTypes {
         release {
-            // CI/local release builds use android/key.properties. Without it,
-            // fall back to debug signing so `flutter run --release` still works.
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            // Debug signing is only a placeholder for local tooling. The
+            // release task below fails hard when no real keystore is configured.
+            signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
@@ -66,6 +94,20 @@ android {
         }
     }
 }
+
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }
+    .configureEach {
+        doFirst {
+            if (!hasReleaseSigning) {
+                throw GradleException(
+                    "Release signing is not configured. Set " +
+                        "-Pvoidz.keystore.properties=/path/to/key.properties, " +
+                        "VOIDZ_KEYSTORE_PROPERTIES=/path/to/key.properties, " +
+                        "or create android/key.properties."
+                )
+            }
+        }
+    }
 
 kotlin {
     compilerOptions {

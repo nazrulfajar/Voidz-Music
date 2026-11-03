@@ -94,9 +94,29 @@ No backend URL configuration is needed. The resolver runs on the device.
 
 ### Release APK
 
-Release builds are signed with a local keystore configured in
-`my_music_player/android/key.properties`. The keystore and `key.properties` are
-ignored by git and must never be committed.
+Release builds use a local keystore and a `key.properties` file. Both are
+ignored by git and must never be committed. The keystore can live outside the
+repo; point Gradle at its properties file in one of these ways:
+
+1. Add this to your user-level `~/.gradle/gradle.properties`:
+   ```properties
+   voidz.keystore.properties=D:/secure/Voidz-Music/key.properties
+   ```
+2. Set the `VOIDZ_KEYSTORE_PROPERTIES` environment variable to the same path.
+3. Place `key.properties` at `my_music_player/android/key.properties`.
+
+Inside `key.properties`, `storeFile` may be absolute or relative to the
+properties file:
+
+```properties
+keyAlias=upload
+storeFile=upload-keystore.jks
+storePassword=...
+keyPassword=...
+```
+
+The release task fails if no valid keystore is configured, so an accidental
+debug-signed release cannot be published.
 
 ```bash
 cd my_music_player
