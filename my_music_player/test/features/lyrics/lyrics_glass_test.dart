@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:my_music_player/core/constants/enums.dart' show TrackSource;
-import 'package:my_music_player/core/theme/app_glass.dart';
+import 'package:my_music_player/core/theme/app_theme.dart';
 import 'package:my_music_player/features/lyrics/domain/entities/lyrics.dart';
 import 'package:my_music_player/features/lyrics/presentation/providers/lyrics_provider.dart';
-import 'package:my_music_player/features/lyrics/presentation/widgets/lyrics_view.dart';
+import 'package:my_music_player/features/lyrics/presentation/screens/lyrics_screen.dart';
 import 'package:my_music_player/features/player/domain/entities/track.dart';
 import 'package:my_music_player/features/player/presentation/providers/player_controller.dart';
 import 'package:my_music_player/features/player/presentation/screens/player_screen.dart';
 import 'package:my_music_player/features/settings/data/models/app_settings_model.dart';
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
-import 'package:my_music_player/shared/widgets/glass_surface.dart';
+import 'package:my_music_player/l10n/app_localizations.dart';
+import 'package:my_music_player/shared/widgets/glass_background.dart';
 
 import '../../helpers/pump_app.dart';
 import '../player/presentation/providers/fakes.dart';
@@ -55,31 +57,49 @@ Future<void> _pumpPlayer(
   double textScale = 1.0,
   bool disableAnimations = false,
 }) async {
-  const screen = PlayerScreen();
-  Widget child = screen;
-  if (disableAnimations) {
-    child = Builder(
-      builder: (context) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(disableAnimations: true),
-        child: screen,
+  final router = GoRouter(
+    initialLocation: '/player',
+    routes: [
+      GoRoute(
+        path: '/player',
+        builder: (context, state) => const PlayerScreen(),
       ),
-    );
-  }
+      GoRoute(
+        path: '/lyrics',
+        builder: (context, state) => const LyricsScreen(),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
 
   await pumpApp(
     tester,
-    child,
+    ProviderScope(
+      overrides: [
+        appSettingsProvider.overrideWith(
+          (ref) => const Stream<AppSettingsModel>.empty(),
+        ),
+        playerControllerProvider.overrideWith(
+          (ref) => _StubPlayerController(ref),
+        ),
+        currentLyricsProvider.overrideWith((ref) async => _synced),
+      ],
+      child: MaterialApp.router(
+        theme: AppTheme.darkTheme,
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: router,
+        builder: (context, child) {
+          final media = MediaQuery.of(context);
+          return MediaQuery(
+            data: media.copyWith(disableAnimations: disableAnimations),
+            child: child!,
+          );
+        },
+      ),
+    ),
     textScale: textScale,
-    locale: const Locale('en'),
-    overrides: [
-      appSettingsProvider.overrideWith(
-        (ref) => const Stream<AppSettingsModel>.empty(),
-      ),
-      playerControllerProvider.overrideWith(
-        (ref) => _StubPlayerController(ref),
-      ),
-      currentLyricsProvider.overrideWith((ref) async => _synced),
-    ],
   );
   await tester.pumpAndSettle();
 }
@@ -95,55 +115,47 @@ Future<void> _openLyrics(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('lyrics sheet is one frosted chrome panel without row blur',
-      (tester) async {
+  testWidgets('dock lyrics opens the full-screen lyrics route', (tester) async {
     await _pumpPlayer(tester);
     await _openLyrics(tester);
 
-    final sheet = find.byKey(const Key('lyrics-sheet-glass'));
-    expect(sheet, findsOneWidget);
-    expect(
-      tester.widget<GlassSurface>(sheet).quality,
-      GlassQuality.frosted,
-    );
-    expect(
-      find.descendant(of: sheet, matching: find.byType(BackdropFilter)),
-      findsNothing,
-    );
-
-    expect(find.byType(LyricsView), findsOneWidget);
+    expect(find.byType(LyricsScreen), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
     expect(find.text('LYRICS'), findsOneWidget);
-    expect(
-      find.descendant(of: sheet, matching: find.text('Blinding Lights')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: sheet, matching: find.text('The Weeknd')),
-      findsOneWidget,
-    );
+    expect(find.text('Blinding Lights'), findsOneWidget);
+    expect(find.text('The Weeknd'), findsOneWidget);
     expect(find.text('Synced lyrics · LRCLIB'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('disableAnimations keeps the lyrics sheet readable',
+  testWidgets('lyrics screen is a full-height glass surface', (tester) async {
+    await _pumpPlayer(tester);
+    await _openLyrics(tester);
+
+    expect(find.byType(GlassBackground), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(tester.getSize(find.byType(LyricsScreen)).height, 640);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('disableAnimations keeps the lyrics screen readable',
       (tester) async {
     await _pumpPlayer(tester, disableAnimations: true);
     await _openLyrics(tester);
 
     expect(find.byType(BackdropFilter), findsNothing);
-    expect(find.byKey(const Key('lyrics-sheet-glass')), findsOneWidget);
+    expect(find.byType(LyricsScreen), findsOneWidget);
     expect(find.text('LYRICS'), findsOneWidget);
     expect(find.text('Synced lyrics · LRCLIB'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('lyrics sheet survives 200% text scale', (tester) async {
+  testWidgets('lyrics screen survives 200% text scale', (tester) async {
     await _pumpPlayer(tester, textScale: 2.0);
     await _openLyrics(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('lyrics-sheet-glass')), findsOneWidget);
-    expect(find.byType(LyricsView), findsOneWidget);
+    expect(find.byType(LyricsScreen), findsOneWidget);
     expect(find.text('LYRICS'), findsOneWidget);
   });
 }

@@ -15,6 +15,7 @@ import '../../features/library/presentation/screens/recently_played_screen.dart'
 import '../../features/recap/presentation/screens/recap_screen.dart';
 import '../../features/library/domain/entities/playlist.dart';
 import '../../features/library/presentation/screens/playlist_detail_screen.dart';
+import '../../features/lyrics/presentation/screens/lyrics_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/home/domain/entities/daily_mix.dart';
@@ -42,6 +43,16 @@ CustomTransitionPage<T> _smoothTransition<T>({
   required GoRouterState state,
   required Widget child,
 }) {
+  if (MediaQuery.disableAnimationsOf(context)) {
+    return CustomTransitionPage<T>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          child,
+    );
+  }
   return CustomTransitionPage<T>(
     key: state.pageKey,
     child: child,
@@ -211,6 +222,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           context: context,
           state: state,
           child: const SettingsScreen(),
+        ),
+      ),
+
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/lyrics',
+        pageBuilder: (context, state) => _smoothTransition(
+          context: context,
+          state: state,
+          child: const LyricsScreen(),
         ),
       ),
 

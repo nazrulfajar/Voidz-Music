@@ -623,6 +623,18 @@
   "lyricsRetry": "Retry",
   "lyricsNotFoundFootnote": "Playback continues without lyrics.",
   "lyricsEmpty": "Lyrics are empty",
+  "lyricsEmptySyncedMessage": "This LRC file has no lines. Playback continues without lyrics.",
+  "lyricsLineSemantics": "{time} — {text}",
+  "@lyricsLineSemantics": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "text": {
+        "type": "String"
+      }
+    }
+  },
   "lyricsLoadError": "Lyrics are unavailable right now.",
   "lyricsFooterSynced": "Synced lyrics · LRCLIB",
   "lyricsFooterPlain": "Lyrics · LRCLIB",

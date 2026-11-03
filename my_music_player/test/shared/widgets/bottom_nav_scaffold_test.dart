@@ -143,6 +143,10 @@ GoRouter _shellRouter({
         path: '/player',
         builder: (context, state) => const _BranchPage('player-page'),
       ),
+      GoRoute(
+        path: '/lyrics',
+        builder: (context, state) => const _BranchPage('lyrics-page'),
+      ),
     ],
   );
 }
@@ -347,6 +351,19 @@ void main() {
     expect(find.text('detail-page'), findsOneWidget);
     expect(find.byType(AppBottomNav), findsNothing);
     expect(find.byType(MiniPlayer), findsOneWidget);
+  });
+
+  testWidgets('mini-player lyrics action opens the immersive lyrics route',
+      (tester) async {
+    final shell = await _pumpShell(tester, withTrack: true);
+
+    await tester.tap(find.byIcon(Icons.lyrics_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('lyrics-page'), findsOneWidget);
+    expect(find.byType(AppBottomNav), findsNothing);
+    expect(find.byType(MiniPlayer), findsNothing);
+    expect(shell.router.canPop(), isTrue);
   });
 
   testWidgets('player is immersive: no navigation and no mini-player',

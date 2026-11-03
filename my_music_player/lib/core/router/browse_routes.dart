@@ -17,6 +17,16 @@ CustomTransitionPage<T> _smooth<T>({
   required Widget child,
   Duration duration = const Duration(milliseconds: 260),
 }) {
+  if (MediaQuery.disableAnimationsOf(context)) {
+    return CustomTransitionPage<T>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          child,
+    );
+  }
   return CustomTransitionPage<T>(
     key: state.pageKey,
     child: child,

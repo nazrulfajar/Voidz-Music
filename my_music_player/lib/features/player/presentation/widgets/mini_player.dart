@@ -37,6 +37,7 @@ class MiniPlayer extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
 
     void openPlayer() => context.push('/player');
+    void openLyrics() => context.push('/lyrics');
     void previous() =>
         ref.read(playerControllerProvider.notifier).playPrevious();
     void toggle() =>
@@ -69,7 +70,7 @@ class MiniPlayer extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           ExcludeSemantics(
                             child: AppArtwork(
                               localPath: track.localThumbnailPath,
@@ -78,7 +79,7 @@ class MiniPlayer extends ConsumerWidget {
                               radius: AppRadius.md,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -129,7 +130,14 @@ class MiniPlayer extends ConsumerWidget {
                             filled: false,
                             onPressed: next,
                           ),
-                          const SizedBox(width: 6),
+                          AppIconButton(
+                            icon: Icons.lyrics_outlined,
+                            semanticLabel: l10n.playerDockLyrics,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: openLyrics,
+                          ),
+                          const SizedBox(width: 4),
                         ],
                       ),
                       const Positioned(

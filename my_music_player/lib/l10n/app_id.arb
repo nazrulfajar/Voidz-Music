@@ -265,6 +265,8 @@
   "lyricsRetry": "Coba lagi",
   "lyricsNotFoundFootnote": "Pemutaran berlanjut tanpa lirik.",
   "lyricsEmpty": "Lirik kosong",
+  "lyricsEmptySyncedMessage": "File LRC ini tidak punya baris. Pemutaran berlanjut tanpa lirik.",
+  "lyricsLineSemantics": "{time} — {text}",
   "lyricsLoadError": "Lirik tidak tersedia saat ini.",
   "lyricsFooterSynced": "Lirik sinkron · LRCLIB",
   "lyricsFooterPlain": "Lirik · LRCLIB",

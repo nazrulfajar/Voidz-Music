@@ -1688,6 +1688,18 @@ abstract class AppLocalizations {
   /// **'Lyrics are empty'**
   String get lyricsEmpty;
 
+  /// No description provided for @lyricsEmptySyncedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This LRC file has no lines. Playback continues without lyrics.'**
+  String get lyricsEmptySyncedMessage;
+
+  /// No description provided for @lyricsLineSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} — {text}'**
+  String lyricsLineSemantics(String time, String text);
+
   /// No description provided for @lyricsLoadError.
   ///
   /// In en, this message translates to:

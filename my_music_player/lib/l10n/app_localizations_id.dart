@@ -1027,6 +1027,15 @@ class AppLocalizationsId extends AppLocalizations {
   String get lyricsEmpty => 'Lirik kosong';
 
   @override
+  String get lyricsEmptySyncedMessage =>
+      'File LRC ini tidak punya baris. Pemutaran berlanjut tanpa lirik.';
+
+  @override
+  String lyricsLineSemantics(String time, String text) {
+    return '$time — $text';
+  }
+
+  @override
   String get lyricsLoadError => 'Lirik tidak tersedia saat ini.';
 
   @override

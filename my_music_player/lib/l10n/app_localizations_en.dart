@@ -1028,6 +1028,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lyricsEmpty => 'Lyrics are empty';
 
   @override
+  String get lyricsEmptySyncedMessage =>
+      'This LRC file has no lines. Playback continues without lyrics.';
+
+  @override
+  String lyricsLineSemantics(String time, String text) {
+    return '$time — $text';
+  }
+
+  @override
   String get lyricsLoadError => 'Lyrics are unavailable right now.';
 
   @override

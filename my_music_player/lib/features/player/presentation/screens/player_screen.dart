@@ -19,7 +19,6 @@ import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/glass_background.dart';
 import '../../../../shared/widgets/glass_surface.dart';
 import '../../domain/entities/track.dart';
-import '../../../lyrics/presentation/widgets/lyrics_view.dart';
 import '../providers/player_controller.dart';
 import '../widgets/queue_view.dart';
 import '../widgets/sleep_timer_sheet.dart';
@@ -169,53 +168,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  void _showLyricsSheet(BuildContext context) {
-    final t = AppColors.of(context);
-    final mq = MediaQuery.of(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: t.scrim,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xxxl),
-        ),
-      ),
-      builder: (_) {
-        return SizedBox(
-          height: mq.size.height * 0.75,
-          child: GlassSurface.chrome(
-            key: const Key('lyrics-sheet-glass'),
-            // A sheet is a stable surface: chrome recipe without a new
-            // backdrop blur layer. Lyric rows must never blur.
-            quality: GlassQuality.frosted,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.xxxl),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                children: [
-                  const SizedBox(height: AppSpacing.sm),
-                  Container(
-                    width: 32,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: t.textPrimary,
-                      borderRadius: BorderRadius.circular(AppRadius.handle),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  const Expanded(child: LyricsView()),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  void _openLyrics(BuildContext context) => context.push('/lyrics');
 
   void _showQueueSheet(BuildContext context) {
     final t = AppColors.of(context);
@@ -285,30 +238,38 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       backgroundColor: Colors.transparent,
       body: GlassBackground(
         child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final useTwoPane =
-                  constraints.maxWidth >= _PlayerLayout.twoPaneMinWidth &&
-                      constraints.maxWidth > constraints.maxHeight;
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onHorizontalDragEnd: (details) {
+              if ((details.primaryVelocity ?? 0).abs() > 250) {
+                _openLyrics(context);
+              }
+            },
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final useTwoPane =
+                    constraints.maxWidth >= _PlayerLayout.twoPaneMinWidth &&
+                        constraints.maxWidth > constraints.maxHeight;
 
-              if (useTwoPane) {
-                return _buildTwoPane(
+                if (useTwoPane) {
+                  return _buildTwoPane(
+                    context,
+                    constraints,
+                    playerState,
+                    currentTrack,
+                    t,
+                  );
+                }
+
+                return _buildPortrait(
                   context,
                   constraints,
                   playerState,
                   currentTrack,
                   t,
                 );
-              }
-
-              return _buildPortrait(
-                context,
-                constraints,
-                playerState,
-                currentTrack,
-                t,
-              );
-            },
+              },
+            ),
           ),
         ),
       ),
@@ -968,7 +929,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   icon: Icons.lyrics_outlined,
                   label: l10n.playerDockLyrics,
                   color: tokens.textSecondary,
-                  onTap: () => _showLyricsSheet(context),
+                  onTap: () => _openLyrics(context),
                 ),
               ),
               Expanded(
