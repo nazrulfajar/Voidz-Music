@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'shared/widgets/app_chrome.dart';
@@ -27,6 +28,7 @@ import 'features/library/data/models/playlist_track_model.dart';
 import 'features/library/data/models/play_history_model.dart';
 import 'features/search/data/models/search_history_model.dart';
 import 'features/player/data/repositories/track_repository_impl.dart';
+import 'features/cache/data/datasources/thumbnail_upgrade_service.dart';
 import 'core/providers/isar_provider.dart';
 import 'core/network/local_proxy_server.dart';
 import 'l10n/app_localizations.dart';
@@ -217,6 +219,10 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     // Restore queue on startup if enabled — fire & forget, never block UI
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        // Gradually refresh legacy downloaded artwork; never blocks startup.
+        unawaited(
+          ref.read(thumbnailUpgradeServiceProvider).upgradeLegacyThumbnails(),
+        );
         final isar = ref.read(isarProvider);
         final settings = await isar.appSettingsModels
             .get(1)

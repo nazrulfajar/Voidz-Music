@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/cache_dir_helper.dart';
+import '../../../../core/utils/artwork_url.dart';
 import '../../../../features/player/domain/entities/track.dart';
 import '../../../../features/player/data/repositories/track_repository_impl.dart';
 import '../../../../features/player/presentation/providers/player_controller.dart';
@@ -13,6 +14,7 @@ import '../../../../features/lyrics/domain/repositories/lyrics_repository.dart';
 import '../../domain/usecases/cache_manager.dart';
 import '../../../../core/network/api_service.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
+import 'thumbnail_artwork_store.dart';
 
 final cacheDownloadServiceProvider = Provider<CacheDownloadService>((ref) {
   return CacheDownloadService(ref);
@@ -347,29 +349,16 @@ class CacheDownloadService {
 
         String? localThumbnailPath;
         if (track.thumbnailUrl != null && !cancelToken.isCancelled) {
-          try {
-            final urlWithoutQuery = track.thumbnailUrl!.split('?').first;
-            String thumbExt = 'jpg';
-            if (urlWithoutQuery.contains('.')) {
-              final ext = urlWithoutQuery.split('.').last.toLowerCase();
-              if (ext.length <= 4 && !ext.contains('-') && !ext.contains('/')) {
-                thumbExt = ext;
-              }
-            }
-            final thumbName = '${track.sourceId}_thumb.$thumbExt';
-            final thumbPath = '${cacheDir.path}/$thumbName';
-
-            final thumbFile = File(thumbPath);
-            if (await thumbFile.exists() && await thumbFile.length() > 1000) {
-              localThumbnailPath = thumbPath;
-            } else {
-              await _dio.download(track.thumbnailUrl!, thumbPath,
-                  cancelToken: cancelToken);
-              localThumbnailPath = thumbPath;
-            }
-          } catch (e) {
-            print('Failed to download thumbnail for ${track.sourceId}: $e');
-          }
+          final thumbnailStore = ThumbnailArtworkStore(
+            cacheDirectory: () async => cacheDir,
+            downloader: (url, path) =>
+                _dio.download(url, path, cancelToken: cancelToken),
+          );
+          localThumbnailPath = await thumbnailStore.storeThumbnail(
+            sourceId: track.sourceId,
+            thumbnailUrl: track.thumbnailUrl!,
+            width: maxCachedArtworkWidth,
+          );
         }
 
         if (cancelToken.isCancelled) throw Exception("Cancelled");
