@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:isar/isar.dart';
+import 'app_logger.dart';
 import '../../features/settings/data/models/app_settings_model.dart';
 import '../../features/player/data/models/track_model.dart';
 
@@ -86,9 +87,9 @@ Future<void> migrateCacheIfNeeded(Isar isar) async {
       s.cacheMigratedToSupportDir = true;
       await isar.appSettingsModels.put(s);
     });
-    print('Cache migrated to ${newDir.path}');
+    appLogger.d('Cache migrated to ${newDir.path}');
   } catch (e) {
-    print('Cache migration failed (non-fatal): $e');
+    appLogger.d('Cache migration failed (non-fatal): $e');
   }
 }
 

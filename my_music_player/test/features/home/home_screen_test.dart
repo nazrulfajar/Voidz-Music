@@ -47,7 +47,7 @@ class _RecordingPlayerController extends PlayerController {
 }
 
 class _DynamicPlayerController extends _RecordingPlayerController {
-  _DynamicPlayerController(Ref ref, PlayerState initial) : super(ref) {
+  _DynamicPlayerController(super.ref, PlayerState initial) {
     state = initial;
   }
 

@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../../core/constants/enums.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../domain/entities/track.dart';
 
 final localAudioDataSourceProvider = Provider<LocalAudioDataSource>((ref) {
@@ -49,23 +49,6 @@ class LocalAudioDataSource {
     return ((sizeBytes * 8000) / durationMs).round().clamp(32, 1411);
   }
 
-  Future<String?> _saveArtwork(int albumId, String sourceId) async {
-    try {
-      final Uint8List? bytes = await _channel
-          .invokeMethod<Uint8List>('queryArtwork', {'albumId': albumId});
-      if (bytes == null || bytes.isEmpty) return null;
-      if (bytes.length < 3000) return null; // skip tiny broken
-      final dir = await getApplicationSupportDirectory();
-      final thumbDir = Directory('${dir.path}/thumbs_local');
-      if (!await thumbDir.exists()) await thumbDir.create(recursive: true);
-      final file = File('${thumbDir.path}/$sourceId.jpg');
-      await file.writeAsBytes(bytes, flush: true);
-      return file.path;
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Scan device via native MediaStore channel (ponytail: no on_audio_query dependency)
   /// Optimized: tidak blok UI dengan File.existsSync per-lagu & tidak fetch artwork sync.
   /// Artwork hanya pakai cache yang sudah ada; yang belum akan di-fetch lazy di background.
@@ -96,7 +79,7 @@ class LocalAudioDataSource {
 
       for (final item in raw) {
         if (item is! Map) continue;
-        final m = Map<String, dynamic>.from(item as Map);
+        final m = Map<String, dynamic>.from(item);
         final id = (m['_id'] as int?) ?? 0;
         final path = (m['_data'] as String?) ?? '';
         if (path.isEmpty) continue;
@@ -190,7 +173,7 @@ class LocalAudioDataSource {
     } on MissingPluginException {
       return [];
     } catch (e) {
-      print('scanDeviceSongs error: $e');
+      appLogger.d('scanDeviceSongs error: $e');
       return [];
     }
   }

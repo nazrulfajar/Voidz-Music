@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import '../../../../core/network/local_proxy_server.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/cache_dir_helper.dart';
 
 final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
@@ -94,7 +95,7 @@ class AudioPlayerService {
       // Activate session
       await _session!.setActive(true);
     } catch (e) {
-      print('AudioSession init failed: $e');
+      appLogger.d('AudioSession init failed: $e');
     }
   }
 
@@ -109,7 +110,7 @@ class AudioPlayerService {
       await _player.setAudioSource(_playlist!,
           initialIndex: initialIndex, preload: true);
     } catch (e) {
-      print("Error setting audio source: \$e");
+      appLogger.d("Error setting audio source: \$e");
       rethrow;
     }
   }
