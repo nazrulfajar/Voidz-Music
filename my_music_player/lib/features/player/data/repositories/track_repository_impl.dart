@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:isar/isar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -225,7 +224,6 @@ class TrackRepositoryImpl implements TrackRepository {
       final ds = LocalAudioDataSource();
       final scanned = await ds.scanDeviceSongs();
       // Build map for quick lookup
-      final scannedPaths = scanned.map((t) => t.localAudioPath).whereType<String>().toSet();
       final scannedIds = scanned.map((t) => t.sourceId).toSet();
 
       await _isar.writeTxn(() async {

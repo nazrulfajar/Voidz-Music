@@ -231,10 +231,7 @@ class _PlaylistDetailBody extends ConsumerWidget {
                     ),
                     buildDefaultDragHandles: true,
                     itemCount: tracks.length,
-                    onReorder: (oldIndex, newIndex) async {
-                      if (oldIndex < newIndex) {
-                        newIndex -= 1;
-                      }
+                    onReorderItem: (oldIndex, newIndex) async {
                       final track = tracks.removeAt(oldIndex);
                       tracks.insert(newIndex, track);
 

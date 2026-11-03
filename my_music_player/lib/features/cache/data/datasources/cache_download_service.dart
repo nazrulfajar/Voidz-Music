@@ -3,13 +3,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/cache_dir_helper.dart';
 import '../../../../core/utils/artwork_url.dart';
 import '../../../../features/player/domain/entities/track.dart';
 import '../../../../features/player/data/repositories/track_repository_impl.dart';
 import '../../../../features/player/presentation/providers/player_controller.dart';
 import '../../../../features/library/presentation/providers/downloaded_provider.dart';
-import '../../../../features/home/presentation/providers/home_provider.dart';
 import '../../../../features/lyrics/domain/repositories/lyrics_repository.dart';
 import '../../domain/usecases/cache_manager.dart';
 import '../../../../core/network/api_service.dart';
@@ -65,17 +65,6 @@ class CacheDownloadService {
     _processQueue();
   }
 
-  int _maxConcurrent() {
-    // Premium: 3 parallel on WiFi, 2 on mobile (tradeoff #3 setuju naik)
-    try {
-      // Synchronous check via cached connectivity is async, so default 2 and upgrade if wifi
-      // We'll check async in _processQueue and use 2 as safe default
-      return 2;
-    } catch (_) {
-      return 2;
-    }
-  }
-
   Future<int> _maxConcurrentAsync() async {
     try {
       final result = await Connectivity().checkConnectivity();
@@ -105,7 +94,7 @@ class CacheDownloadService {
             final conn = await Connectivity().checkConnectivity();
             if (!conn.contains(ConnectivityResult.wifi) &&
                 !conn.contains(ConnectivityResult.ethernet)) {
-              print('WiFi only enabled — skipping download for ${track.title}');
+              appLogger.d('WiFi only enabled — skipping download for ${track.title}');
               continue;
             }
           }
@@ -128,9 +117,9 @@ class CacheDownloadService {
         _processQueue();
       }).catchError((e) {
         if (e is DioException && CancelToken.isCancel(e)) {
-          print("Download cancelled for: ${trackForDownload.title}");
+          appLogger.d("Download cancelled for: ${trackForDownload.title}");
         } else {
-          print("Download failed for ${trackForDownload.title}: $e");
+          appLogger.d("Download failed for ${trackForDownload.title}: $e");
         }
         _activeDownloads.remove(trackForDownload.sourceId);
         _isDownloadingQueue = false;
@@ -204,7 +193,7 @@ class CacheDownloadService {
               );
             }
           } catch (e) {
-            print('Re-resolve on retry $attempts failed: $e');
+            appLogger.d('Re-resolve on retry $attempts failed: $e');
           }
         }
 
@@ -249,14 +238,6 @@ class CacheDownloadService {
           }
         }
 
-        final options = Options(
-          headers: headers,
-          sendTimeout: const Duration(minutes: 1),
-          receiveTimeout: const Duration(minutes: 5),
-          followRedirects: true,
-          validateStatus: (s) => s != null && s < 400,
-        );
-
         String? etag;
         if (resume && existingSize > 0) {
           // Stream append mode for resume
@@ -287,14 +268,14 @@ class CacheDownloadService {
           final newSize = await file.length();
           if (response.statusCode == 200 && newSize > (existingSize + 100000)) {
             // Server sent full file, we appended — need to handle (rough: if newSize > expected*1.5, delete and retry without resume)
-            print('Server ignored Range, got full content. Handling...');
+            appLogger.d('Server ignored Range, got full content. Handling...');
             // Keep as is if size plausible, otherwise next attempt will fix
           }
         } else if (existingSize > 50000 &&
             currentTrack.fileSizeBytes != null &&
             existingSize >= (currentTrack.fileSizeBytes! * 0.95)) {
           // Skip download, file likely complete — treat as success without network
-          print(
+          appLogger.d(
               'File already complete for ${currentTrack.title}, skipping download');
         } else {
           // Fresh download via stream (more robust than Dio.download for googlevideo)
@@ -341,9 +322,9 @@ class CacheDownloadService {
           try {
             final lyricsRepo = _ref.read(lyricsRepositoryProvider);
             await lyricsRepo.getLyrics(
-                track.sourceId, track.title, track.artist ?? '');
+                track.sourceId, track.title, track.artist);
           } catch (e) {
-            print('Silent lyrics cache failed: $e');
+            appLogger.d('Silent lyrics cache failed: $e');
           }
         }
 
@@ -381,7 +362,7 @@ class CacheDownloadService {
             .map((t) => t.sourceId == currentTrack.sourceId ? updatedTrack : t)
             .toList();
 
-        print(
+        appLogger.d(
             'Successfully cached track: ${currentTrack.title} (${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB)');
 
         _ref.invalidate(downloadedTracksProvider);
@@ -398,7 +379,7 @@ class CacheDownloadService {
         final isRetryable = e is DioException ||
             e.toString().contains('Connection closed') ||
             e.toString().contains('HttpException');
-        print(
+        appLogger.d(
             'Download attempt $attempts failed for ${currentTrack.title}: $e (retryable=$isRetryable)');
 
         // Only delete file if it's clearly corrupt (<100KB) or not retryable; keep partial for resume
@@ -427,7 +408,7 @@ class CacheDownloadService {
         if (attempts < maxAttempts) {
           final backoff =
               Duration(seconds: 2 * attempts + (attempts > 2 ? 5 : 0));
-          print('Retrying in ${backoff.inSeconds}s...');
+          appLogger.d('Retrying in ${backoff.inSeconds}s...');
           await Future.delayed(backoff);
         }
       }

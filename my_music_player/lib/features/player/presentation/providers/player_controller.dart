@@ -180,7 +180,7 @@ class PlayerController extends StateNotifier<PlayerState> {
           return newUrl;
         }
       } catch (e) {
-        print('Proxy re-resolve failed: $e');
+        _log.d('Proxy re-resolve failed: $e');
       }
       return null;
     };
@@ -321,7 +321,7 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     _subscriptions.add(_audioService.player.playbackEventStream
         .listen((event) {}, onError: (Object e, StackTrace stackTrace) async {
-      print('Playback event error: $e');
+      _log.d('Playback event error: $e');
       // Try to re-resolve current track on 403/network error
       final current = state.currentTrack;
       if (current != null && e.toString().contains('403')) {
@@ -360,16 +360,16 @@ class PlayerController extends StateNotifier<PlayerState> {
     }));
 
     // Throttle position update ke 200ms untuk hindari rebuild flood (lag local)
-    Duration _lastPos = Duration.zero;
-    DateTime _lastPosTime = DateTime.fromMillisecondsSinceEpoch(0);
+    Duration lastPos = Duration.zero;
+    DateTime lastPosTime = DateTime.fromMillisecondsSinceEpoch(0);
     _subscriptions.add(_audioService.player.positionStream.listen((pos) {
       final now = DateTime.now();
-      if (pos.inMilliseconds - _lastPos.inMilliseconds < 200 &&
-          now.difference(_lastPosTime).inMilliseconds < 200) {
+      if (pos.inMilliseconds - lastPos.inMilliseconds < 200 &&
+          now.difference(lastPosTime).inMilliseconds < 200) {
         return;
       }
-      _lastPos = pos;
-      _lastPosTime = now;
+      lastPos = pos;
+      lastPosTime = now;
       state = state.copyWith(position: pos);
     }));
 
@@ -400,7 +400,7 @@ class PlayerController extends StateNotifier<PlayerState> {
         final index = _queue.indexOfSourceId(sourceId);
 
         if (index != -1 && index != _queue.currentIndex) {
-          print(
+          _log.d(
               'DEBUG: sequenceStateStream - changing index from ${_queue.currentIndex} to $index (sourceId: $sourceId)');
           _queue.select(index);
           final newTrack = _queue.currentTrack;
@@ -469,26 +469,6 @@ class PlayerController extends StateNotifier<PlayerState> {
     _ref.invalidate(quickPicksProvider);
   }
 
-  // Backward compat overload dipakai unit test / legacy
-  Future<void> _recordPlayHistoryById(String sourceId, String source) async {
-    // Cari Track di queue dulu untuk handle creation
-    final found =
-        _queue.tracks.where((t) => t.sourceId == sourceId).firstOrNull ??
-            state.currentTrack;
-    if (found != null && found.sourceId == sourceId) {
-      await _recordPlayHistory(found);
-    } else {
-      await _trackRepo.updateTrackPlayCount(sourceId, source);
-      try {
-        final plRepo = _ref.read(playlistRepositoryProvider);
-        await plRepo.addToPlayHistory(sourceId);
-      } catch (_) {}
-      _ref.invalidate(allPlaylistsProvider);
-      _ref.invalidate(playlistTracksProvider);
-      _ref.invalidate(recentlyPlayedProvider);
-    }
-  }
-
   @override
   void dispose() {
     _saveDebounce?.cancel();
@@ -534,7 +514,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       _windowStartQueueIndex = _queue.currentIndex;
       await _audioService.play();
     } catch (e) {
-      print('Failed to play track: $e');
+      _log.d('Failed to play track: $e');
       state = state.copyWith(
           errorMessage:
               'Network error: Failed to stream track. Please check connection.');
@@ -689,7 +669,7 @@ class PlayerController extends StateNotifier<PlayerState> {
                 continue; // check again
               } else {
                 _consecutiveResolveFailures++;
-                print(
+                _log.d(
                     'Resolve failed (repeat-all) $_consecutiveResolveFailures/3');
                 if (_consecutiveResolveFailures < 3) {
                   await Future.delayed(const Duration(seconds: 2));
@@ -745,7 +725,7 @@ class PlayerController extends StateNotifier<PlayerState> {
               continue; // check again
             } else {
               _consecutiveResolveFailures++;
-              print(
+              _log.d(
                   'Resolve failed for next track $nextIndex ($_consecutiveResolveFailures/3)');
               if (_consecutiveResolveFailures < 3) {
                 // Skip this unplayable track and try next after 2s
@@ -764,7 +744,7 @@ class PlayerController extends StateNotifier<PlayerState> {
         }
       }
     } catch (e) {
-      print('Exception in _resolveAndAppendNextTrack: $e');
+      _log.d('Exception in _resolveAndAppendNextTrack: $e');
     } finally {
       _isResolvingNext = false;
     }
@@ -837,7 +817,7 @@ class PlayerController extends StateNotifier<PlayerState> {
         }
       }
     } catch (e) {
-      print('Failed to fetch auto queue: $e');
+      _log.d('Failed to fetch auto queue: $e');
     } finally {
       _isFetchingUpNext = false;
     }
@@ -875,7 +855,7 @@ class PlayerController extends StateNotifier<PlayerState> {
           try {
             await File(track.localAudioPath!).delete();
           } catch (e) {
-            print("Failed to delete old cache: \$e");
+            _log.d("Failed to delete old cache: \$e");
           }
           // Clear memory cache flag to force streaming/re-downloading
           track = track.copyWith(isCached: false, localAudioPath: null);
@@ -895,7 +875,7 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     final isOnline = _ref.read(connectivityProvider).value ?? true;
     if (!isOnline) {
-      print("Offline and track not cached");
+      _log.d("Offline and track not cached");
       return null;
     }
 
@@ -972,7 +952,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       }
       return updatedTrack;
     } catch (e) {
-      print("Resolve error: $e");
+      _log.d("Resolve error: $e");
       return null;
     }
   }
@@ -998,7 +978,7 @@ class PlayerController extends StateNotifier<PlayerState> {
   Future<void> playNext() async {
     final raw = _ref.read(appSettingsProvider).value?.crossfadeSeconds ?? 0;
     final crossfade = raw.clamp(0, 12);
-    print(
+    _log.d(
         'playNext crossfade=$crossfade (raw $raw) queueIdx=${_queue.currentIndex} len=${_queue.length} hasNext=${_audioService.player.hasNext}');
     // Premium queue-aware: jangan andalkan player.hasNext saja (setelah restore player hanya punya current)
     if (_queue.currentIndex < _queue.length - 1) {
@@ -1035,7 +1015,7 @@ class PlayerController extends StateNotifier<PlayerState> {
   Future<void> playPrevious() async {
     final raw = _ref.read(appSettingsProvider).value?.crossfadeSeconds ?? 0;
     final crossfade = raw.clamp(0, 12);
-    print(
+    _log.d(
         'playPrevious crossfade=$crossfade queueIdx=${_queue.currentIndex} hasPrev=${_audioService.player.hasPrevious}');
     if (_audioService.player.position.inSeconds > 3) {
       await _audioService.player.seek(Duration.zero);
@@ -1097,7 +1077,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       _windowStartQueueIndex = _queue.currentIndex;
       await _audioService.play();
     } catch (e) {
-      print('Failed to play track: $e');
+      _log.d('Failed to play track: $e');
       state = state.copyWith(
           errorMessage:
               'Network error: Failed to stream track. Please check connection.');
@@ -1203,7 +1183,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       try {
         await _audioService.moveInPlaylist(playlistOldIndex, playlistNewIndex);
       } catch (e) {
-        print('reorderQueue move failed: $e — rebuilding');
+        _log.d('reorderQueue move failed: $e — rebuilding');
         await _rebuildUpcoming();
       }
     } else {
@@ -1266,7 +1246,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       try {
         await _audioService.removeFromPlaylist(playlistIndex);
       } catch (e) {
-        print('removeFromQueue direct remove failed: $e — rebuilding');
+        _log.d('removeFromQueue direct remove failed: $e — rebuilding');
         await _rebuildUpcoming();
       }
     } else {

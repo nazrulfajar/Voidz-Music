@@ -52,9 +52,13 @@ class RecapRepository {
       final chunk = topIds.sublist(i, (i + 80).clamp(0, topIds.length));
       if (chunk.isEmpty) continue;
       var q = isar.trackModels.filter().sourceIdEqualTo(chunk[0]);
-      for (int j = 1; j < chunk.length; j++) q = q.or().sourceIdEqualTo(chunk[j]);
+      for (int j = 1; j < chunk.length; j++) {
+        q = q.or().sourceIdEqualTo(chunk[j]);
+      }
       final models = await q.findAll();
-      for (final m in models) tracksById[m.sourceId] = Track.fromModel(m);
+      for (final m in models) {
+        tracksById[m.sourceId] = Track.fromModel(m);
+      }
     }
     // For missing tracks (deleted cache?), create placeholder fallback
     final topSongs = <Track>[];
@@ -80,9 +84,13 @@ class RecapRepository {
       final chunk = missingIds.sublist(i, (i + 80).clamp(0, missingIds.length));
       if (chunk.isEmpty) continue;
       var q = isar.trackModels.filter().sourceIdEqualTo(chunk[0]);
-      for (int j = 1; j < chunk.length; j++) q = q.or().sourceIdEqualTo(chunk[j]);
+      for (int j = 1; j < chunk.length; j++) {
+        q = q.or().sourceIdEqualTo(chunk[j]);
+      }
       final models = await q.findAll();
-      for (final m in models) allTracksById[m.sourceId] = Track.fromModel(m);
+      for (final m in models) {
+        allTracksById[m.sourceId] = Track.fromModel(m);
+      }
     }
     final artistCounts = <String, int>{};
     final artistThumb = <String, String?>{};
@@ -148,7 +156,9 @@ class RecapRepository {
     final all = await isar.playHistoryModels.where().sortByPlayedAt().findAll();
     if (all.isEmpty) return [DateTime.now().year];
     final years = <int>{};
-    for (final h in all) years.add(h.playedAt.year);
+    for (final h in all) {
+      years.add(h.playedAt.year);
+    }
     years.add(DateTime.now().year);
     final list = years.toList()..sort((a, b) => b.compareTo(a));
     return list;
