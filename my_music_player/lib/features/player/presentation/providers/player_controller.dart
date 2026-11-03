@@ -6,16 +6,17 @@ import '../../../../core/network/local_proxy_server.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:logger/logger.dart';
 import '../../data/datasources/audio_player_service.dart';
 import '../../domain/entities/track.dart';
+import '../../domain/queue/play_queue.dart';
 
 import '../../../../core/network/api_service.dart';
 import '../../domain/repositories/track_repository.dart';
 import '../../data/repositories/track_repository_impl.dart';
 
 import '../../../cache/data/datasources/cache_download_service.dart';
-import '../../data/models/queue_state_model.dart';
-import '../../data/models/queue_item_model.dart';
+import '../../data/mappers/queue_snapshot_mapper.dart';
 import '../../data/repositories/queue_repository.dart';
 import '../../../cache/domain/cache_policy.dart';
 import '../../../../core/constants/enums.dart';
@@ -106,19 +107,16 @@ class PlayerController extends StateNotifier<PlayerState> {
   final CacheDownloadService _cacheDownloadService;
   final Ref _ref;
 
-  List<Track> _originalQueue = [];
-  List<Track> _currentQueue = [];
-  int _currentIndex = -1;
+  PlayQueue _queue = PlayQueue();
+  int _windowStartQueueIndex = 0;
   bool _isResolvingNext = false;
   bool _isFetchingUpNext = false;
   int _queueSessionId = 0;
-  // Tracks the source IDs that were auto-fetched (not part of the user's original queue)
-  final Set<String> _autoQueueSourceIds = {};
   final Map<String, Map<String, String>> _trackHeaders = {};
+  final Logger _log = Logger();
   Timer? _saveDebounce;
   final List<StreamSubscription> _subscriptions = [];
   int _consecutiveResolveFailures = 0;
-  static const int _maxQueueSize = 500;
 
   PlayerController(this._audioService, this._apiService, this._trackRepo,
       this._cacheDownloadService, this._ref)
@@ -141,7 +139,7 @@ class PlayerController extends StateNotifier<PlayerState> {
       try {
         // Find track that owns this expired URL
         Track? owner;
-        for (final t in _currentQueue) {
+        for (final t in _queue.tracks) {
           if (t.streamUrl == expiredUrl) {
             owner = t;
             break;
@@ -162,13 +160,20 @@ class PlayerController extends StateNotifier<PlayerState> {
                 (k, v) => MapEntry(k.toString(), v.toString()));
           }
           // Update queue entry with fresh url
-          final idx =
-              _currentQueue.indexWhere((t) => t.sourceId == owner!.sourceId);
+          final idx = _queue.indexOfSourceId(owner.sourceId);
           if (idx != -1) {
-            _currentQueue[idx] = _currentQueue[idx].copyWith(
-              streamUrl: newUrl,
-              streamUrlExpiresAt: DateTime.tryParse(data['expires_at'] ?? ''),
-            );
+            final current = _queue.trackAt(idx);
+            if (current != null) {
+              _queue.replaceAt(
+                idx,
+                current.copyWith(
+                  streamUrl: newUrl,
+                  streamUrlExpiresAt:
+                      DateTime.tryParse(data['expires_at'] ?? ''),
+                ),
+              );
+              _syncQueueState();
+            }
           }
           return newUrl;
         }
@@ -185,16 +190,105 @@ class PlayerController extends StateNotifier<PlayerState> {
     });
   }
 
+  void _syncQueueState() {
+    final currentTrack = _queue.currentTrack;
+    if (currentTrack == null) {
+      state = PlayerState(
+        currentQueue: _queue.tracks,
+        currentIndex: _queue.currentIndex,
+        isShuffleEnabled: _queue.shuffleEnabled,
+        loopMode: _loopModeFromRepeat(_queue.repeatMode),
+      );
+      return;
+    }
+    state = state.copyWith(
+      currentTrack: currentTrack,
+      currentQueue: _queue.tracks,
+      currentIndex: _queue.currentIndex,
+      isShuffleEnabled: _queue.shuffleEnabled,
+      loopMode: _loopModeFromRepeat(_queue.repeatMode),
+    );
+  }
+
+  void _clearPlayerState() {
+    state = PlayerState(
+      isPlaying: false,
+      currentQueue: const [],
+      currentIndex: -1,
+      currentTrack: null,
+      loopMode: _loopModeFromRepeat(_queue.repeatMode),
+      isShuffleEnabled: _queue.shuffleEnabled,
+    );
+  }
+
+  /// Stops playback and drops the player window while keeping the queue.
+  ///
+  /// Used when the removed current track had no next entry: the spec says
+  /// playback stops, but the remaining queue must survive.
+  Future<void> _stopAndKeepQueue() async {
+    await _stopPlayerWindow();
+    _syncQueueState();
+  }
+
+  /// Stops playback, clears the `just_audio` window, and cancels async work.
+  Future<void> _stopPlayerWindow() async {
+    try {
+      await _audioService.stop();
+      await _audioService.startPlaylist(const []);
+    } catch (e) {
+      _log.w('Player window reset failed', error: e);
+    }
+
+    _queueSessionId++;
+    _isResolvingNext = false;
+    _isFetchingUpNext = false;
+    _windowStartQueueIndex = 0;
+  }
+
+  void _syncWindowAnchor() {
+    if (_queue.currentIndex < 0) {
+      _windowStartQueueIndex = 0;
+      return;
+    }
+    final playerIndex = _audioService.player.currentIndex ?? 0;
+    // Anchor can be negative when the player still holds a previous track that
+    // is no longer before current in the queue (e.g. after shuffle ON).
+    _windowStartQueueIndex = _queue.currentIndex - playerIndex;
+  }
+
+  LoopMode _loopModeFromRepeat(RepeatMode mode) {
+    return LoopMode.values.firstWhere(
+      (value) => value.name == mode.name,
+      orElse: () => LoopMode.off,
+    );
+  }
+
+  Future<void> _rebuildUpcoming() async {
+    try {
+      await _audioService.clearUpcoming();
+      _queueSessionId++;
+      _isResolvingNext = false;
+      _syncWindowAnchor();
+      _resolveAndAppendNextTrack();
+    } catch (e) {
+      _log.w('Queue window rebuild failed', error: e);
+    }
+  }
+
   Future<void> _onAudioQualityChanged() async {
-    if (_currentQueue.isEmpty || _currentIndex < 0) return;
+    if (_queue.isEmpty || _queue.currentIndex < 0) return;
 
     // Clear cached stream URLs from memory for upcoming un-cached tracks
-    for (int i = _currentIndex + 1; i < _currentQueue.length; i++) {
-      if (!_currentQueue[i].isCached) {
-        _currentQueue[i] = _currentQueue[i]
-            .copyWith(streamUrl: null, streamUrlExpiresAt: null);
+    for (var i = _queue.currentIndex + 1; i < _queue.length; i++) {
+      final track = _queue.trackAt(i);
+      if (track != null && !track.isCached) {
+        _queue.replaceAt(
+          i,
+          track.copyWith(streamUrl: null, streamUrlExpiresAt: null),
+        );
       }
     }
+    _syncQueueState();
 
     // Clear upcoming tracks in just_audio playlist
     await _audioService.clearUpcoming();
@@ -202,6 +296,7 @@ class PlayerController extends StateNotifier<PlayerState> {
     // Re-resolve and append upcoming tracks with new quality
     _queueSessionId++;
     _isResolvingNext = false;
+    _syncWindowAnchor();
     _resolveAndAppendNextTrack();
   }
 
@@ -237,9 +332,8 @@ class PlayerController extends StateNotifier<PlayerState> {
             final source = _audioService.createAudioSourceFromTrack(uri, fresh,
                 headers: _trackHeaders[fresh.sourceId], isLocal: isLocal);
             // Keep queue in sync
-            if (_currentIndex >= 0 && _currentIndex < _currentQueue.length) {
-              _currentQueue[_currentIndex] = fresh;
-            }
+            _queue.replaceCurrent(fresh);
+            _syncQueueState();
             await _audioService.player.setAudioSource(source);
             await _audioService.player.play();
             state = state.clearError();
@@ -281,8 +375,8 @@ class PlayerController extends StateNotifier<PlayerState> {
     //   state = state.copyWith(isShuffleEnabled: enabled);
     // });
 
-    _subscriptions
-        .add(_audioService.player.sequenceStateStream.listen((sequenceState) async {
+    _subscriptions.add(
+        _audioService.player.sequenceStateStream.listen((sequenceState) async {
       if (sequenceState == null) return;
       final currentSource = sequenceState.currentSource;
       if (currentSource == null) return;
@@ -290,22 +384,25 @@ class PlayerController extends StateNotifier<PlayerState> {
       final tag = currentSource.tag;
       if (tag is MediaItem) {
         final sourceId = tag.id;
-        final index = _currentQueue.indexWhere((t) => t.sourceId == sourceId);
+        final index = _queue.indexOfSourceId(sourceId);
 
-        if (index != -1 && index != _currentIndex) {
+        if (index != -1 && index != _queue.currentIndex) {
           print(
-              'DEBUG: sequenceStateStream - changing index from $_currentIndex to $index (sourceId: $sourceId)');
-          _currentIndex = index;
-          final newTrack = _currentQueue[index];
-          state = state.copyWith(currentTrack: newTrack, currentIndex: index);
+              'DEBUG: sequenceStateStream - changing index from ${_queue.currentIndex} to $index (sourceId: $sourceId)');
+          _queue.select(index);
+          final newTrack = _queue.currentTrack;
+          if (newTrack != null) {
+            _syncQueueState();
+            _syncWindowAnchor();
 
-          // Premium konsisten: TrackModel update + PlayHistory log + queue save (survive hot restart)
-          // Await agar tidak hilang saat hot restart langsung setelah auto-next
-          await _recordPlayHistory(newTrack);
-          _scheduleSaveQueue();
+            // Premium konsisten: TrackModel update + PlayHistory log + queue save (survive hot restart)
+            // Await agar tidak hilang saat hot restart langsung setelah auto-next
+            await _recordPlayHistory(newTrack);
+            _scheduleSaveQueue();
 
-          // Resolve next track if needed
-          _resolveAndAppendNextTrack();
+            // Resolve next track if needed
+            _resolveAndAppendNextTrack();
+          }
         }
       }
     }));
@@ -339,7 +436,8 @@ class PlayerController extends StateNotifier<PlayerState> {
       final check = await _trackRepo.getTrack(sourceId, source);
       final exists = check.fold((_) => false, (t) => t != null);
       if (!exists) {
-        await _trackRepo.saveTrack(track.copyWith(playCount: 1, lastPlayedAt: DateTime.now()));
+        await _trackRepo.saveTrack(
+            track.copyWith(playCount: 1, lastPlayedAt: DateTime.now()));
         // Coba update lagi untuk increment yang terlewat (first play sudah 1, tidak perlu increment lagi)
       } else {
         // Jika update gagal karena model null sebelumnya (misal save concurrent), pastikan lastPlayedAt sudah ter-set
@@ -361,7 +459,9 @@ class PlayerController extends StateNotifier<PlayerState> {
   // Backward compat overload dipakai unit test / legacy
   Future<void> _recordPlayHistoryById(String sourceId, String source) async {
     // Cari Track di queue dulu untuk handle creation
-    final found = _currentQueue.where((t) => t.sourceId == sourceId).firstOrNull ?? state.currentTrack;
+    final found =
+        _queue.tracks.where((t) => t.sourceId == sourceId).firstOrNull ??
+            state.currentTrack;
     if (found != null && found.sourceId == sourceId) {
       await _recordPlayHistory(found);
     } else {
@@ -394,32 +494,8 @@ class PlayerController extends StateNotifier<PlayerState> {
     _isResolvingNext = false;
     _isFetchingUpNext = false;
 
-    _originalQueue = queue != null ? List<Track>.from(queue) : [track];
-
-    if (state.isShuffleEnabled) {
-      final remaining = _originalQueue
-          .where((t) => t.sourceId != track.sourceId)
-          .toList()
-        ..shuffle();
-      _currentQueue = [track, ...remaining];
-      _currentIndex = 0;
-    } else {
-      _currentQueue = List.from(_originalQueue);
-      _currentIndex =
-          _currentQueue.indexWhere((t) => t.sourceId == track.sourceId);
-      if (_currentIndex == -1) {
-        _currentQueue.insert(0, track);
-        _currentIndex = 0;
-      }
-    }
-    // Clear auto-queue tracking whenever a new queue is started
-    _autoQueueSourceIds.clear();
-
-    state = state.copyWith(
-      currentTrack: _currentQueue[_currentIndex],
-      currentQueue: _currentQueue,
-      currentIndex: _currentIndex,
-    );
+    _queue.start(track, queue: queue);
+    _syncQueueState();
 
     final resolvedTrack = await _resolveTrack(track);
     if (resolvedTrack == null) {
@@ -429,9 +505,8 @@ class PlayerController extends StateNotifier<PlayerState> {
       return;
     }
 
-    _currentQueue[_currentIndex] = resolvedTrack;
-    state = state.copyWith(
-        currentTrack: resolvedTrack, currentQueue: List.from(_currentQueue));
+    _queue.replaceCurrent(resolvedTrack);
+    _syncQueueState();
 
     final isLocal =
         resolvedTrack.isCached && resolvedTrack.localAudioPath != null;
@@ -443,6 +518,7 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     try {
       await _audioService.startPlaylist([source]);
+      _windowStartQueueIndex = _queue.currentIndex;
       await _audioService.play();
     } catch (e) {
       print('Failed to play track: $e');
@@ -480,26 +556,31 @@ class PlayerController extends StateNotifier<PlayerState> {
     final candidates = <Track>[];
 
     // Keep previous track if it was being downloaded (don't cancel mid-download)
-    if (_currentIndex > 0) {
-      final prev = _currentQueue[_currentIndex - 1];
-      if (prev.streamUrl != null &&
+    if (_queue.currentIndex > 0) {
+      final prev = _queue.trackAt(_queue.currentIndex - 1);
+      if (prev != null &&
+          prev.streamUrl != null &&
           !prev.isCached &&
           _cacheDownloadService.isDownloading(prev.sourceId)) {
         candidates.add(prev);
       }
     }
 
-    if (state.currentTrack != null &&
-        _currentIndex >= 0 &&
-        _currentIndex < _currentQueue.length) {
-      final t = _currentQueue[_currentIndex];
-      if (t.streamUrl != null && !t.isCached) candidates.add(t);
+    final current = _queue.currentTrack;
+    if (current != null &&
+        _queue.currentIndex >= 0 &&
+        _queue.currentIndex < _queue.length) {
+      if (current.streamUrl != null && !current.isCached) {
+        candidates.add(current);
+      }
     }
 
     for (int i = 1; i <= 4; i++) {
-      if (_currentIndex + i < _currentQueue.length) {
-        final t = _currentQueue[_currentIndex + i];
-        if (t.streamUrl != null && !t.isCached) candidates.add(t);
+      if (_queue.currentIndex + i < _queue.length) {
+        final t = _queue.trackAt(_queue.currentIndex + i);
+        if (t != null && t.streamUrl != null && !t.isCached) {
+          candidates.add(t);
+        }
       }
     }
 
@@ -540,6 +621,7 @@ class PlayerController extends StateNotifier<PlayerState> {
   bool _needsResolve = false;
 
   Future<void> _resolveAndAppendNextTrack() async {
+    if (_queue.currentIndex < 0) return;
     _needsResolve = true;
     if (_isResolvingNext) return;
     _isResolvingNext = true;
@@ -560,25 +642,13 @@ class PlayerController extends StateNotifier<PlayerState> {
           if (currentPlaylistLen > playerIndex + 2) {
             break;
           }
-          if (state.loopMode == LoopMode.all) {
-            final userQueueTracks = _currentQueue
-                .where((t) => !_autoQueueSourceIds.contains(t.sourceId))
-                .toList();
+          if (_queue.repeatMode == RepeatMode.all) {
+            final userQueueTracks = _queue.userTracks;
 
             if (userQueueTracks.isNotEmpty) {
-              final currentTrackId = state.currentTrack?.sourceId;
-              final currentPosInUser = userQueueTracks
-                  .indexWhere((t) => t.sourceId == currentTrackId);
-
-              // Premium: jika current adalah auto (pos -1), next = first user track, bukan offset
-              final int nextUserIndex;
-              if (currentPosInUser == -1) {
-                nextUserIndex = 0;
-              } else {
-                final offset = currentPlaylistLen - playerIndex;
-                nextUserIndex =
-                    (currentPosInUser + offset) % userQueueTracks.length;
-              }
+              final ahead = currentPlaylistLen - playerIndex;
+              final nextUserIndex = _queue.nextUserIndex(ahead: ahead);
+              if (nextUserIndex == -1) break;
               final nextUserTrack = userQueueTracks[nextUserIndex];
 
               final resolvedTrack = await _resolveTrack(nextUserTrack);
@@ -586,9 +656,10 @@ class PlayerController extends StateNotifier<PlayerState> {
 
               if (resolvedTrack != null) {
                 _consecutiveResolveFailures = 0;
-                final actualIdx = _currentQueue
-                    .indexWhere((t) => t.sourceId == resolvedTrack.sourceId);
-                if (actualIdx != -1) _currentQueue[actualIdx] = resolvedTrack;
+                _queue.replaceBySourceId(
+                  resolvedTrack.sourceId,
+                  resolvedTrack,
+                );
 
                 final isLocal = resolvedTrack.isCached &&
                     resolvedTrack.localAudioPath != null;
@@ -622,26 +693,30 @@ class PlayerController extends StateNotifier<PlayerState> {
             }
           } else {
             // ── NORMAL / NO-REPEAT MODE ──
-            final int nextIndex = currentPlaylistLen;
-            if (nextIndex >= _currentQueue.length) {
+            final int nextIndex = _windowStartQueueIndex + currentPlaylistLen;
+            if (nextIndex >= _queue.length) {
               await _fetchAndAppendAutoQueue();
               if (sessionId != _queueSessionId) break;
-            } else if (_currentQueue.length - nextIndex <= 2) {
+            } else if (_queue.length - nextIndex <= 2) {
               _fetchAndAppendAutoQueue(); // fire and forget
             }
 
-            if (nextIndex >= _currentQueue.length) {
+            if (nextIndex >= _queue.length) {
               _updateCacheTargets();
               break;
             }
 
-            final nextTrack = _currentQueue[nextIndex];
+            final nextTrack = _queue.trackAt(nextIndex);
+            if (nextTrack == null) {
+              _updateCacheTargets();
+              break;
+            }
             final resolvedTrack = await _resolveTrack(nextTrack);
             if (sessionId != _queueSessionId) break;
 
             if (resolvedTrack != null) {
               _consecutiveResolveFailures = 0;
-              _currentQueue[nextIndex] = resolvedTrack;
+              _queue.replaceAt(nextIndex, resolvedTrack);
               final isLocal = resolvedTrack.isCached &&
                   resolvedTrack.localAudioPath != null;
               final uri = isLocal
@@ -661,7 +736,8 @@ class PlayerController extends StateNotifier<PlayerState> {
                   'Resolve failed for next track $nextIndex ($_consecutiveResolveFailures/3)');
               if (_consecutiveResolveFailures < 3) {
                 // Skip this unplayable track and try next after 2s
-                _currentQueue.removeAt(nextIndex);
+                _queue.removeAt(nextIndex);
+                _syncQueueState();
                 await Future.delayed(const Duration(seconds: 2));
                 continue;
               } else {
@@ -683,95 +759,50 @@ class PlayerController extends StateNotifier<PlayerState> {
 
   /// Premium: Add to Queue / Play Next — konsisten tanpa replace current
   Future<void> addToQueue(Track track, {bool playNext = false}) async {
-    if (_currentQueue.isEmpty) {
+    if (_queue.isEmpty) {
       await playTrack(track);
       return;
     }
-    // Cap 500 — evict oldest auto first if needed
-    if (_currentQueue.length >= _maxQueueSize) {
-      // Evict oldest auto-queue first
-      int removed = 0;
-      _currentQueue.removeWhere((t) {
-        if (removed >= 1) return false;
-        if (_autoQueueSourceIds.contains(t.sourceId)) {
-          removed++;
-          _autoQueueSourceIds.remove(t.sourceId);
-          return true;
-        }
-        return false;
-      });
-      if (removed == 0 && _currentQueue.length >= _maxQueueSize) {
-        // No auto to evict — drop oldest non-current
-        final dropIdx = _currentIndex == 0 ? 1 : 0;
-        if (dropIdx < _currentQueue.length) {
-          final dropped = _currentQueue.removeAt(dropIdx);
-          if (!state.isShuffleEnabled)
-            _originalQueue.removeWhere((t) => t.sourceId == dropped.sourceId);
-          if (dropIdx < _currentIndex) _currentIndex--;
-        }
-      }
-    }
 
-    // Dedup — konsisten kedua queue sekali saja
-    _currentQueue.removeWhere((t) => t.sourceId == track.sourceId);
-    _originalQueue.removeWhere((t) => t.sourceId == track.sourceId);
-
-    final insertIdx = playNext
-        ? (_currentIndex + 1).clamp(0, _currentQueue.length)
-        : _currentQueue.length;
-    _currentQueue.insert(insertIdx, track);
-    if (!state.isShuffleEnabled) {
-      _originalQueue.insert(insertIdx.clamp(0, _originalQueue.length), track);
-    } else {
-      // Shuffle ON: simpan Play Next setelah current di original juga (bukan tail) → restore tidak loss posisi
-      final curId = state.currentTrack?.sourceId;
-      final origIdx = curId != null
-          ? _originalQueue.indexWhere((t) => t.sourceId == curId)
-          : -1;
-      final origInsert = playNext
-          ? (origIdx == -1 ? _originalQueue.length : origIdx + 1)
-          : _originalQueue.length;
-      _originalQueue.insert(origInsert.clamp(0, _originalQueue.length), track);
-    }
-
-    state = state.copyWith(
-        currentQueue: List.from(_currentQueue), currentIndex: _currentIndex);
+    final result = _queue.enqueue(track, playNext: playNext);
+    _syncQueueState();
+    _syncWindowAnchor();
 
     // Rebuild upcoming window if inserted within player window
     final playlistLen = _audioService.player.sequence?.length ?? 0;
-    final withinWindow = insertIdx < playlistLen + 3;
+    final withinWindow = result.insertIndex >= _windowStartQueueIndex &&
+        result.insertIndex < _windowStartQueueIndex + playlistLen + 3;
     if (withinWindow) {
-      try {
-        await _audioService.clearUpcoming();
-        _queueSessionId++;
-        _isResolvingNext = false;
-        _resolveAndAppendNextTrack();
-      } catch (_) {}
-    } else {
-      _scheduleSaveQueue();
+      await _rebuildUpcoming();
     }
     _scheduleSaveQueue();
   }
 
   Future<void> addAllToQueue(List<Track> tracks,
       {bool playNext = false}) async {
-    for (final t in (playNext ? tracks.reversed : tracks)) {
-      await addToQueue(t, playNext: playNext);
-      // small yield to avoid blocking
-      await Future.delayed(const Duration(milliseconds: 1));
+    if (tracks.isEmpty) return;
+    if (_queue.isEmpty) {
+      await playTrack(tracks.first, queue: tracks);
+      return;
     }
+
+    _queue.enqueueAll(tracks, playNext: playNext);
+    _syncQueueState();
+    await _rebuildUpcoming();
+    _scheduleSaveQueue();
   }
 
   Future<void> _fetchAndAppendAutoQueue() async {
     if (_isFetchingUpNext) return;
-    if (_currentQueue.isEmpty) return;
+    if (_queue.isEmpty) return;
     // Premium tradeoff #5: Shuffle ON → auto-queue OFF (Spotify)
-    if (state.isShuffleEnabled) return;
+    if (_queue.shuffleEnabled) return;
 
     _isFetchingUpNext = true;
     try {
       // Use the very last track in the queue as the seed to generate infinite recommendations.
-      final seedTrack = _currentQueue.last;
+      final seedTrack = _queue.lastTrack;
+      if (seedTrack == null) return;
 
       final upNextData = await _apiService.getUpNext(seedTrack.sourceId);
 
@@ -781,45 +812,15 @@ class PlayerController extends StateNotifier<PlayerState> {
             .toList();
 
         // Prevent duplicating tracks already in queue
-        final existingIds = _currentQueue.map((t) => t.sourceId).toSet();
+        final existingIds = _queue.sourceIds;
         final tracksToAdd = newTracks
             .where((t) => !existingIds.contains(t.sourceId))
             .take(10)
             .toList();
 
         if (tracksToAdd.isNotEmpty) {
-          // Mark these as auto-queue so repeat logic can exclude them
-          for (final t in tracksToAdd) {
-            _autoQueueSourceIds.add(t.sourceId);
-          }
-          // Cap queue at 500 — evict oldest auto-queue first
-          if (_currentQueue.length + tracksToAdd.length > _maxQueueSize) {
-            final overflow =
-                _currentQueue.length + tracksToAdd.length - _maxQueueSize;
-            // Remove oldest auto-queue tracks
-            int removed = 0;
-            _currentQueue.removeWhere((t) {
-              if (removed >= overflow) return false;
-              if (_autoQueueSourceIds.contains(t.sourceId)) {
-                removed++;
-                _autoQueueSourceIds.remove(t.sourceId);
-                return true;
-              }
-              return false;
-            });
-            if (removed < overflow) {
-              // If still overflow (no auto-queue to evict), trim from end
-              final keep = _maxQueueSize - tracksToAdd.length;
-              if (keep >= 0 && _currentQueue.length > keep) {
-                _currentQueue = _currentQueue.sublist(0, keep);
-                if (_currentIndex >= _currentQueue.length)
-                  _currentIndex = _currentQueue.length - 1;
-              }
-            }
-          }
-          _currentQueue.addAll(tracksToAdd);
-          // Do NOT add to _originalQueue — auto-queue tracks are not part of user's queue
-          state = state.copyWith(currentQueue: List.from(_currentQueue));
+          final added = _queue.appendAuto(tracksToAdd);
+          if (added > 0) _syncQueueState();
         }
       }
     } catch (e) {
@@ -904,13 +905,20 @@ class PlayerController extends StateNotifier<PlayerState> {
           .resolve(track.sourceId,
               source: track.source.name, quality: prefQualityStr)
           .then((fresh) {
-        final idx =
-            _currentQueue.indexWhere((t) => t.sourceId == track.sourceId);
+        final idx = _queue.indexOfSourceId(track.sourceId);
         if (idx != -1) {
-          _currentQueue[idx] = _currentQueue[idx].copyWith(
-            streamUrl: fresh['stream_url'],
-            streamUrlExpiresAt: DateTime.tryParse(fresh['expires_at'] ?? ''),
-          );
+          final queued = _queue.trackAt(idx);
+          if (queued != null) {
+            _queue.replaceAt(
+              idx,
+              queued.copyWith(
+                streamUrl: fresh['stream_url'],
+                streamUrlExpiresAt:
+                    DateTime.tryParse(fresh['expires_at'] ?? ''),
+              ),
+            );
+            _syncQueueState();
+          }
         }
       }).catchError((_) {});
       return track; // Use current URL for now, fresh will be used next time
@@ -971,9 +979,9 @@ class PlayerController extends StateNotifier<PlayerState> {
     final raw = _ref.read(appSettingsProvider).value?.crossfadeSeconds ?? 0;
     final crossfade = raw.clamp(0, 12);
     print(
-        'playNext crossfade=$crossfade (raw $raw) queueIdx=$_currentIndex len=${_currentQueue.length} hasNext=${_audioService.player.hasNext}');
+        'playNext crossfade=$crossfade (raw $raw) queueIdx=${_queue.currentIndex} len=${_queue.length} hasNext=${_audioService.player.hasNext}');
     // Premium queue-aware: jangan andalkan player.hasNext saja (setelah restore player hanya punya current)
-    if (_currentIndex < _currentQueue.length - 1) {
+    if (_queue.currentIndex < _queue.length - 1) {
       if (_audioService.player.hasNext) {
         if (crossfade > 0) {
           await _audioService.crossfadeToNext(crossfade);
@@ -982,12 +990,12 @@ class PlayerController extends StateNotifier<PlayerState> {
         }
       } else {
         // Player window belum ada next (habis restore) → skip via queue
-        await skipToQueueItem(_currentIndex + 1);
+        await skipToQueueItem(_queue.currentIndex + 1);
       }
       return;
     }
     // End of queue
-    if (_currentQueue.isNotEmpty) {
+    if (_queue.isNotEmpty) {
       await _fetchAndAppendAutoQueue();
       if (_audioService.player.hasNext) {
         if (crossfade > 0) {
@@ -995,9 +1003,9 @@ class PlayerController extends StateNotifier<PlayerState> {
         } else {
           await _audioService.player.seekToNext();
         }
-      } else if (_currentIndex < _currentQueue.length - 1) {
+      } else if (_queue.currentIndex < _queue.length - 1) {
         // AutoQueue baru menambah queue
-        await skipToQueueItem(_currentIndex + 1);
+        await skipToQueueItem(_queue.currentIndex + 1);
       } else {
         await _audioService.player.seek(Duration.zero);
       }
@@ -1008,13 +1016,13 @@ class PlayerController extends StateNotifier<PlayerState> {
     final raw = _ref.read(appSettingsProvider).value?.crossfadeSeconds ?? 0;
     final crossfade = raw.clamp(0, 12);
     print(
-        'playPrevious crossfade=$crossfade queueIdx=$_currentIndex hasPrev=${_audioService.player.hasPrevious}');
+        'playPrevious crossfade=$crossfade queueIdx=${_queue.currentIndex} hasPrev=${_audioService.player.hasPrevious}');
     if (_audioService.player.position.inSeconds > 3) {
       await _audioService.player.seek(Duration.zero);
       return;
     }
     // Premium queue-aware: hasPrevious di player hanya true jika window ada prev
-    if (_currentIndex > 0) {
+    if (_queue.currentIndex > 0) {
       if (_audioService.player.hasPrevious) {
         if (crossfade > 0) {
           await _audioService.crossfadeToPrevious(crossfade);
@@ -1023,39 +1031,38 @@ class PlayerController extends StateNotifier<PlayerState> {
         }
       } else {
         // Setelah restore player cuma punya current → pakai queue
-        await skipToQueueItem(_currentIndex - 1);
+        await skipToQueueItem(_queue.currentIndex - 1);
       }
     } else {
       await _audioService.player.seek(Duration.zero);
     }
   }
 
+  /// Selects and plays a queue index. On failure the stale player window is
+  /// cleared so the previous track cannot keep playing behind the error state.
   Future<void> skipToQueueItem(int index) async {
-    if (index < 0 || index >= _currentQueue.length) return;
+    if (!_queue.select(index)) return;
 
     _queueSessionId++;
     _isResolvingNext = false;
     _isFetchingUpNext = false;
 
     state = state.clearError();
-    _currentIndex = index;
-    state = state.copyWith(
-      currentTrack: _currentQueue[_currentIndex],
-      currentIndex: _currentIndex,
-    );
+    _syncQueueState();
 
-    final track = _currentQueue[_currentIndex];
+    final track = _queue.currentTrack;
+    if (track == null) return;
     final resolvedTrack = await _resolveTrack(track);
     if (resolvedTrack == null) {
       state = state.copyWith(
           errorMessage:
               'Failed to resolve "${track.title}". Please check your connection.');
+      await _stopPlayerWindow();
       return;
     }
 
-    _currentQueue[_currentIndex] = resolvedTrack;
-    state = state.copyWith(
-        currentTrack: resolvedTrack, currentQueue: List.from(_currentQueue));
+    _queue.replaceCurrent(resolvedTrack);
+    _syncQueueState();
 
     final isLocal =
         resolvedTrack.isCached && resolvedTrack.localAudioPath != null;
@@ -1067,12 +1074,14 @@ class PlayerController extends StateNotifier<PlayerState> {
 
     try {
       await _audioService.startPlaylist([source]);
+      _windowStartQueueIndex = _queue.currentIndex;
       await _audioService.play();
     } catch (e) {
       print('Failed to play track: $e');
       state = state.copyWith(
           errorMessage:
               'Network error: Failed to stream track. Please check connection.');
+      await _stopPlayerWindow();
       return;
     }
 
@@ -1085,46 +1094,25 @@ class PlayerController extends StateNotifier<PlayerState> {
   }
 
   Future<void> toggleRepeat() async {
-    final nextMode = state.loopMode == LoopMode.off
-        ? LoopMode.all
-        : state.loopMode == LoopMode.all
-            ? LoopMode.one
-            : LoopMode.off;
+    final nextMode = _loopModeFromRepeat(_queue.cycleRepeat());
     await _audioService.setRepeatMode(nextMode);
+    state = state.copyWith(loopMode: nextMode);
     _scheduleSaveQueue();
   }
 
   Future<void> toggleShuffle() async {
-    final nextMode = !state.isShuffleEnabled;
+    if (_queue.isEmpty) return;
 
-    if (_originalQueue.isEmpty) return;
-
-    if (nextMode) {
-      final current = _currentQueue[_currentIndex];
-      final remaining = _originalQueue
-          .where((t) => t.sourceId != current.sourceId)
-          .toList()
-        ..shuffle();
-      _currentQueue = [current, ...remaining];
-      _currentIndex = 0;
-    } else {
-      final current = _currentQueue[_currentIndex];
-      _currentQueue = List.from(_originalQueue);
-      _currentIndex =
-          _currentQueue.indexWhere((t) => t.sourceId == current.sourceId);
-      if (_currentIndex == -1) {
-        _currentQueue.insert(0, current);
-        _currentIndex = 0;
-      }
+    _queue.toggleShuffle();
+    _syncQueueState();
+    if (_queue.currentIndex < 0) {
+      _scheduleSaveQueue();
+      return;
     }
-
-    state = state.copyWith(
-        isShuffleEnabled: nextMode,
-        currentQueue: _currentQueue,
-        currentIndex: _currentIndex);
 
     // Clear the upcoming tracks in the player's playlist and resolve the new next track.
     await _audioService.clearUpcoming();
+    _syncWindowAnchor();
     _isResolvingNext = false;
     _resolveAndAppendNextTrack();
     _scheduleSaveQueue();
@@ -1141,8 +1129,8 @@ class PlayerController extends StateNotifier<PlayerState> {
     state = state.copyWith(currentTrack: updatedTrack);
 
     // Also update in queue
-    if (_currentIndex != -1 && _currentIndex < _currentQueue.length) {
-      _currentQueue[_currentIndex] = updatedTrack;
+    if (_queue.currentIndex != -1) {
+      _queue.replaceCurrent(updatedTrack);
     }
 
     // Save to DB
@@ -1162,18 +1150,12 @@ class PlayerController extends StateNotifier<PlayerState> {
     try {
       _ref.read(sleepTimerProvider.notifier).cancelIfActive();
     } catch (_) {}
-    _currentQueue.clear();
-    _originalQueue.clear();
-    _autoQueueSourceIds.clear();
-    _currentIndex = -1;
+    _queue.clear();
     _queueSessionId++;
     _isResolvingNext = false;
     _isFetchingUpNext = false;
-    state = PlayerState(
-        isPlaying: false,
-        currentQueue: [],
-        currentIndex: -1,
-        currentTrack: null);
+    _windowStartQueueIndex = 0;
+    _clearPlayerState();
     // clear persisted queue
     try {
       final queueRepo = _ref.read(queueRepositoryProvider);
@@ -1182,155 +1164,106 @@ class PlayerController extends StateNotifier<PlayerState> {
   }
 
   Future<void> reorderQueue(int oldIndex, int newIndex) async {
-    // ReorderableListView gives newIndex as insertion position in the original list.
-    // For List remove/insert we need adjusted index when dragging forward.
-    final adjustedNewIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
+    final result = _queue.reorder(oldIndex, newIndex);
+    if (result == null) return;
 
-    // Update _currentQueue with adjusted index
-    final track = _currentQueue.removeAt(oldIndex);
-    _currentQueue.insert(adjustedNewIndex, track);
-
-    // If we're not shuffling, _originalQueue is exactly _currentQueue
-    if (!state.isShuffleEnabled) {
-      _originalQueue = List.from(_currentQueue);
-    }
-
-    // Update _currentIndex
-    if (_currentIndex == oldIndex) {
-      _currentIndex = adjustedNewIndex;
-    } else if (oldIndex < _currentIndex && adjustedNewIndex >= _currentIndex) {
-      _currentIndex--;
-    } else if (oldIndex > _currentIndex && adjustedNewIndex <= _currentIndex) {
-      _currentIndex++;
-    }
-
-    state = state.copyWith(
-      currentQueue: List.from(_currentQueue),
-      currentIndex: _currentIndex,
-    );
+    _syncQueueState();
 
     // Player's ConcatenatingAudioSource only holds current + 2 ahead.
     // If reordered indices are within player's window, a direct move keeps hasNext true instantly.
     // Otherwise, rebuild upcoming via clear+re-resolve.
     final playlistLen = _audioService.player.sequence?.length ?? 0;
-    final withinWindow =
-        oldIndex < playlistLen && adjustedNewIndex < playlistLen;
+    final playlistOldIndex = result.fromIndex - _windowStartQueueIndex;
+    final playlistNewIndex = result.toIndex - _windowStartQueueIndex;
+    final withinWindow = playlistOldIndex >= 0 &&
+        playlistNewIndex >= 0 &&
+        playlistOldIndex < playlistLen &&
+        playlistNewIndex < playlistLen;
     if (withinWindow) {
       try {
-        await _audioService.moveInPlaylist(oldIndex, adjustedNewIndex);
+        await _audioService.moveInPlaylist(playlistOldIndex, playlistNewIndex);
       } catch (e) {
         print('reorderQueue move failed: $e — rebuilding');
-        await _audioService.clearUpcoming();
-        _isResolvingNext = false;
-        _queueSessionId++;
-        _resolveAndAppendNextTrack();
+        await _rebuildUpcoming();
       }
     } else {
-      try {
-        await _audioService.clearUpcoming();
-        _isResolvingNext = false;
-        _queueSessionId++;
-        _resolveAndAppendNextTrack();
-      } catch (e) {
-        print('reorderQueue rebuild failed: $e');
-      }
+      await _rebuildUpcoming();
     }
     _scheduleSaveQueue();
   }
 
   Future<void> removeFromQueue(int index) async {
-    if (index < 0 || index >= _currentQueue.length) return;
+    final result = _queue.removeAt(index);
+    if (result == null) return;
 
-    final removedTrack = _currentQueue.removeAt(index);
+    _syncQueueState();
 
-    if (!state.isShuffleEnabled) {
-      _originalQueue.removeWhere((t) => t.sourceId == removedTrack.sourceId);
-    }
-
-    if (index < _currentIndex) {
-      _currentIndex--;
-    } else if (index == _currentIndex) {
-      if (_currentIndex >= _currentQueue.length) {
-        _currentIndex = _currentQueue.length - 1;
+    if (result.wasCurrent) {
+      if (result.isEmpty) {
+        try {
+          await _audioService.stop();
+        } catch (e) {
+          _log.w('Player stop failed while clearing queue', error: e);
+        }
+        _queueSessionId++;
+        _isResolvingNext = false;
+        _isFetchingUpNext = false;
+        _windowStartQueueIndex = 0;
+        _clearPlayerState();
+        try {
+          await _ref.read(queueRepositoryProvider).clear();
+        } catch (e) {
+          _log.w('Persisted queue clear failed', error: e);
+        }
+        return;
       }
+
+      // Q8: current removed -> move playback to the next track via skip path.
+      // No next entry: stop playback but keep the queue (PLAYBACK_SPEC §1.8).
+      if (result.currentTrack == null) {
+        await _stopAndKeepQueue();
+        _scheduleSaveQueue();
+        return;
+      }
+      // Q8: current removed -> move playback to the next track via skip path.
+      // Failure clears the stale window; the queue itself is kept.
+      await skipToQueueItem(_queue.currentIndex);
+      _scheduleSaveQueue();
+      return;
     }
 
-    state = state.copyWith(
-      currentQueue: List.from(_currentQueue),
-      currentIndex: _currentIndex,
-    );
-
-    // Player only holds current + 2 ahead — try direct remove if within window, else rebuild
-    final playlistLen2 = _audioService.player.sequence?.length ?? 0;
-    if (index > _currentIndex && index < playlistLen2) {
+    // Player only holds a window around current — remove directly when the
+    // entry is in that window (including entries before current, so a deleted
+    // track cannot be replayed via Previous); otherwise rebuild.
+    final playlistLen = _audioService.player.sequence?.length ?? 0;
+    final playlistIndex = index - _windowStartQueueIndex;
+    final playerIndex = _audioService.player.currentIndex;
+    final withinWindow = playerIndex != null &&
+        playlistIndex >= 0 &&
+        playlistIndex < playlistLen &&
+        playlistIndex != playerIndex;
+    if (withinWindow) {
       try {
-        await _audioService.removeFromPlaylist(index);
+        await _audioService.removeFromPlaylist(playlistIndex);
       } catch (e) {
         print('removeFromQueue direct remove failed: $e — rebuilding');
-        await _audioService.clearUpcoming();
-        _isResolvingNext = false;
-        _queueSessionId++;
-        _resolveAndAppendNextTrack();
-      }
-    } else if (index <= _currentIndex) {
-      // Removing before or at current — current's playlist index shifts, rebuild to stay consistent
-      try {
-        await _audioService.clearUpcoming();
-        _isResolvingNext = false;
-        _queueSessionId++;
-        _resolveAndAppendNextTrack();
-        // Also try direct remove if it was upcoming
-        if (index > _currentIndex && index < playlistLen2) {
-          try {
-            await _audioService.removeFromPlaylist(index);
-          } catch (_) {}
-        }
-      } catch (e) {
-        print('removeFromQueue rebuild failed: $e');
+        await _rebuildUpcoming();
       }
     } else {
-      // Beyond window — no player change needed, but rebuild to ensure next tracks are correct
-      try {
-        await _audioService.clearUpcoming();
-        _isResolvingNext = false;
-        _queueSessionId++;
-        _resolveAndAppendNextTrack();
-      } catch (e) {
-        print('removeFromQueue rebuild failed: $e');
-      }
+      await _rebuildUpcoming();
     }
     _scheduleSaveQueue();
   }
 
   Future<void> saveQueueState() async {
-    if (_currentQueue.isEmpty) return;
+    if (_queue.isEmpty) return;
     final queueRepo = _ref.read(queueRepositoryProvider);
-    final items = <QueueItemModel>[];
-    for (int i = 0; i < _currentQueue.length; i++) {
-      final track = _currentQueue[i];
-      final originalIdx =
-          _originalQueue.indexWhere((t) => t.sourceId == track.sourceId);
-      final item = QueueItemModel()
-        ..queueStateId = 1
-        ..trackId = track.sourceId
-        ..originalIndex = originalIdx != -1 ? originalIdx : i
-        ..shuffledIndex = state.isShuffleEnabled ? i : null;
-      items.add(item);
-    }
-    final currentTrackId = state.currentTrack?.sourceId;
-    final qState = QueueStateModel()
-      ..id = 1
-      ..currentTrackId = currentTrackId
-      ..currentPositionMs = _audioService.player.position.inMilliseconds
-      ..shuffleEnabled = state.isShuffleEnabled
-      ..repeatMode = RepeatMode.values.firstWhere(
-          (e) => e.name == state.loopMode.name,
-          orElse: () => RepeatMode.off)
-      ..autoQueueIds =
-          _autoQueueSourceIds.isEmpty ? null : _autoQueueSourceIds.join(',')
-      ..queueSource =
-          _currentQueue.isNotEmpty ? 'queue:${_currentQueue.length}' : null
-      ..updatedAt = DateTime.now();
+    final snapshot = _queue.snapshot();
+    final items = QueueSnapshotMapper.toItemModels(snapshot);
+    final qState = QueueSnapshotMapper.toStateModel(
+      snapshot,
+      currentPositionMs: _audioService.player.position.inMilliseconds,
+    );
     // Atomic: clear + putAll dalam satu txn via repository (crash-safe)
     await queueRepo.replaceQueue(items: items, state: qState);
   }
@@ -1350,102 +1283,40 @@ class PlayerController extends StateNotifier<PlayerState> {
     // Premium single OR query per chunk 80 — tidak N+1
     final trackIds = items.map((i) => i.trackId).toSet().toList();
     final tracks = await _trackRepo.getTracksBySourceIds(trackIds);
-    // Restore autoQueueIds for premium repeat logic
-    if (qState.autoQueueIds != null && qState.autoQueueIds!.isNotEmpty) {
-      _autoQueueSourceIds.clear();
-      _autoQueueSourceIds
-          .addAll(qState.autoQueueIds!.split(',').where((s) => s.isNotEmpty));
-    }
-    // Cap queue at 500 (evict oldest auto-queue first)
-    if (tracks.length > 500) {
-      // Keep user queue first, evict auto-queue overflow
-      final userTracks = tracks
-          .where((t) => !_autoQueueSourceIds.contains(t.sourceId))
-          .toList();
-      final autoTracks = tracks
-          .where((t) => _autoQueueSourceIds.contains(t.sourceId))
-          .toList();
-      final keepAuto = (500 - userTracks.length).clamp(0, autoTracks.length);
-      tracks.clear();
-      tracks.addAll(userTracks);
-      tracks.addAll(autoTracks.take(keepAuto));
-    }
-
     if (tracks.isEmpty) return;
 
-    // Reconstruct queues
-    _currentQueue.clear();
-    _originalQueue.clear();
-
-    // Original queue order
-    final sortedItemsByOriginal = List<QueueItemModel>.from(items)
-      ..sort((a, b) => a.originalIndex.compareTo(b.originalIndex));
-    for (final item in sortedItemsByOriginal) {
-      final track = tracks.where((t) => t.sourceId == item.trackId).firstOrNull;
-      if (track != null) {
-        _originalQueue.add(track);
-      }
-    }
-
-    if (qState.shuffleEnabled) {
-      final sortedItemsByShuffled = List<QueueItemModel>.from(items)
-        ..sort((a, b) => (a.shuffledIndex ?? a.originalIndex)
-            .compareTo(b.shuffledIndex ?? b.originalIndex));
-      for (final item in sortedItemsByShuffled) {
-        final track =
-            tracks.where((t) => t.sourceId == item.trackId).firstOrNull;
-        if (track != null) {
-          _currentQueue.add(track);
-        }
-      }
-    } else {
-      _currentQueue = List.from(_originalQueue);
-    }
-
-    if (_currentQueue.isEmpty) return;
-
-    _currentIndex =
-        _currentQueue.indexWhere((t) => t.sourceId == qState.currentTrackId);
-    if (_currentIndex == -1) _currentIndex = 0;
-
-    final loopMode = LoopMode.values.firstWhere(
-        (e) => e.name == qState.repeatMode.name,
-        orElse: () => LoopMode.off);
-
-    state = state.copyWith(
-      currentQueue: _currentQueue,
-      currentIndex: _currentIndex,
-      currentTrack: _currentQueue[_currentIndex],
-      isShuffleEnabled: qState.shuffleEnabled,
-      loopMode: loopMode,
+    final snapshot = QueueSnapshotMapper.toSnapshot(
+      items: items,
+      state: qState,
+      tracksById: {for (final track in tracks) track.sourceId: track},
     );
+    if (snapshot.entries.isEmpty) return;
+
+    _queue = PlayQueue.fromSnapshot(snapshot);
+    _syncQueueState();
+    if (_queue.currentIndex < 0) return;
 
     // Setup player but DO NOT auto play — premium: load window prev+current+next2 agar hasPrevious/hasNext benar setelah restore
+    final loopMode = _loopModeFromRepeat(_queue.repeatMode);
     await _audioService.setRepeatMode(loopMode);
 
     // Build window: [prev, current, next, next2] — resolve masing-masing
     final windowIndices = <int>[];
     for (final d in [-1, 0, 1, 2]) {
-      final idx = _currentIndex + d;
-      if (idx >= 0 && idx < _currentQueue.length) windowIndices.add(idx);
+      final idx = _queue.currentIndex + d;
+      if (idx >= 0 && idx < _queue.length) windowIndices.add(idx);
     }
-    final windowTracks = <Track>[];
     final windowSources = <AudioSource>[];
     int initialIndexInWindow = 0;
     for (final idx in windowIndices) {
-      var t = _currentQueue[idx];
+      var t = _queue.trackAt(idx);
+      if (t == null) continue;
       // Resolve hanya jika belum ada streamUrl dan bukan cached
-      if (idx == _currentIndex) {
+      if (idx == _queue.currentIndex || !t.isCached) {
         final resolved = await _resolveTrack(t);
         if (resolved != null) {
           t = resolved;
-          _currentQueue[idx] = t;
-        }
-      } else if (!t.isCached) {
-        final resolved = await _resolveTrack(t);
-        if (resolved != null) {
-          t = resolved;
-          _currentQueue[idx] = t;
+          _queue.replaceAt(idx, t);
         }
       }
       final isLocal = t.isCached && t.localAudioPath != null;
@@ -1456,17 +1327,17 @@ class PlayerController extends StateNotifier<PlayerState> {
       final src = _audioService.createAudioSourceFromTrack(uri, t,
           headers: _trackHeaders[t.sourceId], isLocal: isLocal);
       windowSources.add(src);
-      windowTracks.add(t);
-      if (idx == _currentIndex) initialIndexInWindow = windowSources.length - 1;
+      if (idx == _queue.currentIndex) {
+        initialIndexInWindow = windowSources.length - 1;
+      }
     }
 
     if (windowSources.isNotEmpty) {
       // Update state dengan track yang sudah resolve (untuk notifikasi)
-      state = state.copyWith(
-          currentTrack: _currentQueue[_currentIndex],
-          currentQueue: List.from(_currentQueue));
+      _syncQueueState();
       await _audioService.startPlaylist(windowSources,
           initialIndex: initialIndexInWindow);
+      _syncWindowAnchor();
 
       if (qState.currentPositionMs > 0) {
         await _audioService
@@ -1477,10 +1348,12 @@ class PlayerController extends StateNotifier<PlayerState> {
       _resolveAndAppendNextTrack();
     } else {
       // Fallback single current jika window kosong
-      final currentTrack = _currentQueue[_currentIndex];
+      final currentTrack = _queue.currentTrack;
+      if (currentTrack == null) return;
       final resolvedTrack = await _resolveTrack(currentTrack);
       if (resolvedTrack != null) {
-        _currentQueue[_currentIndex] = resolvedTrack;
+        _queue.replaceCurrent(resolvedTrack);
+        _syncQueueState();
         final isLocal =
             resolvedTrack.isCached && resolvedTrack.localAudioPath != null;
         final uri =
@@ -1489,6 +1362,7 @@ class PlayerController extends StateNotifier<PlayerState> {
             uri, resolvedTrack,
             headers: _trackHeaders[resolvedTrack.sourceId], isLocal: isLocal);
         await _audioService.startPlaylist([source]);
+        _windowStartQueueIndex = _queue.currentIndex;
         if (qState.currentPositionMs > 0) {
           await _audioService
               .seek(Duration(milliseconds: qState.currentPositionMs));

@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import '../../../../core/providers/isar_provider.dart';
 import '../../../../core/constants/enums.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../data/models/app_settings_model.dart';
 import '../../../../features/cache/domain/usecases/cache_manager.dart';
 import '../../../../features/library/presentation/providers/downloaded_provider.dart';
@@ -16,6 +18,12 @@ final appSettingsProvider = StreamProvider<AppSettingsModel>((ref) {
       .map((settings) {
     return settings ?? AppSettingsModel(); // Return default if null
   });
+});
+
+/// Theme applied by `MaterialApp`; follows the OS while settings load.
+final themeModeProvider = Provider<ThemeMode>((ref) {
+  final settings = ref.watch(appSettingsProvider).valueOrNull;
+  return (settings?.appThemeMode ?? AppThemeMode.system).themeMode;
 });
 
 final settingsControllerProvider = Provider<SettingsController>((ref) {
@@ -71,6 +79,14 @@ class SettingsController {
 
   Future<void> setCrossfade(int seconds) async {
     await _updateSettings((settings) => settings.crossfadeSeconds = seconds);
+  }
+
+  Future<void> setThemeMode(AppThemeMode mode) async {
+    await _updateSettings((settings) => settings.appThemeMode = mode);
+  }
+
+  Future<void> setAppLanguageMode(AppLanguageMode mode) async {
+    await _updateSettings((settings) => settings.appLanguageMode = mode);
   }
 
   Future<void> clearCache() async {

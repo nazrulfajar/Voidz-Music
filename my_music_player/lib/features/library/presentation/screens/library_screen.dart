@@ -2,50 +2,67 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/providers/connectivity_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_section_header.dart';
+import '../../../../shared/widgets/glass_surface.dart';
+import '../../../../shared/widgets/shimmer_loading.dart';
+import '../../../cache/presentation/providers/cache_stats_provider.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/device_songs_provider.dart';
 import '../../../player/presentation/providers/player_controller.dart';
-import '../../data/repositories/playlist_repository_impl.dart';
 import '../../domain/entities/playlist.dart';
+import '../providers/downloaded_provider.dart';
 import '../providers/playlist_provider.dart';
 
-class LibraryScreen extends ConsumerStatefulWidget {
+/// True when the library has no user content yet: no user playlist, no liked
+/// tracks, no local songs, no cache and no listening history.
+///
+/// Derived from provider state only. Reading the providers performs the I/O;
+/// this provider never touches storage during widget `build()`.
+final libraryFirstRunProvider = Provider<bool>((ref) {
+  final playlists = ref.watch(allPlaylistsProvider).valueOrNull;
+  if (playlists == null) return false;
+  final deviceSongs = ref.watch(deviceSongsProvider).valueOrNull;
+  final hasUserPlaylist = playlists.any((playlist) => !playlist.isSystem);
+  int systemTrackCount(String name) => playlists
+      .where((playlist) => playlist.isSystem && playlist.name == name)
+      .fold<int>(0, (sum, playlist) => sum + playlist.trackCount);
+
+  return !hasUserPlaylist &&
+      (deviceSongs?.isEmpty ?? true) &&
+      systemTrackCount('Liked Songs') == 0 &&
+      systemTrackCount('Downloaded') == 0 &&
+      systemTrackCount('Recently Played') == 0;
+});
+
+class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   @override
-  ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
-}
-
-class _LibraryScreenState extends ConsumerState<LibraryScreen> {
-  final GlobalKey _playlistsKey = GlobalKey();
-
-  Future<void> _scrollToPlaylists() async {
-    final context = _playlistsKey.currentContext;
-    if (context != null) {
-      await Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = AppColors.of(context);
     final playlistsAsync = ref.watch(allPlaylistsProvider);
+    final totalTracks = ref.watch(libraryTrackTotalProvider).valueOrNull;
+    final isOnline = ref.watch(connectivityProvider).value ?? true;
 
     return Scaffold(
-      backgroundColor: t.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(allPlaylistsProvider);
+            ref.invalidate(cacheStatsProvider);
+            ref.invalidate(deviceSongsProvider);
+            ref.invalidate(downloadedTracksProvider);
+            ref.invalidate(libraryTrackTotalProvider);
             try {
               await ref.read(allPlaylistsProvider.future);
             } catch (_) {}
@@ -54,11 +71,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           backgroundColor: t.row,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
               left: AppSpacing.screenInset,
               right: AppSpacing.screenInset,
               top: AppSpacing.space4,
-              bottom: AppSpacing.bottomPlayerPadding,
+              bottom: AppChromeInsets.bottomOf(context),
             ),
             child: Center(
               child: ConstrainedBox(
@@ -66,51 +83,21 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildHeader(context, t, totalTracks),
+                    if (!isOnline) ...[
+                      const SizedBox(height: AppSpacing.space4),
+                      const AppOfflineBanner(),
+                    ],
+                    const SizedBox(height: AppSpacing.space6),
                     playlistsAsync.when(
-                      data: (playlists) {
-                        final deviceAsync = ref.watch(deviceSongsProvider);
-                        final deviceSongs =
-                            deviceAsync.value ?? const <Track>[];
-                        final deviceCount = deviceSongs.length;
-                        final userPlaylists =
-                            playlists.where((p) => !p.isSystem).toList();
-                        final totalTracks = userPlaylists.fold<int>(
-                          0,
-                          (sum, p) => sum + p.trackCount,
-                        );
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildHeader(context, t, totalTracks),
-                            const SizedBox(height: AppSpacing.space6),
-                            ..._buildContent(
-                              context,
-                              ref,
-                              t,
-                              playlists,
-                              userPlaylists,
-                              deviceSongs,
-                              deviceCount,
-                            ),
-                          ],
-                        );
-                      },
-                      loading: () => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeader(context, t, 0),
-                          const SizedBox(height: AppSpacing.space6),
-                          _buildSkeleton(t),
-                        ],
+                      data: (playlists) => _buildContent(
+                        context,
+                        ref,
+                        t,
+                        playlists,
                       ),
-                      error: (e, _) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeader(context, t, 0),
-                          const SizedBox(height: AppSpacing.space6),
-                          _buildError(context, ref, t),
-                        ],
-                      ),
+                      loading: () => _buildSkeleton(),
+                      error: (e, _) => _buildError(context, ref, e),
                     ),
                   ],
                 ),
@@ -122,13 +109,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, AppColorTokens t, int totalTracks) {
+  Widget _buildHeader(
+    BuildContext context,
+    AppColorTokens t,
+    int? totalTracks,
+  ) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Text(
-            'Your Library',
+            l10n.libraryTitle,
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
@@ -137,7 +129,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ),
         ),
         Text(
-          '$totalTracks tracks',
+          totalTracks == null || totalTracks == 0
+              ? ''
+              : l10n.commonTrackCount(totalTracks),
           style: TextStyle(
             fontSize: 11,
             color: t.textSecondary,
@@ -147,203 +141,204 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  List<Widget> _buildContent(
+  Widget _buildContent(
     BuildContext context,
     WidgetRef ref,
     AppColorTokens t,
     List<Playlist> playlists,
-    List<Playlist> userPlaylists,
-    List<Track> deviceSongs,
-    int deviceCount,
   ) {
-    final widgets = <Widget>[];
+    final l10n = AppLocalizations.of(context);
+    final firstRun = ref.watch(libraryFirstRunProvider);
+    final deviceAsync = ref.watch(deviceSongsProvider);
+    if (firstRun && deviceAsync.isLoading) return _buildSkeleton();
+    if (firstRun) return _buildFirstRun(context, ref);
+
+    final deviceSongs = deviceAsync.value ?? const <Track>[];
+    final cacheStats = ref.watch(cacheStatsProvider).valueOrNull;
+    final userPlaylists = playlists.where((p) => !p.isSystem).toList();
 
     final liked = playlists.where((p) => p.name == 'Liked Songs').firstOrNull;
-    if (liked != null) {
-      widgets.add(_likedCard(context, liked));
-      widgets.add(const SizedBox(height: AppSpacing.space4));
-    }
-
-    // Three link rows
-    widgets.add(
-      _linkRow(
-        context: context,
-        t: t,
-        icon: Icons.download_rounded,
-        title: 'Downloaded cache',
-        meta: 'Manage offline music',
-        height: 56,
-        onTap: () => context.push('/library/downloaded'),
-      ),
-    );
-    widgets.add(const SizedBox(height: AppSpacing.space2));
-    widgets.add(
-      _linkRow(
-        context: context,
-        t: t,
-        icon: Icons.queue_music_rounded,
-        title: 'Custom playlists',
-        meta: '${userPlaylists.length} playlists',
-        height: 56,
-        onTap: _scrollToPlaylists,
-      ),
-    );
-    widgets.add(const SizedBox(height: AppSpacing.space2));
-    widgets.add(
-      _linkRow(
-        context: context,
-        t: t,
-        icon: Icons.folder_outlined,
-        title: 'Device songs',
-        meta: '$deviceCount tracks',
-        height: 56,
-        onTap: () => context.push('/library/device-songs'),
-      ),
-    );
-    widgets.add(const SizedBox(height: AppSpacing.space6));
-
-    // Pinned offline tracks
     final pinned =
         deviceSongs.where((tr) => tr.isPinned || tr.isCached).toList();
-    if (pinned.isNotEmpty) {
-      widgets.add(const AppSectionHeader(title: 'PINNED OFFLINE TRACKS'));
-      final shown = pinned.take(2).toList();
-      for (final track in shown) {
-        widgets.add(
-          _pinnedRow(context, ref, t, track, pinned),
-        );
-        widgets.add(const SizedBox(height: AppSpacing.space2));
-      }
-      widgets.add(const SizedBox(height: AppSpacing.space4));
-    }
 
-    // Recently played
-    final recent =
-        playlists.where((p) => p.name == 'Recently Played').firstOrNull;
-    if (recent != null) {
-      widgets.add(const AppSectionHeader(title: 'RECENTLY PLAYED'));
-      widgets.add(
-        _recentRow(context, t, recent),
-      );
-      widgets.add(const SizedBox(height: AppSpacing.space6));
-    }
+    final cacheMeta = cacheStats == null
+        ? '—'
+        : '${_formatBytes(cacheStats.totalCacheSizeBytes)} / '
+            '${_formatBytes(cacheStats.maxCacheSizeBytes)}';
 
-    // Playlists section
-    widgets.add(
-      Container(
-        key: _playlistsKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AppSectionHeader(title: 'PLAYLISTS'),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.78,
-              ),
-              itemCount: userPlaylists.length + 1,
-              itemBuilder: (context, index) {
-                if (index == userPlaylists.length) {
-                  return _newPlaylistTile(context, ref, t);
-                }
-                final playlist = userPlaylists[index];
-                return _playlistCard(context, playlist);
-              },
-            ),
-            const SizedBox(height: AppSpacing.space3),
-            _linkRow(
-              context: context,
-              t: t,
-              icon: Icons.auto_awesome,
-              title: 'Listening recap',
-              meta: 'Your listening summary',
-              height: 56,
-              onTap: () => context.push('/library/recap'),
-            ),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (liked != null) ...[
+          _likedCard(context, liked),
+          const SizedBox(height: AppSpacing.space4),
+        ],
+        _linkRow(
+          context: context,
+          t: t,
+          icon: Icons.download_rounded,
+          title: l10n.libraryDownloadedCache,
+          meta: cacheMeta,
+          onTap: () => context.push('/downloaded'),
         ),
-      ),
+        const SizedBox(height: AppSpacing.space2),
+        _linkRow(
+          context: context,
+          t: t,
+          icon: Icons.queue_music_rounded,
+          title: l10n.libraryCustomPlaylists,
+          meta: l10n.commonPlaylistCount(userPlaylists.length),
+          onTap: () => context.push('/playlists'),
+        ),
+        const SizedBox(height: AppSpacing.space2),
+        _linkRow(
+          context: context,
+          t: t,
+          icon: Icons.folder_outlined,
+          title: l10n.libraryDeviceSongs,
+          meta: l10n.commonTrackCount(deviceSongs.length),
+          onTap: () => context.push('/device-songs'),
+        ),
+        if (pinned.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.space6),
+          AppSectionHeader(
+            title: l10n.libraryPinnedOfflineTracks,
+            padding: const EdgeInsets.only(bottom: AppSpacing.space2),
+          ),
+          for (final track in pinned.take(2)) ...[
+            _pinnedRow(context, ref, t, track, pinned),
+            const SizedBox(height: AppSpacing.space2),
+          ],
+        ],
+        const SizedBox(height: AppSpacing.space6),
+        _recentRow(context, t),
+        const SizedBox(height: AppSpacing.space2),
+        _linkRow(
+          context: context,
+          t: t,
+          icon: Icons.auto_awesome,
+          title: l10n.libraryListeningRecap,
+          meta: l10n.libraryListeningSummary,
+          onTap: () => context.push('/recap'),
+        ),
+      ],
     );
+  }
 
-    return widgets;
+  Widget _buildFirstRun(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final permission = ref.watch(devicePermissionStatusProvider).valueOrNull;
+    final scanUnavailable =
+        permission == DevicePermissionStatus.permanentlyDenied;
+    return AppEmptyState(
+      compact: true,
+      glassQuality: GlassQuality.blurred,
+      icon: scanUnavailable
+          ? Icons.search_rounded
+          : Icons.folder_special_outlined,
+      title: l10n.libraryEmptyTitle,
+      subtitle: scanUnavailable
+          ? l10n.libraryEmptyScanUnavailable
+          : l10n.libraryEmptySubtitle,
+      actionLabel:
+          scanUnavailable ? l10n.librarySearchMusic : l10n.libraryScanDevice,
+      onAction: scanUnavailable
+          ? () => context.go('/search')
+          : () => _openDeviceSongs(context, ref),
+    );
+  }
+
+  Future<void> _openDeviceSongs(BuildContext context, WidgetRef ref) async {
+    await context.push('/device-songs');
+    if (!context.mounted) return;
+    ref.invalidate(devicePermissionStatusProvider);
+    ref.invalidate(allPlaylistsProvider);
+    ref.invalidate(libraryTrackTotalProvider);
   }
 
   Widget _likedCard(BuildContext context, Playlist playlist) {
     final t = AppColors.of(context);
-    return InkWell(
-      onTap: () => context.push(
-        '/library/playlist-detail/${playlist.id}',
-        extra: playlist,
-      ),
+    final l10n = AppLocalizations.of(context);
+    return GlassSurface.card(
+      key: const Key('library-liked-glass'),
+      quality: GlassQuality.blurred,
       borderRadius: BorderRadius.circular(22),
-      child: Container(
-        height: 104,
-        decoration: BoxDecoration(
-          color: t.row,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => context.push(
+            '/playlist-detail/${playlist.id}',
+            extra: playlist,
+          ),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: t.border),
-        ),
-        padding: const EdgeInsets.all(AppSpacing.space4),
-        child: Row(
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                gradient: t.artworkGradient,
-                borderRadius: BorderRadius.circular(AppRadius.artworkSmall),
-              ),
-              child: Icon(
-                Icons.favorite,
-                size: 32,
-                color: t.textPrimary,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.space3),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 104),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.space4),
+              child: Row(
                 children: [
-                  Text(
-                    'AUTO-PLAYLIST',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 1.2,
-                      color: t.textSecondary,
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      gradient: t.artworkGradient,
+                      borderRadius:
+                          BorderRadius.circular(AppRadius.artworkSmall),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Liked Songs',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                    child: Icon(
+                      Icons.favorite,
+                      size: 32,
                       color: t.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${playlist.trackCount} tracks',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: t.textSecondary,
+                  const SizedBox(width: AppSpacing.space3),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.libraryAutoPlaylistLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1.2,
+                            color: t.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.libraryLikedSongs,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: t.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.libraryLikedMeta(playlist.trackCount),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: t.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  Icon(
+                    Icons.favorite,
+                    size: 24,
+                    color: t.textPrimary,
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.favorite,
-              size: 24,
-              color: t.textPrimary,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -355,57 +350,65 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     required IconData icon,
     required String title,
     required String meta,
-    required double height,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
+    return GlassSurface.card(
+      quality: GlassQuality.frosted,
       borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: t.row,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: t.border),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space4),
-        child: Row(
-          children: [
-            Icon(icon, size: 24, color: t.textPrimary),
-            const SizedBox(width: AppSpacing.space2),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.space4,
+                vertical: AppSpacing.space2,
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: t.textPrimary,
+                  Icon(icon, size: 24, color: t.textPrimary),
+                  const SizedBox(width: AppSpacing.space2),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: t.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          meta,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: t.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    meta,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: t.textSecondary,
-                    ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: t.textSecondary,
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: t.textSecondary,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -418,350 +421,193 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     Track track,
     List<Track> queue,
   ) {
-    return InkWell(
-      onTap: () => ref
-          .read(playerControllerProvider.notifier)
-          .playTrack(track, queue: queue),
+    final l10n = AppLocalizations.of(context);
+    return GlassSurface.card(
+      key: ValueKey('library-pinned-glass-${track.sourceId}'),
+      quality: GlassQuality.frosted,
       borderRadius: BorderRadius.circular(AppRadius.xl),
-      child: Container(
-        height: 72,
-        decoration: BoxDecoration(
-          color: t.row,
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          border: Border.all(color: t.border),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space4),
-        child: Row(
-          children: [
-            AppArtwork(
-              localPath: track.localThumbnailPath,
-              imageUrl: track.thumbnailUrl,
-              size: 44,
-              radius: AppRadius.md,
-            ),
-            const SizedBox(width: AppSpacing.space3),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: t.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    track.isPinned ? 'Pinned offline' : track.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: t.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.check_circle,
-              size: 24,
-              color: t.textPrimary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _recentRow(BuildContext context, AppColorTokens t, Playlist recent) {
-    return InkWell(
-      onTap: () => context.push(
-        '/library/playlist-detail/${recent.id}',
-        extra: recent,
-      ),
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: t.row,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: t.border),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space4),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: t.raised,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.history,
-                size: 20,
-                color: t.textPrimary,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.space3),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Recently played',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: t.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Your listening history',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: t.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: t.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _playlistCard(BuildContext context, Playlist playlist) {
-    final t = AppColors.of(context);
-    return InkWell(
-      onTap: () => context.push(
-        '/library/playlist-detail/${playlist.id}',
-        extra: playlist,
-      ),
-      borderRadius: BorderRadius.circular(AppRadius.xxl),
-      child: Container(
-        decoration: BoxDecoration(
-          color: t.row,
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: t.border),
-        ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(gradient: t.artworkGradient),
-                child: playlist.thumbnailUrls.isNotEmpty
-                    ? LayoutBuilder(
-                        builder: (context, constraints) {
-                          final size = constraints.maxWidth / 2;
-                          return GridView.count(
-                            crossAxisCount: 2,
-                            padding: EdgeInsets.zero,
-                            mainAxisSpacing: 2,
-                            crossAxisSpacing: 2,
-                            physics: const NeverScrollableScrollPhysics(),
-                            children: playlist.thumbnailUrls
-                                .take(4)
-                                .map<Widget>(
-                                  (url) => AppArtwork(
-                                    imageUrl: url,
-                                    size: size,
-                                    radius: 0,
-                                  ),
-                                )
-                                .toList(),
-                          );
-                        },
-                      )
-                    : Center(
-                        child: Icon(
-                          Icons.queue_music_rounded,
-                          size: 40,
-                          color: t.textSecondary,
-                        ),
-                      ),
+        child: InkWell(
+          onTap: () => ref
+              .read(playerControllerProvider.notifier)
+              .playTrack(track, queue: queue),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 72),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.space4,
+                vertical: AppSpacing.space2,
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.space3),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    playlist.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: t.textPrimary,
+                  AppArtwork(
+                    localPath: track.localThumbnailPath,
+                    imageUrl: track.thumbnailUrl,
+                    size: 44,
+                    radius: AppRadius.md,
+                  ),
+                  const SizedBox(width: AppSpacing.space3),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: t.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          track.isPinned
+                              ? l10n.libraryPinnedMeta(track.artist)
+                              : track.artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: t.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${playlist.trackCount} tracks',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: t.textSecondary,
-                    ),
+                  Icon(
+                    Icons.check_circle,
+                    size: 24,
+                    color: t.textPrimary,
                   ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _newPlaylistTile(
-      BuildContext context, WidgetRef ref, AppColorTokens t) {
-    return InkWell(
-      onTap: () => _showCreatePlaylistDialog(context, ref),
-      borderRadius: BorderRadius.circular(AppRadius.xxl),
-      child: Container(
-        decoration: BoxDecoration(
-          color: t.field,
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: t.border),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: t.raised,
-                shape: BoxShape.circle,
+  Widget _recentRow(BuildContext context, AppColorTokens t) {
+    final l10n = AppLocalizations.of(context);
+    return GlassSurface.card(
+      key: const Key('library-recent-glass'),
+      quality: GlassQuality.frosted,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => context.push('/recently-played'),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 64),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.space4,
+                vertical: AppSpacing.space2,
               ),
-              child: Icon(
-                Icons.add,
-                size: 20,
-                color: t.textPrimary,
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: t.raised,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.history,
+                      size: 20,
+                      color: t.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.space3),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.libraryRecentlyPlayed,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: t.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          l10n.libraryListeningHistory,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: t.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: t.textSecondary,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.space2),
-            Text(
-              'New playlist',
-              style: TextStyle(
-                fontSize: 13,
-                color: t.textPrimary,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSkeleton(AppColorTokens t) {
-    Widget block(double height) => Container(
-          height: height,
-          margin: const EdgeInsets.only(bottom: AppSpacing.space2),
-          decoration: BoxDecoration(
-            color: t.textPrimary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-        );
-    return Column(
+  Widget _buildSkeleton() {
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        block(104),
-        const SizedBox(height: AppSpacing.space2),
-        block(56),
-        block(56),
-        block(56),
-        const SizedBox(height: AppSpacing.space4),
-        block(200),
+        ShimmerBox(height: 104, radius: 22),
+        SizedBox(height: AppSpacing.space4),
+        ShimmerBox(height: 56, radius: AppRadius.lg),
+        SizedBox(height: AppSpacing.space2),
+        ShimmerBox(height: 56, radius: AppRadius.lg),
+        SizedBox(height: AppSpacing.space2),
+        ShimmerBox(height: 56, radius: AppRadius.lg),
+        SizedBox(height: AppSpacing.space4),
+        ShimmerBox(height: 64, radius: AppRadius.lg),
       ],
     );
   }
 
-  Widget _buildError(BuildContext context, WidgetRef ref, AppColorTokens t) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: AppSpacing.space8),
-        Text(
-          'Failed to load library',
-          style: TextStyle(color: t.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.space3),
-        TextButton(
-          onPressed: () => ref.invalidate(allPlaylistsProvider),
-          child: Text(
-            'Retry',
-            style: TextStyle(color: t.textPrimary),
-          ),
-        ),
-      ],
+  Widget _buildError(BuildContext context, WidgetRef ref, Object error) {
+    return AppErrorState(
+      error: AppLocalizations.of(context).libraryLoadError,
+      cause: error,
+      onRetry: () => ref.invalidate(allPlaylistsProvider),
     );
+  }
+}
+
+String _formatBytes(int bytes) {
+  const kilo = 1024;
+  const mega = kilo * 1024;
+  const giga = mega * 1024;
+
+  String format(double value, String unit) {
+    final text = value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(1);
+    return '$text $unit';
   }
 
-  void _showCreatePlaylistDialog(BuildContext context, WidgetRef ref) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        final dt = AppColors.of(dialogContext);
-        return AlertDialog(
-          backgroundColor: dt.row,
-          title: Text(
-            'New Playlist',
-            style: TextStyle(color: dt.textPrimary),
-          ),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            style: TextStyle(color: dt.textPrimary),
-            decoration: InputDecoration(
-              hintText: 'Playlist name',
-              hintStyle: TextStyle(color: dt.textMuted),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: dt.textSecondary),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                final name = controller.text.trim();
-                if (name.isNotEmpty) {
-                  await ref
-                      .read(playlistRepositoryProvider)
-                      .createPlaylist(name);
-                  ref.invalidate(allPlaylistsProvider);
-                }
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-              },
-              child: Text(
-                'Create',
-                style: TextStyle(color: dt.textPrimary),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  if (bytes >= giga) return format(bytes / giga, 'GB');
+  if (bytes >= mega) return format(bytes / mega, 'MB');
+  if (bytes >= kilo) return format(bytes / kilo, 'KB');
+  return '$bytes B';
 }

@@ -1,27 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_colors.dart';
+import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/app_empty_state.dart';
 import '../../shared/widgets/bottom_nav_scaffold.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/library/presentation/screens/library_screen.dart';
 import '../../features/library/presentation/screens/downloaded_screen.dart';
 import '../../features/library/presentation/screens/device_songs_screen.dart';
+import '../../features/library/presentation/screens/playlists_screen.dart';
+import '../../features/library/presentation/screens/recently_played_screen.dart';
 import '../../features/recap/presentation/screens/recap_screen.dart';
 import '../../features/library/domain/entities/playlist.dart';
 import '../../features/library/presentation/screens/playlist_detail_screen.dart';
+import '../../features/lyrics/presentation/screens/lyrics_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/home/domain/entities/daily_mix.dart';
 import '../../features/home/presentation/screens/daily_mix_screen.dart';
 import 'browse_routes.dart';
 
 /// Premium router architecture (Spotify / Apple Music / TIDAL):
-/// - StatefulShellRoute.indexedStack → 3 independent stacks (Home/Search/Library)
-/// - Each branch re-uses canonical browse routes via factory (DRY)
-/// - Home also has drill depth (artist/album/playlist)
-/// - Canonical top-level /artist/:id etc. for external deep-links
-/// - Root navigator overlays: /player (modal slide-up) + /settings
-/// - 260ms drill transition (was 320ms) + 420ms player + observers + error handling
+/// - StatefulShellRoute.indexedStack holds only the three tab roots
+///   (Home/Search/Library), preserving each tab's scroll state.
+/// - Every detail page is a root route, mapped once in `browse_routes.dart`;
+///   canonical /artist/:id etc. use those exact builders.
+/// - The app-level `AppChrome` host owns nav/rail/mini-player visibility, so
+///   details never inherit navigation chrome and Settings/deep links keep the
+///   mini player.
+/// - Root overlays: /player (immersive modal) + /settings (mini only).
+/// - 260ms drill transition + 420ms player + observers + error handling
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
@@ -33,6 +43,16 @@ CustomTransitionPage<T> _smoothTransition<T>({
   required GoRouterState state,
   required Widget child,
 }) {
+  if (MediaQuery.disableAnimationsOf(context)) {
+    return CustomTransitionPage<T>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+          child,
+    );
+  }
   return CustomTransitionPage<T>(
     key: state.pageKey,
     child: child,
@@ -70,131 +90,131 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     observers: [routeObserver],
-    // Premium: never crash on unknown route — show 404
-    errorBuilder: (context, state) => Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(backgroundColor: Colors.transparent, title: const Text('Not found')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 64, color: Colors.white54),
-            const SizedBox(height: 16),
-            Text('Route not found', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
-            const SizedBox(height: 8),
-            Text(state.error?.toString() ?? state.matchedLocation, style: const TextStyle(color: Colors.white54)),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: () => context.go('/'), child: const Text('Go Home')),
-          ],
-        ),
-      ),
-    ),
+    // Never crash on unknown route: render the shared tokenized state panel.
+    // The raw GoRouter exception and matched location are intentionally not
+    // shown to the user (`docs/ERROR_HANDLING.md` §1).
+    errorBuilder: (context, state) => const _RouteNotFoundScreen(),
     // Premium: place to add auth/offline guards later
     // refreshListenable: connectivity or auth provider
     // redirect: (ctx, state) => null,
     routes: [
+      // Only the three tab roots live inside the stateful shell. Every detail
+      // page is a root route, so it can never inherit the navigation chrome
+      // and canonical deep links share the exact same builder.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return BottomNavScaffold(navigationShell: navigationShell);
         },
         branches: [
-          // Branch 0 — Home (now with drill depth like Search/Library)
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/',
                 builder: (context, state) => const HomeScreen(),
-                routes: [
-                  buildArtistRoute(),
-                  buildAlbumRoute(),
-                  buildPlaylistRoute(),
-                  GoRoute(
-                    path: 'daily-mix',
-                    pageBuilder: (context, state) => _smoothTransition(context: context, state: state, child: const DailyMixScreen()),
-                  ),
-                ],
               ),
             ],
           ),
-          // Branch 1 — Search
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/search',
                 builder: (context, state) => const SearchScreen(),
-                routes: [
-                  buildArtistRoute(),
-                  buildAlbumRoute(),
-                  buildPlaylistRoute(),
-                ],
               ),
             ],
           ),
-          // Branch 2 — Library
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/library',
                 builder: (context, state) => const LibraryScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'downloaded',
-                    pageBuilder: (context, state) => _smoothTransition(
-                      context: context,
-                      state: state,
-                      child: const DownloadedScreen(),
-                    ),
-                  ),
-                  GoRoute(
-                    path: 'device-songs',
-                    pageBuilder: (context, state) => _smoothTransition(
-                      context: context,
-                      state: state,
-                      child: const DeviceSongsScreen(),
-                    ),
-                  ),
-                  GoRoute(
-                    path: 'recap',
-                    pageBuilder: (context, state) => _smoothTransition(
-                      context: context,
-                      state: state,
-                      child: const RecapScreen(),
-                    ),
-                  ),
-                  buildArtistRoute(),
-                  buildAlbumRoute(),
-                  buildPlaylistRoute(),
-                  // Premium fix: fetch by id, extra is optional hint (deep-link safe)
-                  GoRoute(
-                    path: 'playlist-detail/:id',
-                    pageBuilder: (context, state) {
-                      final idStr = state.pathParameters['id']!;
-                      final id = int.tryParse(idStr);
-                      final hint = state.extra;
-                      // extra may be Playlist or null — pass as hint, screen fetches by id
-                      return _smoothTransition(
-                        context: context,
-                        state: state,
-                        child: PlaylistDetailScreen(
-                          playlistId: id,
-                          playlistIdStr: idStr,
-                          initialPlaylist: hint is Playlist ? hint : null,
-                        ),
-                      );
-                    },
-                  ),
-                ],
               ),
             ],
           ),
         ],
       ),
 
-      // Canonical top-level deep-links — myapp://artist/xyz, /album/xyz, /playlist/xyz
-      // Render same screens regardless of current tab (useful for external intents)
-      ...buildCanonicalDeepLinkRoutes(),
+      // Detail routes — root navigator, no navigation chrome.
+      ...buildBrowseDetailRoutes(),
+      ...buildLegacyDetailRedirects(),
+      GoRoute(
+        path: '/downloaded',
+        pageBuilder: (context, state) => _smoothTransition(
+          context: context,
+          state: state,
+          child: const DownloadedScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/device-songs',
+        pageBuilder: (context, state) => _smoothTransition(
+          context: context,
+          state: state,
+          child: const DeviceSongsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/recap',
+        pageBuilder: (context, state) => _smoothTransition(
+          context: context,
+          state: state,
+          child: const RecapScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/recently-played',
+        pageBuilder: (context, state) => _smoothTransition(
+          context: context,
+          state: state,
+          child: const RecentlyPlayedScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/playlists',
+        pageBuilder: (context, state) => _smoothTransition(
+          context: context,
+          state: state,
+          child: const PlaylistsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/daily-mix',
+        redirect: (context, state) =>
+            state.uri.path == '/daily-mix' ? '/daily-mix/energize' : null,
+        routes: [
+          GoRoute(
+            path: ':mood',
+            pageBuilder: (context, state) => _smoothTransition(
+              context: context,
+              state: state,
+              child: DailyMixScreen(
+                mood: DailyMixMood.fromSlug(
+                  state.pathParameters['mood'] ?? '',
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      // Fetch by id, extra is an optional hint (deep-link safe).
+      GoRoute(
+        path: '/playlist-detail/:id',
+        pageBuilder: (context, state) {
+          final idStr = state.pathParameters['id']!;
+          final id = int.tryParse(idStr);
+          final hint = state.extra;
+          return _smoothTransition(
+            context: context,
+            state: state,
+            child: PlaylistDetailScreen(
+              playlistId: id,
+              playlistIdStr: idStr,
+              initialPlaylist: hint is Playlist ? hint : null,
+            ),
+          );
+        },
+      ),
 
-      // Root overlays — slide over shell (player modal, settings)
+      // Root overlays — slide over the shell (player modal, settings)
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,
         path: '/settings',
@@ -202,6 +222,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           context: context,
           state: state,
           child: const SettingsScreen(),
+        ),
+      ),
+
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        path: '/lyrics',
+        pageBuilder: (context, state) => _smoothTransition(
+          context: context,
+          state: state,
+          child: const LyricsScreen(),
         ),
       ),
 
@@ -243,3 +273,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Fallback for unmatched locations (`GoRouter.errorBuilder`).
+///
+/// Uses the shared [AppStatePanel] so dark/light tokens, geometry and the CTA
+/// stay consistent with every other state surface (§6.7).
+class _RouteNotFoundScreen extends StatelessWidget {
+  const _RouteNotFoundScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
+      backgroundColor: tokens.background,
+      body: SafeArea(
+        child: AppStatePanel(
+          variant: AppStateVariant.error,
+          icon: Icons.search_off_rounded,
+          title: l10n.errorRouteNotFoundTitle,
+          message: l10n.errorRouteNotFoundMessage,
+          code: 'ERR-404',
+          actionLabel: l10n.errorRouteGoHome,
+          actionIcon: Icons.home_rounded,
+          onAction: () => context.go('/'),
+        ),
+      ),
+    );
+  }
+}

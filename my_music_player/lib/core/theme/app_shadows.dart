@@ -25,6 +25,24 @@ class AppShadows {
     ),
   ];
 
+  /// Glass chrome shadow, dark: `0 18 40 #00000059` (§0.2).
+  static const List<BoxShadow> glassChromeDark = [
+    BoxShadow(
+      color: Color(0x59000000),
+      blurRadius: 40,
+      offset: Offset(0, 18),
+    ),
+  ];
+
+  /// Glass chrome shadow, light provisional: `0 18 40 #0A10181F` (§0.2).
+  static const List<BoxShadow> glassChromeLight = [
+    BoxShadow(
+      color: Color(0x1F0A1018),
+      blurRadius: 40,
+      offset: Offset(0, 18),
+    ),
+  ];
+
   static const List<BoxShadow> sliderThumb = [
     BoxShadow(
       color: Color(0x66000000),

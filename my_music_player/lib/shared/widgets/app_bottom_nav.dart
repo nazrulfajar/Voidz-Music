@@ -1,7 +1,42 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_glass.dart';
 import '../../core/theme/app_radius.dart';
+import '../../l10n/app_localizations.dart';
+import 'glass_surface.dart';
+
+/// Shared geometry for the persistent app shell.
+///
+/// See `docs/DESIGN_SYSTEM.md` §4.4 and §6.1. Screens must not hardcode
+/// their own shell breakpoints or chrome sizes.
+class AppShellLayout {
+  const AppShellLayout._();
+
+  /// Width at or above which the shell uses a navigation rail.
+  static const double railBreakpoint = 600.0;
+
+  static const double railWidth = 64.0;
+  static const double railMaxHeight = 388.0;
+  static const double railSideInset = 8.0;
+
+  /// Gap between the rail and the page content: 96 - 8 - 64 at 1.0 text.
+  static const double railContentGap = 24.0;
+
+  /// Rail width grows with the text scale so 200% labels are not clipped.
+  static double railWidthFor(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 2.0);
+    return railWidth * scale;
+  }
+
+  static double railContentInsetFor(BuildContext context) {
+    return railSideInset + railWidthFor(context) + railContentGap;
+  }
+
+  static const double bottomNavHeight = 72.0;
+  static const double miniPlayerHeight = 66.0;
+  static const double shellGap = 8.0;
+}
 
 /// Floating pill navigation from `docs/DESIGN_SYSTEM.md` §6.1.
 ///
@@ -11,57 +46,160 @@ class AppBottomNav extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onSelected,
+    this.quality = GlassQuality.blurred,
   });
 
   final int currentIndex;
   final ValueChanged<int> onSelected;
 
+  /// Glass quality. Pass [GlassQuality.opaque] for the lowest-cost fallback.
+  final GlassQuality quality;
+
   @override
   Widget build(BuildContext context) {
-    final tokens = AppColors.of(context);
-
+    final l10n = AppLocalizations.of(context);
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: Container(
-            height: 72,
-            decoration: BoxDecoration(
-              color: tokens.navigation,
-              borderRadius: BorderRadius.circular(AppRadius.x5xl),
-              border: Border.all(color: tokens.border),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppShellLayout.bottomNavHeight,
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Row(
-              children: [
-                _NavItem(
-                  label: 'Home',
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
-                  selected: currentIndex == 0,
-                  onTap: () => onSelected(0),
-                ),
-                _NavItem(
-                  label: 'Search',
-                  icon: Icons.search_rounded,
-                  activeIcon: Icons.search_rounded,
-                  selected: currentIndex == 1,
-                  onTap: () => onSelected(1),
-                ),
-                _NavItem(
-                  label: 'Library',
-                  icon: Icons.library_music_outlined,
-                  activeIcon: Icons.library_music_rounded,
-                  selected: currentIndex == 2,
-                  onTap: () => onSelected(2),
-                ),
-              ],
+            child: GlassSurface.chrome(
+              quality: quality,
+              borderRadius: BorderRadius.circular(AppRadius.x5xl),
+              child: Row(
+                children: [
+                  _NavItem(
+                    label: l10n.shellTabHome,
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home_rounded,
+                    selected: currentIndex == 0,
+                    onTap: () => onSelected(0),
+                  ),
+                  _NavItem(
+                    label: l10n.shellTabSearch,
+                    icon: Icons.search_rounded,
+                    activeIcon: Icons.search_rounded,
+                    selected: currentIndex == 1,
+                    onTap: () => onSelected(1),
+                  ),
+                  _NavItem(
+                    label: l10n.shellTabLibrary,
+                    icon: Icons.library_music_outlined,
+                    activeIcon: Icons.library_music_rounded,
+                    selected: currentIndex == 2,
+                    onTap: () => onSelected(2),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Floating navigation rail used by the shell at >= 600dp.
+///
+/// 64dp wide, r30, `miniPlayer` surface and 1px border from
+/// `docs/DESIGN_SYSTEM.md` §6.1. Wraps [NavigationRail] so semantics and
+/// 48dp targets stay platform-standard.
+class AppNavigationRail extends StatelessWidget {
+  const AppNavigationRail({
+    super.key,
+    required this.currentIndex,
+    required this.onSelected,
+    this.quality = GlassQuality.blurred,
+  });
+
+  final int currentIndex;
+  final ValueChanged<int> onSelected;
+
+  /// Glass quality. Pass [GlassQuality.opaque] for the lowest-cost fallback.
+  final GlassQuality quality;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = AppColors.of(context);
+    final textTheme = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
+    final labelStyle = textTheme.labelSmall?.copyWith(fontSize: 11);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxHeight: AppShellLayout.railMaxHeight,
+      ),
+      child: SizedBox(
+        key: const Key('app-navigation-rail'),
+        width: AppShellLayout.railWidthFor(context),
+        height: double.infinity,
+        child: GlassSurface.chrome(
+          quality: quality,
+          borderRadius: BorderRadius.circular(AppRadius.rail),
+          child: NavigationRail(
+            backgroundColor: Colors.transparent,
+            minWidth: AppShellLayout.railWidthFor(context),
+            selectedIndex: currentIndex,
+            onDestinationSelected: onSelected,
+            labelType: NavigationRailLabelType.all,
+            groupAlignment: 0,
+            useIndicator: false,
+            selectedIconTheme: IconThemeData(
+              size: 21,
+              color: tokens.textPrimary,
+            ),
+            unselectedIconTheme: IconThemeData(
+              size: 21,
+              color: tokens.textInactive,
+            ),
+            selectedLabelTextStyle: labelStyle?.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+            unselectedLabelTextStyle: labelStyle?.copyWith(
+              color: tokens.textSecondary,
+            ),
+            destinations: [
+              NavigationRailDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: const Icon(Icons.home_rounded),
+                label: _RailLabel(l10n.shellTabHome),
+              ),
+              NavigationRailDestination(
+                icon: const Icon(Icons.search_rounded),
+                selectedIcon: const Icon(Icons.search_rounded),
+                label: _RailLabel(l10n.shellTabSearch),
+              ),
+              NavigationRailDestination(
+                icon: const Icon(Icons.library_music_outlined),
+                selectedIcon: const Icon(Icons.library_music_rounded),
+                label: _RailLabel(l10n.shellTabLibrary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Single-line destination label so 200% text does not overflow the rail.
+class _RailLabel extends StatelessWidget {
+  const _RailLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      maxLines: 3,
+      textAlign: TextAlign.center,
     );
   }
 }
@@ -84,7 +222,8 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppColors.of(context);
-    final color = selected ? tokens.textPrimary : tokens.textInactive;
+    final iconColor = selected ? tokens.textPrimary : tokens.textInactive;
+    final labelColor = selected ? tokens.textPrimary : tokens.textSecondary;
     final textTheme = Theme.of(context).textTheme;
 
     return Expanded(
@@ -94,19 +233,25 @@ class _NavItem extends StatelessWidget {
         label: label,
         child: InkWell(
           onTap: onTap,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(selected ? activeIcon : icon, size: 21, color: color),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(selected ? activeIcon : icon, size: 21, color: iconColor),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: labelColor,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:my_music_player/core/theme/app_colors.dart';
 import 'package:my_music_player/core/theme/app_theme.dart';
 
+import '../../helpers/pump_app.dart';
+
 void main() {
   group('AppColors', () {
     test('dark palette is monochrome', () {
@@ -70,21 +72,116 @@ void main() {
       );
     });
 
+    test('light theme uses Warm Neutral surface and accent tokens', () {
+      final theme = AppTheme.lightTheme;
+      expect(theme.brightness, Brightness.light);
+      expect(theme.scaffoldBackgroundColor, AppColors.light.background);
+      expect(theme.colorScheme.primary, AppColors.light.accent);
+      expect(theme.colorScheme.onPrimary, AppColors.light.onAccent);
+      expect(theme.colorScheme.surface, AppColors.light.surface);
+      expect(
+        theme.bottomSheetTheme.backgroundColor,
+        AppColors.light.panel,
+      );
+    });
+
     testWidgets('AppColors.of resolves tokens from Theme brightness',
         (tester) async {
       late AppColorTokens resolved;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.darkTheme,
-          home: Builder(
-            builder: (context) {
-              resolved = AppColors.of(context);
-              return const SizedBox.shrink();
-            },
-          ),
+      await pumpApp(
+        tester,
+        Builder(
+          builder: (context) {
+            resolved = AppColors.of(context);
+            return const SizedBox.shrink();
+          },
         ),
+        themeMode: ThemeMode.dark,
       );
       expect(resolved.background, AppColors.dark.background);
     });
+
+    testWidgets('AppColors.of resolves light tokens', (tester) async {
+      late AppColorTokens resolved;
+      await pumpApp(
+        tester,
+        Builder(
+          builder: (context) {
+            resolved = AppColors.of(context);
+            return const SizedBox.shrink();
+          },
+        ),
+        themeMode: ThemeMode.light,
+      );
+      expect(resolved.background, AppColors.light.background);
+      expect(resolved.textPrimary, AppColors.light.textPrimary);
+    });
   });
+
+  group('Documented contrast pairs (DESIGN_SYSTEM §2.5)', () {
+    final palettes = <String, AppColorTokens>{
+      'dark': AppColors.dark,
+      'light': AppColors.light,
+    };
+
+    for (final entry in palettes.entries) {
+      final name = entry.key;
+      final tokens = entry.value;
+
+      test('$name essential text pairs meet WCAG AA 4.5:1', () {
+        final pairs = <String, (Color, Color)>{
+          'textPrimary/background': (tokens.textPrimary, tokens.background),
+          'textSecondary/background': (
+            tokens.textSecondary,
+            tokens.background,
+          ),
+          'textSecondary/surface': (tokens.textSecondary, tokens.surface),
+          'textSecondary/row': (tokens.textSecondary, tokens.row),
+          'textInactive/navigation': (tokens.textInactive, tokens.navigation),
+          'onAccent/accent': (tokens.onAccent, tokens.accent),
+        };
+
+        pairs.forEach((pair, colors) {
+          expect(
+            _contrastRatio(colors.$1, colors.$2),
+            greaterThanOrEqualTo(4.5),
+            reason: '$name $pair must meet the documented AA ratio',
+          );
+        });
+      });
+
+      test('$name textMuted stays a documented non-essential exception', () {
+        expect(
+          _contrastRatio(tokens.textMuted, tokens.background),
+          lessThan(4.5),
+          reason: 'textMuted is hint/placeholder only, never metadata',
+        );
+        expect(
+          _contrastRatio(tokens.textMuted, tokens.surface),
+          lessThan(4.5),
+          reason: 'textMuted is hint/placeholder only, never metadata',
+        );
+      });
+
+      test('$name accent and progress pairs meet 3:1', () {
+        expect(
+          _contrastRatio(tokens.accent, tokens.track),
+          greaterThanOrEqualTo(3.0),
+        );
+      });
+    }
+  });
+}
+
+/// WCAG 2.x relative-luminance contrast ratio.
+double _contrastRatio(Color foreground, Color background) {
+  final foregroundLuminance = foreground.computeLuminance();
+  final backgroundLuminance = background.computeLuminance();
+  final lighter = foregroundLuminance > backgroundLuminance
+      ? foregroundLuminance
+      : backgroundLuminance;
+  final darker = foregroundLuminance > backgroundLuminance
+      ? backgroundLuminance
+      : foregroundLuminance;
+  return (lighter + 0.05) / (darker + 0.05);
 }

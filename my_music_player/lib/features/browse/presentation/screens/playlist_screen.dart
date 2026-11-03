@@ -1,14 +1,19 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../providers/browse_provider.dart';
-import '../../domain/entities/browse_models.dart';
-import '../../../player/presentation/providers/player_controller.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/palette_provider.dart';
 import '../../../../shared/widgets/add_to_playlist_sheet.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_icon_button.dart';
+import '../../../player/presentation/providers/player_controller.dart';
+import '../../domain/entities/browse_models.dart';
+import '../providers/browse_provider.dart';
 
 class PlaylistScreen extends ConsumerWidget {
   final String playlistId;
@@ -19,25 +24,41 @@ class PlaylistScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistAsync = ref.watch(playlistDetailsProvider(playlistId));
     final theme = Theme.of(context);
+    final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceBase,
+      backgroundColor: t.background,
       body: playlistAsync.when(
         data: (playlist) => _buildBody(context, ref, playlist, theme),
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.accentPrimary)),
-        error: (err, stack) => Center(
-            child: Text('Error: $err',
-                style: const TextStyle(color: AppColors.statusError))),
+        loading: () => Center(
+          child: CircularProgressIndicator(color: t.accent),
+        ),
+        error: (err, stack) => AppEmptyState(
+          icon: Icons.error_outline,
+          title: l10n.browsePlaylistLoadError,
+          subtitle: '$err',
+          actionLabel: l10n.commonTryAgain,
+          onAction: () => ref.invalidate(playlistDetailsProvider(playlistId)),
+        ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref,
-      PlaylistDetails playlist, ThemeData theme) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    PlaylistDetails playlist,
+    ThemeData theme,
+  ) {
+    final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
     final palette = ref.watch(paletteProvider(playlist.thumbnailUrl ?? ''));
-    final dominantColor =
-        palette.value?.dominantColor?.color ?? AppColors.surfaceBase;
+    final dominantColor = palette.value?.dominantColor?.color ?? t.background;
+    final metaLabel = [
+      l10n.commonPlaylist,
+      l10n.commonSongCount(playlist.trackCount ?? 0),
+    ].join(' • ');
 
     return CustomScrollView(
       slivers: [
@@ -55,10 +76,14 @@ class PlaylistScreen extends ConsumerWidget {
                     fit: BoxFit.cover,
                   )
                 else
-                  const ColoredBox(
-                      color: AppColors.surfaceElevated,
-                      child: Icon(Icons.playlist_play,
-                          size: 80, color: AppColors.textSecondary)),
+                  ColoredBox(
+                    color: t.surface,
+                    child: Icon(
+                      Icons.playlist_play,
+                      size: 80,
+                      color: t.textSecondary,
+                    ),
+                  ),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -66,8 +91,8 @@ class PlaylistScreen extends ConsumerWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         dominantColor.withValues(alpha: 0.4),
-                        AppColors.surfaceBase.withValues(alpha: 0.8),
-                        AppColors.surfaceBase,
+                        t.background.withValues(alpha: 0.8),
+                        t.background,
                       ],
                     ),
                   ),
@@ -82,49 +107,102 @@ class PlaylistScreen extends ConsumerWidget {
                       Text(
                         playlist.title,
                         style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold, color: Colors.white),
+                          fontWeight: FontWeight.bold,
+                          color: t.textPrimary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        playlist.author ?? 'Unknown Author',
+                        playlist.author ?? l10n.browseUnknownAuthor,
                         style: theme.textTheme.titleMedium?.copyWith(
-                            color: dominantColor != AppColors.surfaceBase
-                                ? dominantColor
-                                : AppColors.accentPrimary,
-                            fontWeight: FontWeight.bold),
+                          color: dominantColor != t.background
+                              ? dominantColor
+                              : t.accent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Playlist • ${playlist.trackCount ?? 0} songs',
+                        metaLabel,
                         style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary),
+                            ?.copyWith(color: t.textSecondary),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: AppSpacing.md,
+                        runSpacing: AppSpacing.sm,
                         children: [
                           ElevatedButton.icon(
                             onPressed: () {
                               if (playlist.tracks.isNotEmpty) {
-                                ref.read(playerControllerProvider.notifier).playTrack(playlist.tracks.first, queue: playlist.tracks);
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .playTrack(
+                                      playlist.tracks.first,
+                                      queue: playlist.tracks,
+                                    );
                               }
                             },
-                            icon: const Icon(Icons.play_arrow, color: Colors.black),
-                            label: const Text('Play All', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accentPrimary, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full))),
+                            icon: Icon(Icons.play_arrow, color: t.onAccent),
+                            label: Text(
+                              l10n.commonPlayAll,
+                              style: TextStyle(
+                                color: t.onAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: t.accent,
+                              foregroundColor: t.onAccent,
+                              minimumSize: const Size(0, 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.xl,
+                                vertical: AppSpacing.md,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.full),
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: AppSpacing.md),
                           OutlinedButton.icon(
                             onPressed: () {
                               if (playlist.tracks.isNotEmpty) {
-                                final shuffled = List.of(playlist.tracks)..shuffle();
-                                ref.read(playerControllerProvider.notifier).playTrack(shuffled.first, queue: shuffled);
+                                final shuffled = List.of(playlist.tracks)
+                                  ..shuffle();
+                                ref
+                                    .read(playerControllerProvider.notifier)
+                                    .playTrack(
+                                      shuffled.first,
+                                      queue: shuffled,
+                                    );
                               }
                             },
-                            icon: const Icon(Icons.shuffle, color: AppColors.textPrimary),
-                            label: const Text('Acak', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                            style: OutlinedButton.styleFrom(foregroundColor: AppColors.textPrimary, side: const BorderSide(color: AppColors.surfaceOverlay), padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full))),
+                            icon: Icon(Icons.shuffle, color: t.textPrimary),
+                            label: Text(
+                              l10n.commonShuffle,
+                              style: TextStyle(
+                                color: t.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: t.textPrimary,
+                              side: BorderSide(color: t.border),
+                              minimumSize: const Size(0, 48),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.xl,
+                                vertical: AppSpacing.md,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.full),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -144,7 +222,9 @@ class PlaylistScreen extends ConsumerWidget {
               final track = playlist.tracks[index];
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.xs,
+                ),
                 leading: ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: CachedNetworkImage(
@@ -152,23 +232,35 @@ class PlaylistScreen extends ConsumerWidget {
                     width: 48,
                     height: 48,
                     fit: BoxFit.cover,
-                    errorWidget: (context, url, error) => const ColoredBox(
-                        color: AppColors.surfaceElevated,
-                        child: Icon(Icons.music_note,
-                            color: AppColors.textSecondary)),
+                    errorWidget: (context, url, error) => ColoredBox(
+                      color: t.surface,
+                      child: Icon(
+                        Icons.music_note,
+                        color: t.textSecondary,
+                      ),
+                    ),
                   ),
                 ),
-                title: Text(track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(track.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textSecondary)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.more_vert,
-                      color: AppColors.textSecondary),
+                title: Text(
+                  track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: t.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  track.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: t.textSecondary),
+                ),
+                trailing: AppIconButton(
+                  icon: Icons.more_vert,
+                  semanticLabel: l10n.browseTrackOptions,
+                  iconSize: 20,
+                  filled: false,
                   onPressed: () {
                     showAddToPlaylistSheet(context, track: track);
                   },
@@ -183,6 +275,7 @@ class PlaylistScreen extends ConsumerWidget {
             childCount: playlist.tracks.length + 1,
           ),
         ),
+        const ChromeBottomSliver(),
       ],
     );
   }

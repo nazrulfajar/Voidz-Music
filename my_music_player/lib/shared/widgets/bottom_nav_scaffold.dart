@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/player/presentation/widgets/mini_player.dart';
-import 'app_bottom_nav.dart';
-
-/// Persistent shell for the three main branches.
+/// Shell for the three root tab branches.
 ///
-/// The mini-player and custom pill navigation float over the page content;
-/// the page keeps its own scroll view and bottom padding.
-class BottomNavScaffold extends ConsumerWidget {
+/// Chrome (mini player, pill navigation, rail) is owned by the app-level
+/// `AppChrome` host above the router. This widget only preserves branch state
+/// and handles the Android back button while a tab root is showing.
+class BottomNavScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   const BottomNavScaffold({
@@ -17,15 +14,8 @@ class BottomNavScaffold extends ConsumerWidget {
     required this.navigationShell,
   });
 
-  void _onItemTapped(int index) {
-    navigationShell.goBranch(
-      index,
-      initialLocation: index == navigationShell.currentIndex,
-    );
-  }
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -42,24 +32,7 @@ class BottomNavScaffold extends ConsumerWidget {
         }
         Navigator.of(context, rootNavigator: true).maybePop();
       },
-      child: Scaffold(
-        extendBody: true,
-        body: navigationShell,
-        bottomNavigationBar: SafeArea(
-          top: false,
-          minimum: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const MiniPlayer(),
-              AppBottomNav(
-                currentIndex: navigationShell.currentIndex,
-                onSelected: _onItemTapped,
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: navigationShell,
     );
   }
 }

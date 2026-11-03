@@ -1,12 +1,17 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_radius.dart';
 
-/// Single source of truth untuk 48-thumb track row — dipakai di search, artist topSongs, album, playlist, queue, library list.
-/// Menggantikan 6 duplikat ListTile di search_screen, artist_screen, album_screen, playlist_screen, dll.
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_radius.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../l10n/app_localizations.dart';
+
+/// Single source of truth untuk 48-thumb track row — dipakai di search,
+/// artist topSongs, album, playlist, queue, library list.
+/// Menggantikan 6 duplikat ListTile di search_screen, artist_screen,
+/// album_screen, playlist_screen, dll.
 class AppTrackTile extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -34,12 +39,16 @@ class AppTrackTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Ponytail: tanpa File.existsSync di build (lag). Langsung coba FileImage; errorBuilder fallback ke icon.
+    final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    // Ponytail: tanpa File.existsSync di build (lag). Langsung coba FileImage;
+    // errorBuilder fallback ke icon.
     Widget thumbWidget;
     if (leadingCustom != null) {
       thumbWidget = leadingCustom!;
     } else {
-      final hasLocal = localThumbnailPath != null && localThumbnailPath!.isNotEmpty;
+      final hasLocal =
+          localThumbnailPath != null && localThumbnailPath!.isNotEmpty;
       final hasRemote = thumbnailUrl != null && thumbnailUrl!.isNotEmpty;
       if (hasLocal) {
         thumbWidget = ClipRRect(
@@ -50,12 +59,7 @@ class AppTrackTile extends StatelessWidget {
             height: 48,
             fit: BoxFit.cover,
             cacheWidth: 100,
-            errorBuilder: (_, __, ___) => Container(
-              width: 48,
-              height: 48,
-              color: AppColors.surfaceOverlay,
-              child: const Icon(Icons.music_note, color: AppColors.textTertiary),
-            ),
+            errorBuilder: (_, __, ___) => _thumbFallback(t),
           ),
         );
       } else if (hasRemote) {
@@ -67,24 +71,24 @@ class AppTrackTile extends StatelessWidget {
             height: 48,
             memCacheWidth: 100,
             fit: BoxFit.cover,
-            placeholder: (_, __) => Container(width: 48, height: 48, color: AppColors.surfaceOverlay, child: const Icon(Icons.music_note, color: AppColors.textTertiary)),
-            errorWidget: (_, __, ___) => Container(width: 48, height: 48, color: AppColors.surfaceOverlay, child: const Icon(Icons.music_note, color: AppColors.textTertiary)),
+            placeholder: (_, __) => _thumbFallback(t),
+            errorWidget: (_, __, ___) => _thumbFallback(t),
           ),
         );
       } else {
-        thumbWidget = Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(color: AppColors.surfaceOverlay, borderRadius: BorderRadius.circular(AppRadius.sm)),
-          child: const Icon(Icons.music_note, color: AppColors.textTertiary),
-        );
+        thumbWidget = _thumbFallback(t);
       }
     }
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-      tileColor: isPlaying ? AppColors.surfaceHover : null,
-      hoverColor: AppColors.surfaceHover,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      tileColor: isPlaying ? t.well : null,
+      hoverColor: t.well,
       leading: thumbWidget,
       title: Row(
         children: [
@@ -95,25 +99,104 @@ class AppTrackTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodyLarge?.copyWith(
                 fontWeight: isPlaying ? FontWeight.bold : FontWeight.w500,
-                color: isPlaying ? AppColors.accentPrimary : AppColors.textPrimary,
+                color: isPlaying ? t.accent : t.textPrimary,
               ),
             ),
           ),
           if (isCached) ...[
-            const SizedBox(width: AppSpacing.xs),
-            const Icon(Icons.offline_pin, color: AppColors.statusSuccess, size: 14),
+            const SizedBox(width: AppSpacing.xxs),
+            Semantics(
+              label: l10n.commonDownloaded,
+              child: ExcludeSemantics(
+                child: Icon(
+                  Icons.offline_pin,
+                  color: t.textSecondary,
+                  size: 14,
+                ),
+              ),
+            ),
           ],
         ],
       ),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
-      trailing: trailing ??
-          (isPlaying ? const Icon(Icons.equalizer, color: AppColors.accentPrimary) : null),
+      subtitle: Row(
+        children: [
+          Expanded(
+            child: Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(color: t.textSecondary),
+            ),
+          ),
+          if (isPlaying) ...[
+            const SizedBox(width: AppSpacing.xs),
+            const NowPlayingBadge(),
+          ],
+        ],
+      ),
+      trailing: trailing,
       onTap: onTap,
+    );
+  }
+
+  Widget _thumbFallback(AppColorTokens t) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: t.raised,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Icon(Icons.music_note, color: t.textMuted),
     );
   }
 }
 
-/// Horizontal card 140×140 dipakai di artist albums/playlists — juga single source
+/// Equalizer icon plus a visible "Now playing" label.
+///
+/// The icon is decorative and carries no semantics of its own; the badge is
+/// announced once as a status. The icon is static, so reduced-motion users see
+/// the same non-animated affordance (`DESIGN_SYSTEM.md` §10).
+class NowPlayingBadge extends StatelessWidget {
+  const NowPlayingBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Semantics(
+      label: l10n.commonNowPlaying,
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ExcludeSemantics(
+            child: Icon(
+              Icons.equalizer,
+              size: 14,
+              color: t.textPrimary,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            l10n.commonNowPlaying,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: t.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Horizontal card 140×140 dipakai di artist albums/playlists — juga single
+/// source.
 class AppHorizontalCard extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -133,6 +216,7 @@ class AppHorizontalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -145,15 +229,35 @@ class AppHorizontalCard extends StatelessWidget {
               width: 140,
               height: 140,
               decoration: BoxDecoration(
-                color: AppColors.surfaceOverlay,
+                color: t.raised,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                image: thumbnailUrl != null ? DecorationImage(image: CachedNetworkImageProvider(thumbnailUrl!), fit: BoxFit.cover) : null,
+                image: thumbnailUrl != null
+                    ? DecorationImage(
+                        image: CachedNetworkImageProvider(thumbnailUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
-              child: thumbnailUrl == null ? Icon(fallbackIcon, size: 40, color: AppColors.textSecondary) : null,
+              child: thumbnailUrl == null
+                  ? Icon(fallbackIcon, size: 40, color: t.textSecondary)
+                  : null,
             ),
             const SizedBox(height: AppSpacing.xs),
-            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-            if (subtitle != null) Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            if (subtitle != null)
+              Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: t.textSecondary),
+              ),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import '../../../player/domain/entities/track.dart';
 import '../../../player/data/models/track_model.dart';
 import '../../../library/data/models/play_history_model.dart';
 import '../../domain/entities/recap.dart';
+import '../../domain/entities/recap_period.dart';
 
 final recapRepositoryProvider = Provider<RecapRepository>((ref) {
   final isar = ref.read(isarProvider);
@@ -15,12 +16,20 @@ class RecapRepository {
   final Isar isar;
   RecapRepository(this.isar);
 
-  Future<Recap> getRecap(int year) async {
-    final start = DateTime(year, 1, 1);
-    final end = DateTime(year + 1, 1, 1);
+  /// Returns the recap for [year], or for [month] when it is provided.
+  ///
+  /// `month` is `1..12`. The yearly behaviour is unchanged: the range is
+  /// `[January 1, next January 1)`.
+  Future<Recap> getRecap(int year, {int? month}) async {
+    final range = RecapPeriodRange.of(
+      period: month == null ? RecapPeriod.year : RecapPeriod.month,
+      year: year,
+      month: month,
+    );
     final histories = await isar.playHistoryModels
         .filter()
-        .playedAtBetween(start, end, includeLower: true, includeUpper: false)
+        .playedAtBetween(range.start, range.end,
+            includeLower: true, includeUpper: false)
         .findAll();
 
     if (histories.isEmpty) return Recap.empty(year);

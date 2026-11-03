@@ -3,31 +3,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_shadows.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_icon_button.dart';
+import '../../../../shared/widgets/glass_surface.dart';
 import '../providers/player_controller.dart';
 
-/// Mini-player from `docs/DESIGN_SYSTEM.md` §6.1: 66dp, r20, opaque surface,
-/// 1px border, 46dp artwork and 2dp progress. No blur or colour.
+/// Mini-player from `docs/DESIGN_SYSTEM.md` §6.1: 66dp, r20, glass chrome,
+/// 1px border, 46dp artwork and 2dp progress. No colour.
 class MiniPlayer extends ConsumerWidget {
-  const MiniPlayer({super.key});
+  const MiniPlayer({
+    super.key,
+    this.quality = GlassQuality.blurred,
+  });
+
+  /// Glass quality. Pass [GlassQuality.opaque] for the lowest-cost fallback.
+  final GlassQuality quality;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(playerControllerProvider);
-    final track = playerState.currentTrack;
+    final track = ref.watch(
+      playerControllerProvider.select((state) => state.currentTrack),
+    );
+    final isPlaying = ref.watch(
+      playerControllerProvider.select((state) => state.isPlaying),
+    );
     if (track == null) return const SizedBox.shrink();
 
     final tokens = AppColors.of(context);
-    final progress = playerState.duration.inMilliseconds > 0
-        ? (playerState.position.inMilliseconds /
-                playerState.duration.inMilliseconds)
-            .clamp(0.0, 1.0)
-        : 0.0;
+    final l10n = AppLocalizations.of(context);
     final textTheme = Theme.of(context).textTheme;
 
     void openPlayer() => context.push('/player');
+    void openLyrics() => context.push('/lyrics');
     void previous() =>
         ref.read(playerControllerProvider.notifier).playPrevious();
     void toggle() =>
@@ -40,93 +50,105 @@ class MiniPlayer extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: GestureDetector(
+          child: Semantics(
+            container: true,
+            button: true,
+            label: l10n.miniPlayerOpen,
             onTap: openPlayer,
-            onVerticalDragEnd: (details) {
-              if ((details.primaryVelocity ?? 0) < -100) openPlayer();
-            },
-            child: Container(
-              height: 66,
-              decoration: BoxDecoration(
-                color: tokens.miniPlayer,
-                borderRadius: BorderRadius.circular(AppRadius.xxl),
-                border: Border.all(color: tokens.border),
-                boxShadow: AppShadows.miniPlayer,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                children: [
-                  Row(
+            child: GestureDetector(
+              excludeFromSemantics: true,
+              onTap: openPlayer,
+              onVerticalDragEnd: (details) {
+                if ((details.primaryVelocity ?? 0) < -100) openPlayer();
+              },
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 66),
+                child: GlassSurface.chrome(
+                  quality: quality,
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
+                  child: Stack(
                     children: [
-                      const SizedBox(width: 10),
-                      AppArtwork(
-                        localPath: track.localThumbnailPath,
-                        imageUrl: track.thumbnailUrl,
-                        size: 46,
-                        radius: AppRadius.md,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              track.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.titleSmall?.copyWith(
-                                color: tokens.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
+                      Row(
+                        children: [
+                          const SizedBox(width: 8),
+                          ExcludeSemantics(
+                            child: AppArtwork(
+                              localPath: track.localThumbnailPath,
+                              imageUrl: track.thumbnailUrl,
+                              size: 46,
+                              radius: AppRadius.md,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              track.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: tokens.textSecondary,
-                              ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  track.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.titleSmall?.copyWith(
+                                    color: tokens.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  track.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          AppIconButton(
+                            icon: Icons.skip_previous_rounded,
+                            semanticLabel: l10n.playerPrevious,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: previous,
+                          ),
+                          AppIconButton(
+                            icon: isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            semanticLabel:
+                                isPlaying ? l10n.playerPause : l10n.commonPlay,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: toggle,
+                          ),
+                          AppIconButton(
+                            icon: Icons.skip_next_rounded,
+                            semanticLabel: l10n.playerNext,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: next,
+                          ),
+                          AppIconButton(
+                            icon: Icons.lyrics_outlined,
+                            semanticLabel: l10n.playerDockLyrics,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: openLyrics,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                       ),
-                      _MiniControl(
-                        icon: Icons.skip_previous_rounded,
-                        onTap: previous,
-                        tooltip: 'Previous',
+                      const Positioned(
+                        left: 10,
+                        right: 10,
+                        bottom: 0,
+                        child: _MiniPlayerProgress(),
                       ),
-                      _MiniControl(
-                        icon: playerState.isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        onTap: toggle,
-                        tooltip: playerState.isPlaying ? 'Pause' : 'Play',
-                      ),
-                      _MiniControl(
-                        icon: Icons.skip_next_rounded,
-                        onTap: next,
-                        tooltip: 'Next',
-                      ),
-                      const SizedBox(width: 6),
                     ],
                   ),
-                  Positioned(
-                    left: 10,
-                    right: 10,
-                    bottom: 0,
-                    child: Container(
-                      height: 2,
-                      color: tokens.track,
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: progress,
-                        child: Container(color: tokens.accent),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -136,29 +158,43 @@ class MiniPlayer extends ConsumerWidget {
   }
 }
 
-class _MiniControl extends StatelessWidget {
-  const _MiniControl({
-    required this.icon,
-    required this.onTap,
-    required this.tooltip,
-  });
+/// Progress is isolated so the 200 ms position stream does not rebuild the
+/// glass chrome or its backdrop filter.
+class _MiniPlayerProgress extends ConsumerWidget {
+  const _MiniPlayerProgress();
 
-  final IconData icon;
-  final VoidCallback onTap;
-  final String tooltip;
+  String _format(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = AppColors.of(context);
-    return SizedBox(
-      width: 38,
-      height: 44,
-      child: Tooltip(
-        message: tooltip,
-        child: InkResponse(
-          onTap: onTap,
-          radius: 20,
-          child: Icon(icon, size: 18, color: tokens.textPrimary),
+    final l10n = AppLocalizations.of(context);
+    final (position, duration) = ref.watch(
+      playerControllerProvider.select(
+        (state) => (state.position, state.duration),
+      ),
+    );
+    final progress = duration.inMilliseconds > 0
+        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Semantics(
+      container: true,
+      label: l10n.miniPlayerProgress,
+      value: '${_format(position)} / ${_format(duration)}',
+      child: ExcludeSemantics(
+        child: Container(
+          height: 2,
+          color: tokens.track,
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: progress,
+            child: Container(color: tokens.accent),
+          ),
         ),
       ),
     );

@@ -33,7 +33,7 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
       await isar.playlistModels.put(model);
     });
 
-    return _mapPlaylistModelToEntity(model, 0, const []);
+    return _mapPlaylistModelToEntity(model, 0, const [], 0);
   }
 
   @override
@@ -79,6 +79,39 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     return urls;
   }
 
+  /// Sums track durations with one query per 64 playlist entries instead of
+  /// one query per track.
+  Future<int> _totalDurationMsForPlaylist(int playlistId) async {
+    final items = await isar.playlistTrackModels
+        .filter()
+        .playlistIdEqualTo(playlistId)
+        .findAll();
+    if (items.isEmpty) return 0;
+
+    final ids = items.map((item) => item.trackSourceId).toList();
+    var total = 0;
+    const chunkSize = 64;
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      final end =
+          start + chunkSize < ids.length ? start + chunkSize : ids.length;
+      var query = isar.trackModels.filter().sourceIdEqualTo(ids[start]);
+      for (var i = start + 1; i < end; i++) {
+        query = query.or().sourceIdEqualTo(ids[i]);
+      }
+      final models = await query.findAll();
+      total += _sumDurationMs(models);
+    }
+    return total;
+  }
+
+  int _sumDurationMs(Iterable<TrackModel> models) {
+    var total = 0;
+    for (final model in models) {
+      total += model.durationMs;
+    }
+    return total;
+  }
+
   @override
   Future<List<Playlist>> getAllPlaylists() async {
     final models = await isar.playlistModels.where().findAll();
@@ -86,7 +119,15 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     for (final model in models) {
       final count = await isar.playlistTrackModels.filter().playlistIdEqualTo(model.id).count();
       final thumbnailUrls = await _thumbUrlsForPlaylist(model.id);
-      result.add(_mapPlaylistModelToEntity(model, count, thumbnailUrls));
+      final totalDurationMs = await _totalDurationMsForPlaylist(model.id);
+      result.add(
+        _mapPlaylistModelToEntity(
+          model,
+          count,
+          thumbnailUrls,
+          totalDurationMs,
+        ),
+      );
     }
     return result;
   }
@@ -97,7 +138,13 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     if (model == null) return null;
     final count = await isar.playlistTrackModels.filter().playlistIdEqualTo(id).count();
     final thumbnailUrls = await _thumbUrlsForPlaylist(model.id);
-    return _mapPlaylistModelToEntity(model, count, thumbnailUrls);
+    final totalDurationMs = await _totalDurationMsForPlaylist(model.id);
+    return _mapPlaylistModelToEntity(
+      model,
+      count,
+      thumbnailUrls,
+      totalDurationMs,
+    );
   }
 
   @override
@@ -218,32 +265,37 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   Future<Playlist> getVirtualPlaylist(String virtualId) async {
     String name = 'Playlist';
     int count = 0;
+    int totalDurationMs = 0;
     List<String> thumbnailUrls = [];
-    List<TrackModel> topTracks = [];
+    List<TrackModel> tracks = [];
     
     if (virtualId == VirtualPlaylists.likedSongs) {
       name = 'Liked Songs';
-      count = await isar.trackModels.filter().isLikedEqualTo(true).count();
-      topTracks = await isar.trackModels.filter().isLikedEqualTo(true).limit(4).findAll();
+      tracks = await isar.trackModels
+          .filter()
+          .isLikedEqualTo(true)
+          .findAll();
+      count = tracks.length;
+      totalDurationMs = _sumDurationMs(tracks);
     } else if (virtualId == VirtualPlaylists.recentlyPlayed) {
       name = 'Recently Played';
-      count = await isar.trackModels.filter().lastPlayedAtIsNotNull().count();
-      topTracks = await isar.trackModels
+      tracks = await isar.trackModels
           .filter()
           .lastPlayedAtIsNotNull()
           .sortByLastPlayedAtDesc()
-          .limit(4)
           .findAll();
+      count = tracks.length;
+      totalDurationMs = _sumDurationMs(tracks);
     } else if (virtualId == VirtualPlaylists.cachedSongs) {
       name = 'Downloaded';
       // Exclude local device songs
       final allCached = await isar.trackModels.filter().isCachedEqualTo(true).findAll();
-      final downloaded = allCached.where((t) => t.source != TrackSource.local).toList();
-      count = downloaded.length;
-      topTracks = downloaded.take(4).toList();
+      tracks = allCached.where((t) => t.source != TrackSource.local).toList();
+      count = tracks.length;
+      totalDurationMs = _sumDurationMs(tracks);
     }
     
-    for (final trackModel in topTracks) {
+    for (final trackModel in tracks.take(4)) {
       final url = trackModel.localThumbnailPath ?? trackModel.thumbnailUrl;
       if (url != null && url.isNotEmpty) {
         thumbnailUrls.add(url);
@@ -258,6 +310,7 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
       thumbnailUrls: thumbnailUrls,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+      totalDurationMs: totalDurationMs,
     );
   }
 
@@ -294,8 +347,75 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
         
     return trackModels.map((m) => Track.fromModel(m)).toList();
   }
+
+  @override
+  Future<List<Track>> getRecentlyPlayedTracks({
+    int days = 30,
+    int limit = 100,
+    DateTime? now,
+  }) async {
+    if (days <= 0 || limit <= 0) return const [];
+
+    final history = await _playHistorySince(days: days, now: now);
+    final seen = <String>{};
+    final sourceIds = <String>[];
+    for (final entry in history) {
+      if (!seen.add(entry.trackSourceId)) continue;
+      sourceIds.add(entry.trackSourceId);
+      if (sourceIds.length >= limit) break;
+    }
+
+    final tracks = <Track>[];
+    for (final sourceId in sourceIds) {
+      final model = await isar.trackModels
+          .filter()
+          .sourceIdEqualTo(sourceId)
+          .findFirst();
+      if (model != null) tracks.add(Track.fromModel(model));
+    }
+    return tracks;
+  }
+
+  @override
+  Future<int> getRecentlyPlayedCount({int days = 30, DateTime? now}) async {
+    if (days <= 0) return 0;
+    final history = await _playHistorySince(days: days, now: now);
+    return history.map((entry) => entry.trackSourceId).toSet().length;
+  }
+
+  Future<List<PlayHistoryModel>> _playHistorySince({
+    required int days,
+    DateTime? now,
+  }) {
+    final cutoff = (now ?? DateTime.now()).subtract(Duration(days: days));
+    return isar.playHistoryModels
+        .filter()
+        .playedAtGreaterThan(cutoff, include: true)
+        .sortByPlayedAtDesc()
+        .findAll();
+  }
+
+  @override
+  Future<void> clearPlayHistory() async {
+    await isar.writeTxn(() async {
+      await isar.playHistoryModels.clear();
+      final tracks = await isar.trackModels
+          .filter()
+          .lastPlayedAtIsNotNull()
+          .findAll();
+      for (final track in tracks) {
+        track.lastPlayedAt = null;
+      }
+      await isar.trackModels.putAll(tracks);
+    });
+  }
   
-  Playlist _mapPlaylistModelToEntity(PlaylistModel model, int trackCount, List<String> thumbnailUrls) {
+  Playlist _mapPlaylistModelToEntity(
+    PlaylistModel model,
+    int trackCount,
+    List<String> thumbnailUrls,
+    int totalDurationMs,
+  ) {
     return Playlist(
       id: model.id,
       name: model.name,
@@ -305,6 +425,7 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
       thumbnailUrls: thumbnailUrls,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      totalDurationMs: totalDurationMs,
     );
   }
 }
