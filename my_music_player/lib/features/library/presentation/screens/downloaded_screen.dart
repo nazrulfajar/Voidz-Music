@@ -8,6 +8,7 @@ import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/glass_surface.dart';
 import '../../../cache/domain/usecases/cache_manager.dart';
@@ -138,11 +139,13 @@ class DownloadedScreen extends ConsumerWidget {
                               title: l10n.downloadedEmptyTitle,
                             )
                           : ListView.builder(
-                              padding: const EdgeInsets.only(
+                              padding: EdgeInsets.only(
                                 left: AppSpacing.md,
                                 right: AppSpacing.md,
                                 top: AppSpacing.md,
-                                bottom: 160,
+                                bottom:
+                                    AppChromeInsets.scrollBottomOf(context) +
+                                        AppSpacing.space2,
                               ),
                               itemCount: tracks.length,
                               itemBuilder: (context, index) {

@@ -10,6 +10,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../shared/widgets/glass_surface.dart';
@@ -201,11 +202,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ) =>
                             ListView.builder(
                               controller: _scrollController,
-                              padding: const EdgeInsets.fromLTRB(
+                              padding: EdgeInsets.fromLTRB(
                                 AppSpacing.space4,
                                 AppSpacing.space2,
                                 AppSpacing.space4,
-                                AppSpacing.bottomPlayerPadding,
+                                AppChromeInsets.bottomOf(context),
                               ),
                               itemCount: items.length + 2,
                               itemBuilder: (context, index) {
@@ -396,8 +397,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       data: (history) {
         if (history.isEmpty) {
           return SingleChildScrollView(
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.bottomPlayerPadding,
+            padding: EdgeInsets.only(
+              bottom: AppChromeInsets.bottomOf(context),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -416,8 +417,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         }
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.only(
-            bottom: AppSpacing.bottomPlayerPadding,
+          padding: EdgeInsets.only(
+            bottom: AppChromeInsets.bottomOf(context),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,7 +483,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             title: l10n.searchBrowseSources,
             subtitle: l10n.searchBrowseSourcesSubtitle,
             semanticLabel: l10n.searchBrowseBySource,
-            onTap: () => context.push('/search/browse'),
+            onTap: () => context.push('/browse'),
           ),
         ],
       ),
@@ -751,7 +752,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               onTap: () {
-                context.push('/search/artist/${artist.browseId}');
+                context.push('/artist/${artist.browseId}');
               },
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),
@@ -848,7 +849,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               onTap: () {
-                context.push('/search/album/${album.browseId}');
+                context.push('/album/${album.browseId}');
               },
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),
@@ -930,7 +931,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               onTap: () {
-                context.push('/search/playlist/${playlist.browseId}');
+                context.push('/playlist/${playlist.browseId}');
               },
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 48),

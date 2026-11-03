@@ -10,6 +10,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/add_to_playlist_sheet.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/glass_surface.dart';
@@ -179,8 +180,8 @@ class _PlaylistDetailBody extends ConsumerWidget {
                 data: (tracks) {
                   if (tracks.isEmpty) {
                     return ListView(
-                      padding: const EdgeInsets.only(
-                        bottom: AppSpacing.bottomPlayerPadding,
+                      padding: EdgeInsets.only(
+                        bottom: AppChromeInsets.bottomOf(context),
                       ),
                       children: [
                         header,
@@ -200,8 +201,8 @@ class _PlaylistDetailBody extends ConsumerWidget {
 
                   if (playlist.isSystem) {
                     return ListView.builder(
-                      padding: const EdgeInsets.only(
-                        bottom: AppSpacing.bottomPlayerPadding,
+                      padding: EdgeInsets.only(
+                        bottom: AppChromeInsets.bottomOf(context),
                       ),
                       itemCount: tracks.length + 1,
                       itemBuilder: (context, index) {
@@ -224,8 +225,8 @@ class _PlaylistDetailBody extends ConsumerWidget {
 
                   return ReorderableListView.builder(
                     header: header,
-                    padding: const EdgeInsets.only(
-                      bottom: AppSpacing.bottomPlayerPadding,
+                    padding: EdgeInsets.only(
+                      bottom: AppChromeInsets.bottomOf(context),
                     ),
                     buildDefaultDragHandles: true,
                     itemCount: tracks.length,
@@ -265,8 +266,8 @@ class _PlaylistDetailBody extends ConsumerWidget {
                   );
                 },
                 loading: () => ListView(
-                  padding: const EdgeInsets.only(
-                    bottom: AppSpacing.bottomPlayerPadding,
+                  padding: EdgeInsets.only(
+                    bottom: AppChromeInsets.bottomOf(context),
                   ),
                   children: [
                     header,
@@ -277,8 +278,8 @@ class _PlaylistDetailBody extends ConsumerWidget {
                   ],
                 ),
                 error: (e, st) => ListView(
-                  padding: const EdgeInsets.only(
-                    bottom: AppSpacing.bottomPlayerPadding,
+                  padding: EdgeInsets.only(
+                    bottom: AppChromeInsets.bottomOf(context),
                   ),
                   children: [
                     header,

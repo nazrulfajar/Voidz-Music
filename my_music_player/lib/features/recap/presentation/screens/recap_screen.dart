@@ -8,6 +8,7 @@ import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/glass_surface.dart';
 import '../../../../shared/widgets/shimmer_loading.dart';
@@ -140,9 +141,7 @@ class RecapScreen extends ConsumerWidget {
                           data: recap.topAlbums[i],
                         ),
                       ),
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: 120),
-                      ),
+                      const ChromeBottomSliver(),
                     ],
                   ),
                 );

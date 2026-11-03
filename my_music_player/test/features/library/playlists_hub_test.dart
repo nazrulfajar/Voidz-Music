@@ -242,7 +242,7 @@ void main() {
   testWidgets('playlist grid formats hours and minutes', (tester) async {
     await pumpLibrary(
       tester,
-      location: '/library/playlists',
+      location: '/playlists',
       overrides: libraryOverrides(
         playlists: [
           _liked(),
@@ -265,7 +265,7 @@ void main() {
       (tester) async {
     await pumpLibrary(
       tester,
-      location: '/library/playlists',
+      location: '/playlists',
       overrides: libraryOverrides(
         playlists: [_liked(), _playlist(1, 'Focus Flow')],
       ),

@@ -9,6 +9,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../shared/widgets/glass_surface.dart';
@@ -70,11 +71,11 @@ class LibraryScreen extends ConsumerWidget {
           backgroundColor: t.row,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
               left: AppSpacing.screenInset,
               right: AppSpacing.screenInset,
               top: AppSpacing.space4,
-              bottom: AppSpacing.bottomPlayerPadding,
+              bottom: AppChromeInsets.bottomOf(context),
             ),
             child: Center(
               child: ConstrainedBox(
@@ -178,7 +179,7 @@ class LibraryScreen extends ConsumerWidget {
           icon: Icons.download_rounded,
           title: l10n.libraryDownloadedCache,
           meta: cacheMeta,
-          onTap: () => context.push('/library/downloaded'),
+          onTap: () => context.push('/downloaded'),
         ),
         const SizedBox(height: AppSpacing.space2),
         _linkRow(
@@ -187,7 +188,7 @@ class LibraryScreen extends ConsumerWidget {
           icon: Icons.queue_music_rounded,
           title: l10n.libraryCustomPlaylists,
           meta: l10n.commonPlaylistCount(userPlaylists.length),
-          onTap: () => context.push('/library/playlists'),
+          onTap: () => context.push('/playlists'),
         ),
         const SizedBox(height: AppSpacing.space2),
         _linkRow(
@@ -196,7 +197,7 @@ class LibraryScreen extends ConsumerWidget {
           icon: Icons.folder_outlined,
           title: l10n.libraryDeviceSongs,
           meta: l10n.commonTrackCount(deviceSongs.length),
-          onTap: () => context.push('/library/device-songs'),
+          onTap: () => context.push('/device-songs'),
         ),
         if (pinned.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.space6),
@@ -218,7 +219,7 @@ class LibraryScreen extends ConsumerWidget {
           icon: Icons.auto_awesome,
           title: l10n.libraryListeningRecap,
           meta: l10n.libraryListeningSummary,
-          onTap: () => context.push('/library/recap'),
+          onTap: () => context.push('/recap'),
         ),
       ],
     );
@@ -248,7 +249,7 @@ class LibraryScreen extends ConsumerWidget {
   }
 
   Future<void> _openDeviceSongs(BuildContext context, WidgetRef ref) async {
-    await context.push('/library/device-songs');
+    await context.push('/device-songs');
     if (!context.mounted) return;
     ref.invalidate(devicePermissionStatusProvider);
     ref.invalidate(allPlaylistsProvider);
@@ -268,7 +269,7 @@ class LibraryScreen extends ConsumerWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => context.push(
-            '/library/playlist-detail/${playlist.id}',
+            '/playlist-detail/${playlist.id}',
             extra: playlist,
           ),
           borderRadius: BorderRadius.circular(22),
@@ -505,7 +506,7 @@ class LibraryScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => context.push('/library/recently-played'),
+          onTap: () => context.push('/recently-played'),
           borderRadius: BorderRadius.circular(AppRadius.lg),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 64),

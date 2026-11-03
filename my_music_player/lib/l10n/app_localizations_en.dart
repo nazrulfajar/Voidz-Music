@@ -1292,6 +1292,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shellTabLibrary => 'Library';
 
   @override
+  String get miniPlayerOpen => 'Open player';
+
+  @override
+  String get miniPlayerProgress => 'Playback position';
+
+  @override
   String get errorRouteNotFoundTitle => 'Page not found';
 
   @override

@@ -45,12 +45,10 @@ void main() {
         GoRoute(
           path: '/search',
           builder: (context, state) => const SearchScreen(),
-          routes: [
-            GoRoute(
-              path: 'browse',
-              builder: (context, state) => const _RouteStub('browse-route'),
-            ),
-          ],
+        ),
+        GoRoute(
+          path: '/browse',
+          builder: (context, state) => const _RouteStub('browse-route'),
         ),
       ],
     );

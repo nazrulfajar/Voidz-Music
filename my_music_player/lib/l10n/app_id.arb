@@ -332,6 +332,8 @@
   "shellTabHome": "Beranda",
   "shellTabSearch": "Cari",
   "shellTabLibrary": "Library",
+  "miniPlayerOpen": "Buka pemutar",
+  "miniPlayerProgress": "Posisi pemutaran",
   "errorRouteNotFoundTitle": "Halaman tidak ditemukan",
   "errorRouteNotFoundMessage": "Kami tidak dapat menemukan halaman itu. Mungkin sudah dipindahkan atau tidak ada lagi.",
   "errorRouteGoHome": "Ke Beranda"

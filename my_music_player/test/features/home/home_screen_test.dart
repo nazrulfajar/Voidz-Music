@@ -95,7 +95,7 @@ void main() {
           builder: (context, state) => const _RouteStub('search-route'),
         ),
         GoRoute(
-          path: '/library/device-songs',
+          path: '/device-songs',
           builder: (context, state) => const _RouteStub('device-songs-route'),
         ),
         GoRoute(
@@ -320,7 +320,7 @@ void main() {
           builder: (context, state) => const _RouteStub('search-route'),
         ),
         GoRoute(
-          path: '/library/device-songs',
+          path: '/device-songs',
           builder: (context, state) => const _RouteStub('device-songs-route'),
         ),
       ],

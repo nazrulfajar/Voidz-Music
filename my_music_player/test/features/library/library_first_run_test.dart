@@ -152,13 +152,10 @@ void main() {
         GoRoute(
           path: '/library',
           builder: (context, state) => const LibraryScreen(),
-          routes: [
-            GoRoute(
-              path: 'device-songs',
-              builder: (context, state) =>
-                  const _RouteStub('device-songs-route'),
-            ),
-          ],
+        ),
+        GoRoute(
+          path: '/device-songs',
+          builder: (context, state) => const _RouteStub('device-songs-route'),
         ),
         GoRoute(
           path: '/search',

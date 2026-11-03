@@ -22,7 +22,7 @@ class _RouteStub extends StatelessWidget {
 void main() {
   Future<GoRouter> pumpBrowseRoute(
     WidgetTester tester, {
-    String initialLocation = '/search/browse',
+    String initialLocation = '/browse',
   }) async {
     final router = GoRouter(
       initialLocation: initialLocation,
@@ -30,13 +30,12 @@ void main() {
         GoRoute(
           path: '/search',
           builder: (context, state) => const _RouteStub('search-route'),
-          routes: [buildBrowseRoute()],
         ),
         GoRoute(
-          path: '/library/device-songs',
+          path: '/device-songs',
           builder: (context, state) => const _RouteStub('device-songs-route'),
         ),
-        ...buildCanonicalDeepLinkRoutes(),
+        buildBrowseRoute(),
       ],
     );
     addTearDown(router.dispose);
@@ -58,16 +57,14 @@ void main() {
     return router;
   }
 
-  testWidgets('/browse redirects to the hub inside the search branch',
-      (tester) async {
-    final router = await pumpBrowseRoute(
-      tester,
-      initialLocation: '/browse',
-    );
+  testWidgets('the hub is a root route at /browse', (tester) async {
+    final router = await pumpBrowseRoute(tester);
 
     expect(find.text('Browse'), findsOneWidget);
     expect(
-        router.routerDelegate.currentConfiguration.uri.path, '/search/browse');
+      router.routerDelegate.currentConfiguration.uri.path,
+      '/browse',
+    );
   });
 
   testWidgets('YouTube Music card opens Search', (tester) async {

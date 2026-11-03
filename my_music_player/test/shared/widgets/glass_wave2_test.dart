@@ -19,6 +19,7 @@ import 'package:my_music_player/features/settings/data/models/app_settings_model
 import 'package:my_music_player/features/settings/presentation/providers/settings_provider.dart';
 import 'package:my_music_player/l10n/app_localizations.dart';
 import 'package:my_music_player/shared/widgets/app_bottom_nav.dart';
+import 'package:my_music_player/shared/widgets/app_chrome.dart';
 import 'package:my_music_player/shared/widgets/bottom_nav_scaffold.dart';
 import 'package:my_music_player/shared/widgets/glass_background.dart';
 import 'package:my_music_player/shared/widgets/glass_surface.dart';
@@ -87,18 +88,13 @@ class _RouteStub extends StatelessWidget {
   }
 }
 
-GoRouter _shellRouter({
-  GlassQuality glassQuality = GlassQuality.blurred,
-}) {
+GoRouter _shellRouter() {
   return GoRouter(
     initialLocation: '/',
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return BottomNavScaffold(
-            navigationShell: navigationShell,
-            glassQuality: glassQuality,
-          );
+          return BottomNavScaffold(navigationShell: navigationShell);
         },
         branches: [
           StatefulShellBranch(
@@ -139,7 +135,7 @@ Future<void> _pumpShell(
   bool disableAnimations = false,
   GlassQuality glassQuality = GlassQuality.blurred,
 }) async {
-  final router = _shellRouter(glassQuality: glassQuality);
+  final router = _shellRouter();
   addTearDown(router.dispose);
 
   await pumpApp(
@@ -166,7 +162,12 @@ Future<void> _pumpShell(
           final media = MediaQuery.of(context);
           return MediaQuery(
             data: media.copyWith(disableAnimations: disableAnimations),
-            child: child!,
+            child: AppChrome(
+              router: router,
+              miniPlayer: withTrack ? MiniPlayer(quality: glassQuality) : null,
+              glassQuality: glassQuality,
+              child: child ?? const SizedBox.shrink(),
+            ),
           );
         },
       ),
@@ -199,11 +200,11 @@ Future<void> _pumpHome(
         builder: (context, state) => const _RouteStub('search-route'),
       ),
       GoRoute(
-        path: '/library/downloaded',
+        path: '/downloaded',
         builder: (context, state) => const _RouteStub('downloaded-route'),
       ),
       GoRoute(
-        path: '/library/device-songs',
+        path: '/device-songs',
         builder: (context, state) => const _RouteStub('device-songs-route'),
       ),
       GoRoute(

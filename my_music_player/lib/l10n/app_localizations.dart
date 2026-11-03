@@ -2090,6 +2090,18 @@ abstract class AppLocalizations {
   /// **'Library'**
   String get shellTabLibrary;
 
+  /// No description provided for @miniPlayerOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open player'**
+  String get miniPlayerOpen;
+
+  /// No description provided for @miniPlayerProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback position'**
+  String get miniPlayerProgress;
+
   /// No description provided for @errorRouteNotFoundTitle.
   ///
   /// In en, this message translates to:

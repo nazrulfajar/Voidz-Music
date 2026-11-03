@@ -10,6 +10,7 @@ import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_list_tile.dart';
@@ -631,7 +632,7 @@ class _DeviceSongsScreenState extends ConsumerState<DeviceSongsScreen> {
                         ),
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 160)),
+                    const ChromeBottomSliver(),
                   ],
                 ),
               ),

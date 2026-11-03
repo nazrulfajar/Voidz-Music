@@ -24,17 +24,16 @@ class MiniPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(playerControllerProvider);
-    final track = playerState.currentTrack;
+    final track = ref.watch(
+      playerControllerProvider.select((state) => state.currentTrack),
+    );
+    final isPlaying = ref.watch(
+      playerControllerProvider.select((state) => state.isPlaying),
+    );
     if (track == null) return const SizedBox.shrink();
 
     final tokens = AppColors.of(context);
     final l10n = AppLocalizations.of(context);
-    final progress = playerState.duration.inMilliseconds > 0
-        ? (playerState.position.inMilliseconds /
-                playerState.duration.inMilliseconds)
-            .clamp(0.0, 1.0)
-        : 0.0;
     final textTheme = Theme.of(context).textTheme;
 
     void openPlayer() => context.push('/player');
@@ -50,100 +49,143 @@ class MiniPlayer extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: GestureDetector(
+          child: Semantics(
+            container: true,
+            button: true,
+            label: l10n.miniPlayerOpen,
             onTap: openPlayer,
-            onVerticalDragEnd: (details) {
-              if ((details.primaryVelocity ?? 0) < -100) openPlayer();
-            },
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 66),
-              child: GlassSurface.chrome(
-                quality: quality,
-                borderRadius: BorderRadius.circular(AppRadius.xxl),
-                child: Stack(
-                  children: [
-                    Row(
-                      children: [
-                        const SizedBox(width: 10),
-                        AppArtwork(
-                          localPath: track.localThumbnailPath,
-                          imageUrl: track.thumbnailUrl,
-                          size: 46,
-                          radius: AppRadius.md,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                track.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.titleSmall?.copyWith(
-                                  color: tokens.textPrimary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                track.artist,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: tokens.textSecondary,
-                                ),
-                              ),
-                            ],
+            child: GestureDetector(
+              excludeFromSemantics: true,
+              onTap: openPlayer,
+              onVerticalDragEnd: (details) {
+                if ((details.primaryVelocity ?? 0) < -100) openPlayer();
+              },
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 66),
+                child: GlassSurface.chrome(
+                  quality: quality,
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
+                  child: Stack(
+                    children: [
+                      Row(
+                        children: [
+                          const SizedBox(width: 10),
+                          ExcludeSemantics(
+                            child: AppArtwork(
+                              localPath: track.localThumbnailPath,
+                              imageUrl: track.thumbnailUrl,
+                              size: 46,
+                              radius: AppRadius.md,
+                            ),
                           ),
-                        ),
-                        AppIconButton(
-                          icon: Icons.skip_previous_rounded,
-                          semanticLabel: l10n.playerPrevious,
-                          iconSize: 18,
-                          filled: false,
-                          onPressed: previous,
-                        ),
-                        AppIconButton(
-                          icon: playerState.isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                          semanticLabel: playerState.isPlaying
-                              ? l10n.playerPause
-                              : l10n.commonPlay,
-                          iconSize: 18,
-                          filled: false,
-                          onPressed: toggle,
-                        ),
-                        AppIconButton(
-                          icon: Icons.skip_next_rounded,
-                          semanticLabel: l10n.playerNext,
-                          iconSize: 18,
-                          filled: false,
-                          onPressed: next,
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                    ),
-                    Positioned(
-                      left: 10,
-                      right: 10,
-                      bottom: 0,
-                      child: Container(
-                        height: 2,
-                        color: tokens.track,
-                        alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: progress,
-                          child: Container(color: tokens.accent),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  track.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.titleSmall?.copyWith(
+                                    color: tokens.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  track.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AppIconButton(
+                            icon: Icons.skip_previous_rounded,
+                            semanticLabel: l10n.playerPrevious,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: previous,
+                          ),
+                          AppIconButton(
+                            icon: isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            semanticLabel:
+                                isPlaying ? l10n.playerPause : l10n.commonPlay,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: toggle,
+                          ),
+                          AppIconButton(
+                            icon: Icons.skip_next_rounded,
+                            semanticLabel: l10n.playerNext,
+                            iconSize: 18,
+                            filled: false,
+                            onPressed: next,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                       ),
-                    ),
-                  ],
+                      const Positioned(
+                        left: 10,
+                        right: 10,
+                        bottom: 0,
+                        child: _MiniPlayerProgress(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Progress is isolated so the 200 ms position stream does not rebuild the
+/// glass chrome or its backdrop filter.
+class _MiniPlayerProgress extends ConsumerWidget {
+  const _MiniPlayerProgress();
+
+  String _format(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = AppColors.of(context);
+    final l10n = AppLocalizations.of(context);
+    final (position, duration) = ref.watch(
+      playerControllerProvider.select(
+        (state) => (state.position, state.duration),
+      ),
+    );
+    final progress = duration.inMilliseconds > 0
+        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Semantics(
+      container: true,
+      label: l10n.miniPlayerProgress,
+      value: '${_format(position)} / ${_format(duration)}',
+      child: ExcludeSemantics(
+        child: Container(
+          height: 2,
+          color: tokens.track,
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: progress,
+            child: Container(color: tokens.accent),
           ),
         ),
       ),

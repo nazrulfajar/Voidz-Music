@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/palette_provider.dart';
 import '../../../../shared/widgets/add_to_playlist_sheet.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -274,6 +275,7 @@ class PlaylistScreen extends ConsumerWidget {
             childCount: playlist.tracks.length + 1,
           ),
         ),
+        const ChromeBottomSliver(),
       ],
     );
   }

@@ -23,9 +23,6 @@ class AppSpacing {
   static const double xxl = 32.0;
   static const double xxxl = 48.0;
 
-  /// Bottom breathing room: mini-player 66 + navigation 72 + safe margins.
-  static const double bottomPlayerPadding = 190.0;
-
   static const double screenInset = 16.0;
   static const double sectionGap = 24.0;
 }

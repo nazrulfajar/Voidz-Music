@@ -9,6 +9,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_section_header.dart';
 import '../../../../shared/widgets/glass_surface.dart';
@@ -72,8 +73,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           backgroundColor: t.field,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding:
-                const EdgeInsets.only(bottom: AppSpacing.bottomPlayerPadding),
+            padding: EdgeInsets.only(
+              bottom: AppChromeInsets.bottomOf(context),
+            ),
             children: [
               Center(
                 child: ConstrainedBox(
@@ -327,8 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 icon: Icons.download_rounded,
                                 title: l10n.homeQuickDownloaded,
                                 meta: l10n.homeOfflineCache,
-                                onTap: () =>
-                                    context.push('/library/downloaded'),
+                                onTap: () => context.push('/downloaded'),
                               ),
                             ),
                             const SizedBox(width: AppSpacing.space3),
@@ -337,8 +338,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 icon: Icons.folder_outlined,
                                 title: l10n.homeDeviceSongs,
                                 meta: l10n.homeOnThisDevice,
-                                onTap: () =>
-                                    context.push('/library/device-songs'),
+                                onTap: () => context.push('/device-songs'),
                               ),
                             ),
                           ],

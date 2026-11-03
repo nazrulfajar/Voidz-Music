@@ -19,21 +19,23 @@ class AppShellLayout {
   static const double railWidth = 64.0;
   static const double railMaxHeight = 388.0;
   static const double railSideInset = 8.0;
-  static const double railContentInset = 96.0;
 
-  /// Gap between the rail and the page content: 96 - 8 - 64.
+  /// Gap between the rail and the page content: 96 - 8 - 64 at 1.0 text.
   static const double railContentGap = 24.0;
+
+  /// Rail width grows with the text scale so 200% labels are not clipped.
+  static double railWidthFor(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 2.0);
+    return railWidth * scale;
+  }
+
+  static double railContentInsetFor(BuildContext context) {
+    return railSideInset + railWidthFor(context) + railContentGap;
+  }
 
   static const double bottomNavHeight = 72.0;
   static const double miniPlayerHeight = 66.0;
   static const double shellGap = 8.0;
-
-  /// Approximate occupied height of the portrait bottom chrome.
-  static const double bottomChromeHeight =
-      miniPlayerHeight + bottomNavHeight + shellGap * 2;
-
-  /// Approximate occupied height of the rail shell bottom chrome.
-  static const double railBottomChromeHeight = miniPlayerHeight + shellGap * 2;
 }
 
 /// Floating pill navigation from `docs/DESIGN_SYSTEM.md` §6.1.
@@ -62,8 +64,10 @@ class AppBottomNav extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
-          child: SizedBox(
-            height: 72,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppShellLayout.bottomNavHeight,
+            ),
             child: GlassSurface.chrome(
               quality: quality,
               borderRadius: BorderRadius.circular(AppRadius.x5xl),
@@ -132,14 +136,14 @@ class AppNavigationRail extends StatelessWidget {
       ),
       child: SizedBox(
         key: const Key('app-navigation-rail'),
-        width: AppShellLayout.railWidth,
+        width: AppShellLayout.railWidthFor(context),
         height: double.infinity,
         child: GlassSurface.chrome(
           quality: quality,
           borderRadius: BorderRadius.circular(AppRadius.rail),
           child: NavigationRail(
             backgroundColor: Colors.transparent,
-            minWidth: AppShellLayout.railWidth,
+            minWidth: AppShellLayout.railWidthFor(context),
             selectedIndex: currentIndex,
             onDestinationSelected: onSelected,
             labelType: NavigationRailLabelType.all,
@@ -194,8 +198,7 @@ class _RailLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+      maxLines: 3,
       textAlign: TextAlign.center,
     );
   }
@@ -230,21 +233,25 @@ class _NavItem extends StatelessWidget {
         label: label,
         child: InkWell(
           onTap: onTap,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(selected ? activeIcon : icon, size: 21, color: iconColor),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.labelSmall?.copyWith(
-                  color: labelColor,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(selected ? activeIcon : icon, size: 21, color: iconColor),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: labelColor,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

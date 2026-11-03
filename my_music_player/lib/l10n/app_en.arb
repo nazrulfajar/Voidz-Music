@@ -780,6 +780,8 @@
   "shellTabHome": "Home",
   "shellTabSearch": "Search",
   "shellTabLibrary": "Library",
+  "miniPlayerOpen": "Open player",
+  "miniPlayerProgress": "Playback position",
   "errorRouteNotFoundTitle": "Page not found",
   "errorRouteNotFoundMessage": "We couldn't find that page. It may have moved or no longer exists.",
   "errorRouteGoHome": "Go Home"

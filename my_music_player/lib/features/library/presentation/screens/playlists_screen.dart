@@ -7,6 +7,7 @@ import '../../../../core/theme/app_glass.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
@@ -201,8 +202,8 @@ class _PlaylistsBody extends StatelessWidget {
         ),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.bottomPlayerPadding,
+            padding: EdgeInsets.only(
+              bottom: AppChromeInsets.bottomOf(context),
             ),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
@@ -309,7 +310,7 @@ class _PlaylistCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => context.push(
-            '/library/playlist-detail/${playlist.id}',
+            '/playlist-detail/${playlist.id}',
             extra: playlist,
           ),
           child: Column(

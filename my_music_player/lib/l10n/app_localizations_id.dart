@@ -1291,6 +1291,12 @@ class AppLocalizationsId extends AppLocalizations {
   String get shellTabLibrary => 'Library';
 
   @override
+  String get miniPlayerOpen => 'Buka pemutar';
+
+  @override
+  String get miniPlayerProgress => 'Posisi pemutaran';
+
+  @override
   String get errorRouteNotFoundTitle => 'Halaman tidak ditemukan';
 
   @override

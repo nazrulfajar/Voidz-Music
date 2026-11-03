@@ -7,6 +7,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../player/domain/entities/track.dart';
@@ -43,11 +44,11 @@ class BrowseScreen extends ConsumerWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.space4,
                 AppSpacing.space3,
                 AppSpacing.space4,
-                AppSpacing.bottomPlayerPadding,
+                AppChromeInsets.bottomOf(context),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -94,7 +95,7 @@ class BrowseScreen extends ConsumerWidget {
                     title: l10n.browseDeviceSongs,
                     subtitle: l10n.browseDeviceSongsSubtitle,
                     semanticLabel: l10n.browseDeviceSongsSemantics,
-                    onTap: () => context.go('/library/device-songs'),
+                    onTap: () => context.push('/device-songs'),
                   ),
                   const SizedBox(height: AppSpacing.space6),
                   Text(

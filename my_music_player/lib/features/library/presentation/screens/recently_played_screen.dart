@@ -8,6 +8,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_icon_button.dart';
 import '../../../../shared/widgets/app_section_header.dart';
@@ -267,8 +268,8 @@ class _History extends StatelessWidget {
 
     if (largeText) {
       return ListView(
-        padding: const EdgeInsets.only(
-          bottom: AppSpacing.bottomPlayerPadding,
+        padding: EdgeInsets.only(
+          bottom: AppChromeInsets.bottomOf(context),
         ),
         children: [
           summary,
@@ -295,8 +296,8 @@ class _History extends StatelessWidget {
         section,
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.bottomPlayerPadding,
+            padding: EdgeInsets.only(
+              bottom: AppChromeInsets.bottomOf(context),
             ),
             itemCount: data.tracks.length,
             separatorBuilder: (context, index) =>

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/widgets/app_artwork.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../player/domain/entities/track.dart';
 import '../../../player/presentation/providers/player_controller.dart';
@@ -68,17 +69,17 @@ class DailyMixScreen extends ConsumerWidget {
                 actionLabel: l10n.dailyMixSearch,
                 onAction: () => context.go('/search'),
                 secondaryLabel: l10n.dailyMixScanDevice,
-                onSecondaryAction: () => context.push('/library/device-songs'),
+                onSecondaryAction: () => context.push('/device-songs'),
               ),
             );
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               AppSpacing.screenInset,
               AppSpacing.space2,
               AppSpacing.screenInset,
-              AppSpacing.bottomPlayerPadding,
+              AppChromeInsets.bottomOf(context),
             ),
             children: [
               Center(

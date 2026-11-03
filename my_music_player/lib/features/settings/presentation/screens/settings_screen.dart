@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/glass_background.dart';
 import '../../../../shared/widgets/glass_surface.dart';
 import '../../../cache/presentation/providers/cache_stats_provider.dart';
@@ -57,11 +60,14 @@ class SettingsScreen extends ConsumerWidget {
             final crossfade = settings.crossfadeSeconds.clamp(0, 12);
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppSpacing.screenInset,
                 AppSpacing.space2,
                 AppSpacing.screenInset,
-                AppSpacing.space12,
+                math.max(
+                  AppSpacing.space12,
+                  AppChromeInsets.scrollBottomOf(context) + AppSpacing.space2,
+                ),
               ),
               children: [
                 _buildSectionTitle(tokens, l10n.settingsSectionPlayback),

@@ -8,6 +8,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../shared/providers/palette_provider.dart';
+import '../../../../shared/widgets/app_chrome_insets.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../player/presentation/providers/player_controller.dart';
 import '../../domain/entities/browse_models.dart';
@@ -393,7 +394,7 @@ class ArtistScreen extends ConsumerWidget {
             ),
           ),
         ],
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        const ChromeBottomSliver(),
       ],
     );
   }

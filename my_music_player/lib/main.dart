@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +10,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'shared/widgets/app_chrome.dart';
+import 'features/player/presentation/widgets/mini_player.dart';
 import 'core/constants/enums.dart';
 import 'core/utils/cache_dir_helper.dart';
 import 'features/player/data/datasources/audio_player_service.dart';
@@ -259,17 +262,31 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final goRouter = ref.watch(appRouterProvider);
+    final hasTrack = ref.watch(
+      playerControllerProvider.select((state) => state.currentTrack != null),
+    );
 
-    return VoidzApp(routerConfig: goRouter);
+    return VoidzApp(
+      routerConfig: goRouter,
+      miniPlayer: hasTrack ? const MiniPlayer() : null,
+    );
   }
 }
 
 /// Root `MaterialApp` whose theme follows [themeModeProvider] and whose
 /// locale follows the persisted [AppLanguageMode].
 class VoidzApp extends ConsumerWidget {
-  const VoidzApp({super.key, required this.routerConfig});
+  const VoidzApp({
+    super.key,
+    required this.routerConfig,
+    this.miniPlayer,
+  });
 
-  final RouterConfig<Object> routerConfig;
+  final GoRouter routerConfig;
+
+  /// Chrome injection point: the composition root owns the mini-player
+  /// instance so `shared/` never imports a feature widget.
+  final Widget? miniPlayer;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -289,6 +306,13 @@ class VoidzApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: routerConfig,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return AppChrome(
+          router: routerConfig,
+          miniPlayer: miniPlayer,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

@@ -7,10 +7,9 @@ import '../../features/browse/presentation/screens/browse_screen.dart';
 import '../../features/browse/presentation/screens/playlist_screen.dart';
 
 /// Single source of truth for browse detail routes.
-/// DRY: defined once, re-used in every StatefulShellBranch (Home/Search/Library).
-/// Premium apps (Spotify/Apple) have canonical `/artist/:id` etc. — we mount
-/// the same widget under each branch so `push` never forces tab switch,
-/// plus we also expose canonical top-level routes for external deep-links.
+///
+/// They are mounted on the root navigator, so a detail page never renders the
+/// tab navigation chrome. Canonical deep links use these same builders.
 
 CustomTransitionPage<T> _smooth<T>({
   required BuildContext context,
@@ -29,81 +28,119 @@ CustomTransitionPage<T> _smooth<T>({
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       );
-      final slide = Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(curved);
+      final slide = Tween<Offset>(
+        begin: const Offset(0, 0.04),
+        end: Offset.zero,
+      ).animate(curved);
       final secondaryFade = Tween<double>(begin: 1.0, end: 0.92).animate(
         CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeInCubic),
       );
       return FadeTransition(
         opacity: curved,
-        child: SlideTransition(position: slide, child: FadeTransition(opacity: secondaryFade, child: child)),
+        child: SlideTransition(
+          position: slide,
+          child: FadeTransition(opacity: secondaryFade, child: child),
+        ),
       );
     },
   );
 }
 
 GoRoute buildArtistRoute() => GoRoute(
-      path: 'artist/:id',
+      path: '/artist/:id',
       pageBuilder: (context, state) {
         final id = state.pathParameters['id']!;
-        return _smooth(context: context, state: state, child: ArtistScreen(artistId: id));
+        return _smooth(
+          context: context,
+          state: state,
+          child: ArtistScreen(artistId: id),
+        );
       },
     );
 
 GoRoute buildAlbumRoute() => GoRoute(
-      path: 'album/:id',
+      path: '/album/:id',
       pageBuilder: (context, state) {
         final id = state.pathParameters['id']!;
-        return _smooth(context: context, state: state, child: AlbumScreen(albumId: id));
+        return _smooth(
+          context: context,
+          state: state,
+          child: AlbumScreen(albumId: id),
+        );
       },
     );
 
 GoRoute buildPlaylistRoute() => GoRoute(
-      path: 'playlist/:id',
+      path: '/playlist/:id',
       pageBuilder: (context, state) {
         final id = state.pathParameters['id']!;
-        return _smooth(context: context, state: state, child: PlaylistScreen(playlistId: id));
+        return _smooth(
+          context: context,
+          state: state,
+          child: PlaylistScreen(playlistId: id),
+        );
       },
     );
 
-/// Browse hub child of the Search branch.
-///
-/// It lives inside the `StatefulShellRoute` so the bottom navigation and mini
-/// player stay visible. The canonical `/browse` deep-link redirects here
-/// (see [buildCanonicalDeepLinkRoutes]) instead of opening a second shell-less
-/// browse screen.
+/// Browse hub, a root detail page so the bottom navigation stays hidden.
 GoRoute buildBrowseRoute() => GoRoute(
-      path: 'browse',
-      pageBuilder: (context, state) =>
-          _smooth(context: context, state: state, child: const BrowseScreen()),
+      path: '/browse',
+      pageBuilder: (context, state) => _smooth(
+        context: context,
+        state: state,
+        child: const BrowseScreen(),
+      ),
     );
 
-/// Canonical top-level routes for external deep-links `myapp://artist/xyz`.
-/// They redirect to the current branch's artist route so tab state is preserved
-/// but deep-link still works. Alternatively they directly render the screen.
-List<GoRoute> buildCanonicalDeepLinkRoutes() => [
+/// Browse hub plus the canonical artist/album/playlist deep links.
+List<GoRoute> buildBrowseDetailRoutes() => [
+      buildBrowseRoute(),
+      buildArtistRoute(),
+      buildAlbumRoute(),
+      buildPlaylistRoute(),
+    ];
+
+/// Keeps pre-TASK-045 links working after details moved to the root navigator.
+List<GoRoute> buildLegacyDetailRedirects() => [
       GoRoute(
-        path: '/browse',
-        redirect: (context, state) => '/search/browse',
+        path: '/search/browse',
+        redirect: (context, state) => '/browse',
       ),
       GoRoute(
-        path: '/artist/:id',
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return _smooth(context: context, state: state, child: ArtistScreen(artistId: id));
-        },
+        path: '/search/artist/:id',
+        redirect: (context, state) => '/artist/${state.pathParameters['id']}',
       ),
       GoRoute(
-        path: '/album/:id',
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return _smooth(context: context, state: state, child: AlbumScreen(albumId: id));
-        },
+        path: '/search/album/:id',
+        redirect: (context, state) => '/album/${state.pathParameters['id']}',
       ),
       GoRoute(
-        path: '/playlist/:id',
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return _smooth(context: context, state: state, child: PlaylistScreen(playlistId: id));
-        },
+        path: '/search/playlist/:id',
+        redirect: (context, state) => '/playlist/${state.pathParameters['id']}',
+      ),
+      GoRoute(
+        path: '/library/downloaded',
+        redirect: (context, state) => '/downloaded',
+      ),
+      GoRoute(
+        path: '/library/device-songs',
+        redirect: (context, state) => '/device-songs',
+      ),
+      GoRoute(
+        path: '/library/recap',
+        redirect: (context, state) => '/recap',
+      ),
+      GoRoute(
+        path: '/library/recently-played',
+        redirect: (context, state) => '/recently-played',
+      ),
+      GoRoute(
+        path: '/library/playlists',
+        redirect: (context, state) => '/playlists',
+      ),
+      GoRoute(
+        path: '/library/playlist-detail/:id',
+        redirect: (context, state) =>
+            '/playlist-detail/${state.pathParameters['id']}',
       ),
     ];
