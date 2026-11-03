@@ -147,10 +147,11 @@ class AudioPlayerService {
     // 1. Local file cached — langsung file, tidak stat (Image/FileImage akan handle miss via errorBuilder)
     if (localPath != null && localPath.isNotEmpty) {
       try {
-        if (localPath.startsWith('/') ) {
+        if (localPath.startsWith('/')) {
           return Uri.file(localPath);
         }
-        if (localPath.startsWith('http://') || localPath.startsWith('https://')) {
+        if (localPath.startsWith('http://') ||
+            localPath.startsWith('https://')) {
           return Uri.parse(localPath);
         }
       } catch (_) {}
@@ -162,7 +163,7 @@ class AudioPlayerService {
         try {
           return Uri.parse(t);
         } catch (_) {}
-      } else if (t.startsWith('/') ) {
+      } else if (t.startsWith('/')) {
         // Tanpa stat — langsung file
         try {
           return Uri.file(t);
@@ -189,7 +190,9 @@ class AudioPlayerService {
         final f = File(thumbPath);
         if (await f.exists() && await f.length() > 1000) return;
         // Download thumb — pakai Dio ringan
-        final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 10), receiveTimeout: const Duration(seconds: 15)));
+        final dio = Dio(BaseOptions(
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 15)));
         await dio.download(remoteUrl, thumbPath);
       } catch (_) {}
     });
@@ -223,7 +226,8 @@ class AudioPlayerService {
     if (isLocal) {
       return AudioSource.file(url, tag: mediaItem);
     } else {
-      final proxiedUrl = LocalProxyServer.instance.addUrl(url);
+      final proxiedUrl =
+          LocalProxyServer.instance.addUrl(url, headers: headers);
       return AudioSource.uri(Uri.parse(proxiedUrl), tag: mediaItem);
     }
   }
@@ -242,7 +246,9 @@ class AudioPlayerService {
     if (artUri != null && artUri.isNotEmpty) {
       final t = artUri.trim();
       if (t.startsWith('http://') || t.startsWith('https://')) {
-        try { art = Uri.parse(t); } catch (_) {}
+        try {
+          art = Uri.parse(t);
+        } catch (_) {}
         _ensureThumbCached(id, t);
       } else if (t.startsWith('/')) {
         art = _resolveArtUri(localPath: t, remoteUrl: null);
@@ -267,7 +273,8 @@ class AudioPlayerService {
       );
     } else {
       // Use our LocalProxyServer to fetch the stream, bypassing ExoPlayer's HTTP limitations!
-      final proxiedUrl = LocalProxyServer.instance.addUrl(url);
+      final proxiedUrl =
+          LocalProxyServer.instance.addUrl(url, headers: headers);
 
       return AudioSource.uri(
         Uri.parse(proxiedUrl),

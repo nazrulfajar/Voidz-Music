@@ -3,6 +3,15 @@ import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
 import 'package:dio/dio.dart';
+import 'package:logger/logger.dart';
+import 'range_header.dart';
+
+class _ProxyTarget {
+  _ProxyTarget(this.url, this.headers);
+
+  String url;
+  final Map<String, String> headers;
+}
 
 class LocalProxyServer {
   static LocalProxyServer? _instance;
@@ -11,7 +20,7 @@ class LocalProxyServer {
   int get port => _port;
 
   // LRU map: keep insertion order, evict oldest not currently playing
-  final LinkedHashMap<String, String> _urlMap = LinkedHashMap();
+  final LinkedHashMap<String, _ProxyTarget> _urlMap = LinkedHashMap();
   String? _currentPlayingToken;
 
   // Singleton Dio for connection reuse
@@ -19,6 +28,12 @@ class LocalProxyServer {
     connectTimeout: const Duration(seconds: 15),
     receiveTimeout: const Duration(minutes: 5),
   ));
+
+  final Logger _log = Logger(printer: SimplePrinter(printTime: false));
+
+  // Fallback for callers that do not pass resolver headers.
+  static const _fallbackUserAgent =
+      'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip';
 
   // Callback to resolve fresh URL on 403/410
   Future<String?> Function(String expiredUrl)? onResolveExpired;
@@ -41,38 +56,39 @@ class LocalProxyServer {
       _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       _port = _server!.port;
     }
-    print('LocalProxyServer started on port $_port');
+    _log.i('LocalProxyServer started on port $_port');
 
     _server!.listen((HttpRequest request) async {
       try {
         final token = request.uri.queryParameters['token'];
-        if (token == null || !_urlMap.containsKey(token)) {
+        final target = token == null ? null : _urlMap[token];
+        if (token == null || target == null) {
           request.response.statusCode = HttpStatus.notFound;
           await request.response.close();
           return;
         }
 
         _currentPlayingToken = token;
-        var targetUrl = _urlMap[token]!;
         final dio = _dio;
 
         final headers = <String, dynamic>{
-          'User-Agent':
-              'com.google.android.youtube/18.43.34 (Linux; U; Android 13; en_US; Pixel 7 Pro Build/TQ3A.230901.001)',
+          ...target.headers,
           'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
         };
-
-        if (request.headers.value('range') != null) {
-          headers['Range'] = request.headers.value('range');
-        } else {
-          headers['Range'] = 'bytes=0-';
+        if (!headers.keys.any((key) => key.toLowerCase() == 'user-agent')) {
+          headers['User-Agent'] = _fallbackUserAgent;
         }
 
-        print('LocalProxyServer fetching: $targetUrl');
+        // googlevideo returns 403 for open-ended or oversized ranges.
+        // Always send a bounded range, even when ExoPlayer omits one.
+        final range = buildBoundedRange(request.headers.value('range'));
+        headers['Range'] = range;
+
+        _log.i('LocalProxyServer fetching: ${target.url}');
 
         Response<ResponseBody> response = await dio.get<ResponseBody>(
-          targetUrl,
+          target.url,
           options: Options(
             headers: headers,
             responseType: ResponseType.stream,
@@ -80,31 +96,37 @@ class LocalProxyServer {
           ),
         );
 
-        // 403/410 -> try re-resolve once via callback
+        // 403/410 can mean an expired URL, a stale IP-bound URL, or a
+        // preview cap. Try one fresh URL at the same offset; if the cap is
+        // the cause the retry will fail too and the player handles it.
         if ((response.statusCode == 403 || response.statusCode == 410) &&
             onResolveExpired != null) {
-          print('LocalProxyServer got ${response.statusCode}, trying re-resolve...');
+          _log.w(
+              'LocalProxyServer got ${response.statusCode}, trying re-resolve...');
           try {
-            final freshUrl = await onResolveExpired!(targetUrl);
-            if (freshUrl != null && freshUrl != targetUrl) {
-              _urlMap[token] = freshUrl;
-              targetUrl = freshUrl;
+            // Drain the rejected body before reusing the connection.
+            try {
+              await response.data?.stream.drain<void>();
+            } catch (_) {}
+            final freshUrl = await onResolveExpired!(target.url);
+            if (freshUrl != null && freshUrl != target.url) {
+              target.url = freshUrl;
               response = await dio.get<ResponseBody>(
-                targetUrl,
+                target.url,
                 options: Options(
                   headers: headers,
                   responseType: ResponseType.stream,
                   validateStatus: (status) => true,
                 ),
               );
-              print('LocalProxyServer retry status: ${response.statusCode}');
+              _log.i('LocalProxyServer retry status: ${response.statusCode}');
             }
           } catch (e) {
-            print('LocalProxyServer re-resolve failed: $e');
+            _log.e('LocalProxyServer re-resolve failed: $e');
           }
         }
 
-        print('LocalProxyServer received status: ${response.statusCode}');
+        _log.i('LocalProxyServer received status: ${response.statusCode}');
 
         request.response.statusCode = response.statusCode ?? 200;
 
@@ -125,9 +147,9 @@ class LocalProxyServer {
         } else {
           await request.response.close();
         }
-        print('LocalProxyServer finished streaming for $token');
+        _log.d('LocalProxyServer finished streaming for $token');
       } catch (e) {
-        print('LocalProxyServer error: $e');
+        _log.e('LocalProxyServer error: $e');
         try {
           request.response.statusCode = HttpStatus.internalServerError;
           await request.response.close();
@@ -152,12 +174,15 @@ class LocalProxyServer {
     _server = null;
   }
 
-  String addUrl(String url) {
+  String addUrl(String url, {Map<String, String>? headers}) {
     // Secure random token
     final rand = Random.secure();
     final token =
         '${DateTime.now().millisecondsSinceEpoch}_${rand.nextInt(1 << 32)}_${url.hashCode}';
-    _urlMap[token] = url;
+    _urlMap[token] = _ProxyTarget(
+      url,
+      headers == null ? const {} : Map<String, String>.from(headers),
+    );
 
     // LRU eviction keep 20, never evict currently playing
     if (_urlMap.length > 20) {
@@ -178,8 +203,9 @@ class LocalProxyServer {
 
   /// Update URL for existing token (used after re-resolve)
   void updateUrl(String token, String newUrl) {
-    if (_urlMap.containsKey(token)) {
-      _urlMap[token] = newUrl;
+    final target = _urlMap[token];
+    if (target != null) {
+      target.url = newUrl;
     }
   }
 }

@@ -117,6 +117,8 @@ class PlayerController extends StateNotifier<PlayerState> {
   Timer? _saveDebounce;
   final List<StreamSubscription> _subscriptions = [];
   int _consecutiveResolveFailures = 0;
+  String? _last403TrackId;
+  DateTime? _last403RestartAt;
 
   PlayerController(this._audioService, this._apiService, this._trackRepo,
       this._cacheDownloadService, this._ref)
@@ -323,23 +325,34 @@ class PlayerController extends StateNotifier<PlayerState> {
       // Try to re-resolve current track on 403/network error
       final current = state.currentTrack;
       if (current != null && e.toString().contains('403')) {
-        try {
-          final fresh = await _resolveTrack(current);
-          if (fresh != null && fresh.streamUrl != null) {
-            // Re-create source with fresh URL — premium: full MediaItem
-            final isLocal = fresh.isCached && fresh.localAudioPath != null;
-            final uri = isLocal ? fresh.localAudioPath! : fresh.streamUrl!;
-            final source = _audioService.createAudioSourceFromTrack(uri, fresh,
-                headers: _trackHeaders[fresh.sourceId], isLocal: isLocal);
-            // Keep queue in sync
-            _queue.replaceCurrent(fresh);
-            _syncQueueState();
-            await _audioService.player.setAudioSource(source);
-            await _audioService.player.play();
-            state = state.clearError();
-            return;
-          }
-        } catch (_) {}
+        // Allow one recovery per track per two minutes to avoid a restart
+        // loop when the fresh URL is still capped or the network is flaky.
+        final canRetry = _last403TrackId != current.sourceId ||
+            _last403RestartAt == null ||
+            DateTime.now().difference(_last403RestartAt!) >
+                const Duration(minutes: 2);
+        if (canRetry) {
+          _last403TrackId = current.sourceId;
+          _last403RestartAt = DateTime.now();
+          try {
+            final fresh = await _resolveTrack(current);
+            if (fresh != null && fresh.streamUrl != null) {
+              // Re-create source with fresh URL — premium: full MediaItem
+              final isLocal = fresh.isCached && fresh.localAudioPath != null;
+              final uri = isLocal ? fresh.localAudioPath! : fresh.streamUrl!;
+              final source = _audioService.createAudioSourceFromTrack(
+                  uri, fresh,
+                  headers: _trackHeaders[fresh.sourceId], isLocal: isLocal);
+              // Keep queue in sync
+              _queue.replaceCurrent(fresh);
+              _syncQueueState();
+              await _audioService.player.setAudioSource(source);
+              await _audioService.player.play();
+              state = state.clearError();
+              return;
+            }
+          } catch (_) {}
+        }
       }
       state = state.copyWith(
           errorMessage:
@@ -886,15 +899,22 @@ class PlayerController extends StateNotifier<PlayerState> {
       return null;
     }
 
+    // URLs from the old androidSdkless/ios clients only serve ~1 MiB on
+    // music content. Refresh them once so playback starts with VISIONOS.
+    final isLegacyClientUrl =
+        track.streamUrl != null && !track.streamUrl!.contains('c=VISIONOS');
+
     // Premium: pre-refresh if expires within 15m (YT Music behavior)
-    if (track.streamUrl != null &&
+    if (!isLegacyClientUrl &&
+        track.streamUrl != null &&
         track.streamUrlExpiresAt != null &&
         track.streamUrlExpiresAt!
             .isAfter(DateTime.now().add(const Duration(minutes: 15)))) {
       return track;
     }
     // If expires within 15m, treat as stale and re-resolve in background but still return current if not yet expired
-    final isExpiringSoon = track.streamUrl != null &&
+    final isExpiringSoon = !isLegacyClientUrl &&
+        track.streamUrl != null &&
         track.streamUrlExpiresAt != null &&
         track.streamUrlExpiresAt!.isAfter(DateTime.now()) &&
         track.streamUrlExpiresAt!
