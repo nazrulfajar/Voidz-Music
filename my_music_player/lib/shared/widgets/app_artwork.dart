@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
+import '../../core/utils/artwork_url.dart';
 
 /// Artwork with the single fallback used across the app.
 ///
@@ -28,35 +29,6 @@ class AppArtwork extends StatelessWidget {
   final IconData icon;
   final double? iconSize;
   final bool border;
-
-  static String _youtubeArtworkUrl(String url, int width) {
-    final uri = Uri.tryParse(url);
-    if (uri == null ||
-        uri.scheme != 'https' ||
-        uri.host != 'yt3.googleusercontent.com' ||
-        uri.userInfo.isNotEmpty ||
-        (uri.hasPort && uri.port != 443)) {
-      return url;
-    }
-
-    final match = RegExp(r'=w(\d+)-h(\d+)-l90-rj$').firstMatch(uri.path);
-    if (match == null) return url;
-    final sourceWidth = int.tryParse(match.group(1)!);
-    final sourceHeight = int.tryParse(match.group(2)!);
-    if (sourceWidth == null ||
-        sourceWidth <= 0 ||
-        sourceWidth != sourceHeight ||
-        sourceWidth >= width) {
-      return url;
-    }
-
-    final path = uri.path.replaceRange(
-      match.start,
-      match.end,
-      '=w$width-h$width-l90-rj',
-    );
-    return uri.replace(path: path).toString();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,8 +60,11 @@ class AppArtwork extends StatelessWidget {
       );
     } else if (imageUrl != null && imageUrl!.isNotEmpty) {
       final cacheWidth =
-          (size * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(1, 1024);
-      final resizedUrl = _youtubeArtworkUrl(imageUrl!, cacheWidth);
+          (size * MediaQuery.devicePixelRatioOf(context)).ceil().clamp(
+                1,
+                maxCachedArtworkWidth,
+              );
+      final resizedUrl = youtubeArtworkUrl(imageUrl!, cacheWidth);
 
       Widget networkImage(String url, {bool overlay = false}) {
         return CachedNetworkImage(
